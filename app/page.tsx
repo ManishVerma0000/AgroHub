@@ -1,4 +1,4 @@
-import styles from "./page.module.css";
+// Removed CSS module
 import StatCard from "../components/StatCard/StatCard";
 import QuickAction from "../components/QuickAction/QuickAction";
 import ActivityItem from "../components/ActivityItem/ActivityItem";
@@ -8,15 +8,15 @@ import { SVGProps } from "react";
 
 export default function Home() {
   return (
-    <div className={styles.dashboard}>
-      <header className={styles.header}>
+    <div className="max-w-[1200px] mx-auto flex flex-col gap-6">
+      <header className="mb-2">
         <div>
-          <h2 className={styles.pageTitle}>Dashboard</h2>
-          <p className={styles.pageSubtitle}>Welcome back! Here's what's happening with your marketplace.</p>
+          <h2 className="text-2xl font-bold text-[#111827] m-0 mb-1">Dashboard</h2>
+          <p className="text-sm text-[#6b7280] m-0">Welcome back! Here's what's happening with your marketplace.</p>
         </div>
       </header>
 
-      <section className={styles.statsGrid}>
+      <section className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
         <StatCard 
           title="Total Categories" value="24" subtext="+3 this month" theme="blue"
           icon={<TagIcon />} 
@@ -35,9 +35,9 @@ export default function Home() {
         />
       </section>
 
-      <section className={styles.sectionCard}>
-        <h3 className={styles.sectionTitle}>Quick Actions</h3>
-        <div className={styles.quickActionsGrid}>
+      <section className="bg-white border border-[#f3f4f6] rounded-xl p-6 shadow-sm">
+        <h3 className="text-lg font-semibold text-[#111827] m-0 mb-4">Quick Actions</h3>
+        <div className="flex gap-4 flex-wrap">
           <QuickAction label="Add Category" icon={<TagIcon />} theme="blue" />
           <QuickAction label="Add Subcategory" icon={<TagsIcon />} theme="purple" />
           <QuickAction label="Add Product" icon={<BoxIcon />} theme="green" />
@@ -45,12 +45,12 @@ export default function Home() {
         </div>
       </section>
 
-      <div className={styles.mainWidgets}>
-        <section className={styles.sectionCard}>
-          <div className={styles.sectionHeader}>
-            <h3 className={styles.sectionTitle}>Recent Activity</h3>
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+        <section className="bg-white border border-[#f3f4f6] rounded-xl p-6 shadow-sm">
+          <div className="mb-4">
+            <h3 className="text-lg font-semibold text-[#111827] m-0 mb-4">Recent Activity</h3>
           </div>
-          <div className={styles.activityList}>
+          <div className="flex flex-col">
             <ActivityItem 
               title="New product added" description="Organic Basmati Rice 5kg" time="2 min ago" dotColor="green"
             />
@@ -69,11 +69,11 @@ export default function Home() {
           </div>
         </section>
 
-        <section className={styles.sectionCard}>
-          <div className={styles.sectionHeader}>
-            <h3 className={styles.sectionTitle}>Top Products</h3>
+        <section className="bg-white border border-[#f3f4f6] rounded-xl p-6 shadow-sm">
+          <div className="mb-4">
+            <h3 className="text-lg font-semibold text-[#111827] m-0 mb-4">Top Products</h3>
           </div>
-          <div className={styles.productList}>
+          <div className="flex flex-col">
             <TopProductItem name="Organic Basmati Rice" details="Grains · B2C: ₹120 · B2B: ₹95/kg" status="Active" />
             <TopProductItem name="Fresh Turmeric Powder" details="Spices · B2C: ₹85 · B2B: ₹68/kg" status="Active" />
             <TopProductItem name="Red Chilli Whole" details="Spices · B2C: ₹110 · B2B: ₹88/kg" status="Active" />
@@ -83,7 +83,7 @@ export default function Home() {
         </section>
       </div>
 
-      <section className={styles.bottomStatsGrid}>
+      <section className="grid grid-cols-1 md:grid-cols-3 gap-6">
         <BottomStatCard title="B2B Orders This Month" value="₹4,52,000" theme="blue" icon={<TrendingUpIcon />} />
         <BottomStatCard title="B2C Orders This Month" value="₹1,28,500" theme="green" icon={<CartIcon />} />
         <BottomStatCard title="Active Buyers" value="2,341" theme="purple" icon={<UsersIcon />} />

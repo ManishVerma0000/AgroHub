@@ -2,7 +2,6 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import styles from "./Sidebar.module.css";
 import { SVGProps } from "react";
 
 export default function Sidebar() {
@@ -17,29 +16,33 @@ export default function Sidebar() {
   ];
 
   return (
-    <aside className={styles.sidebar}>
-      <div className={styles.logoSection}>
-        <div className={styles.logoIcon}>
+    <aside className="w-[260px] bg-white border-r border-[#f3f4f6] flex flex-col h-full shrink-0">
+      <div className="px-5 py-6 flex items-center gap-3 relative after:absolute after:top-1/2 after:-right-[14px] after:-translate-y-1/2 after:w-7 after:h-7 after:bg-white after:border after:border-[#f3f4f6] after:rounded-full after:z-10 after:flex after:justify-center after:items-center after:bg-no-repeat after:bg-center after:cursor-pointer after:bg-[url('data:image/svg+xml,%3Csvg xmlns=\'http://www.w3.org/2000/svg\' width=\'14\' height=\'14\' viewBox=\'0 0 24 24\' fill=\'none\' stroke=\'%23cbd5e1\' stroke-width=\'2\' stroke-linecap=\'round\' stroke-linejoin=\'round\'%3E%3Cpolyline points=\'15 18 9 12 15 6\'%3E%3C/polyline%3E%3C/svg%3E')]">
+        <div className="w-10 h-10 bg-[#07ac57] text-white rounded-lg flex items-center justify-center [&>svg]:w-5 [&>svg]:h-5">
           <LeafIcon />
         </div>
-        <div className={styles.logoText}>
-          <h1>AgroAdmin</h1>
-          <p>B2B & B2C Panel</p>
+        <div className="flex flex-col">
+          <h1 className="text-base font-bold text-[#111827] m-0 leading-tight">AgroAdmin</h1>
+          <p className="text-xs text-[#07ac57] font-medium m-0">B2B & B2C Panel</p>
         </div>
       </div>
       
-      <div className={styles.navSection}>
-        <p className={styles.navHeading}>NAVIGATION</p>
-        <nav className={styles.nav}>
+      <div className="py-5 flex-1">
+        <p className="text-[11px] font-semibold text-[#94a3b8] tracking-widest px-6 mb-3">NAVIGATION</p>
+        <nav className="flex flex-col gap-1">
           {navItems.map((item) => {
             const isActive = pathname === item.href;
             return (
               <Link 
                 href={item.href} 
                 key={item.href}
-                className={`${styles.navItem} ${isActive ? styles.active : ""}`}
+                className={`flex items-center gap-3 py-3 px-6 mx-2 rounded-lg text-sm transition-all relative ${
+                  isActive 
+                  ? 'bg-[#f2fcf6] text-[#07ac57] font-semibold before:absolute before:left-0 before:top-2 before:bottom-2 before:w-1 before:bg-[#07ac57] before:rounded-full [&>svg]:text-[#07ac57]' 
+                  : 'text-[#6b7280] font-medium hover:bg-[#f9fafb] hover:text-[#111827] [&>svg]:text-[#94a3b8]'
+                }`}
               >
-                <item.icon className={styles.icon} />
+                <item.icon className="w-5 h-5 shrink-0" />
                 <span>{item.label}</span>
               </Link>
             );
@@ -47,9 +50,9 @@ export default function Sidebar() {
         </nav>
       </div>
 
-      <div className={styles.footer}>
-        <div className={styles.profile}>
-          <ProfileIcon className={styles.profileIcon} />
+      <div className="py-5 px-6 border-t border-[#f3f4f6]">
+        <div className="flex items-center gap-3 text-[#111827] text-sm font-medium">
+          <ProfileIcon className="w-6 h-6 text-[#94a3b8]" />
           <span>Admin Profile</span>
         </div>
       </div>

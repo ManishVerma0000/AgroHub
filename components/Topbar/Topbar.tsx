@@ -1,27 +1,26 @@
-import styles from "./Topbar.module.css";
 import { SVGProps } from "react";
 
 export default function Topbar() {
   return (
-    <header className={styles.topbar}>
-      <div className={styles.searchContainer}>
-        <SearchIcon className={styles.searchIcon} />
-        <input type="text" placeholder="Search..." className={styles.searchInput} />
+    <header className="flex items-center justify-between py-4 px-8 bg-white border-b border-[#f3f4f6]">
+      <div className="flex items-center bg-[#f9fafb] border border-[#f3f4f6] rounded-lg py-2 px-4 w-[320px]">
+        <SearchIcon className="w-[18px] h-[18px] text-[#94a3b8] mr-2" />
+        <input type="text" placeholder="Search..." className="border-none bg-transparent outline-none text-sm w-full text-[#111827] placeholder:text-[#94a3b8]" />
       </div>
       
-      <div className={styles.actions}>
-        <button className={styles.quickAdd}>
-          <PlusIcon className={styles.plusIcon} />
+      <div className="flex items-center gap-6">
+        <button className="flex items-center gap-1.5 bg-[#07ac57] text-white border-none py-2 px-4 rounded-lg text-sm font-medium cursor-pointer transition-opacity hover:opacity-90">
+          <PlusIcon className="w-4 h-4" />
           Quick Add
         </button>
         
-        <div className={styles.notification}>
-          <BellIcon className={styles.bellIcon} />
-          <span className={styles.badge}></span>
+        <div className="relative cursor-pointer text-[#6b7280] flex items-center">
+          <BellIcon className="w-5 h-5" />
+          <span className="absolute -top-0.5 right-0 w-2 h-2 bg-red-500 rounded-full border-2 border-white"></span>
         </div>
         
-        <div className={styles.avatar}>
-          <span className={styles.avatarText}>A</span>
+        <div className="w-9 h-9 bg-[#07ac57] text-white rounded-full flex items-center justify-center font-semibold text-base cursor-pointer">
+          <span className="">A</span>
         </div>
       </div>
     </header>
