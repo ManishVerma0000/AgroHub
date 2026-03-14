@@ -5,10 +5,12 @@ import { Input } from '@/components/ui/Input';
 import { Button } from '@/components/ui/Button';
 
 interface WarehouseFormProps {
+  initialData?: any;
+  onSave: (data: any) => void;
   onCancel: () => void;
 }
 
-export function WarehouseForm({ onCancel }: WarehouseFormProps) {
+export function WarehouseForm({ initialData, onSave, onCancel }: WarehouseFormProps) {
   const [formData, setFormData] = useState({
     name: '',
     managerName: '',
@@ -20,10 +22,31 @@ export function WarehouseForm({ onCancel }: WarehouseFormProps) {
     pinCode: '',
   });
 
+  React.useEffect(() => {
+    if (initialData) {
+      setFormData({
+        name: initialData.name || '',
+        managerName: initialData.manager || '',
+        contactNumber: initialData.contact || '',
+        emailId: initialData.email || '',
+        fullAddress: initialData.location || '',
+        state: initialData.state || '',
+        city: initialData.city || '',
+        pinCode: initialData.pinCode || '',
+      });
+    }
+  }, [initialData]);
+
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     console.log('Warehouse Form Submitted:', formData);
-    onCancel();
+    onSave({
+      name: formData.name,
+      manager: formData.managerName,
+      contact: formData.contactNumber,
+      location: formData.fullAddress,
+      status: 'Active'
+    });
   };
 
   return (
@@ -108,7 +131,7 @@ export function WarehouseForm({ onCancel }: WarehouseFormProps) {
           Cancel
         </Button>
         <Button type="submit">
-          Save Warehouse
+          {initialData ? 'Update Warehouse' : 'Save Warehouse'}
         </Button>
       </div>
     </form>

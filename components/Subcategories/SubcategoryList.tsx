@@ -1,28 +1,30 @@
-'use client';
-
 import React, { useState } from 'react';
 import { DataTable, Column } from '@/components/ui/DataTable';
 import { Badge } from '@/components/ui/Badge';
 import { Select } from '@/components/ui/Select';
+import { ConfirmDeleteModal } from '@/components/ui/ConfirmDeleteModal';
 
-interface SubcategoryData {
+export interface SubcategoryData {
   id: string;
   name: string;
   category: string;
+  description?: string;
   hsnCodesCount: number;
+  hsnCodes?: { code: string; gst: string }[];
   status: 'Active' | 'Inactive';
   createdDate: string;
 }
 
-const mockData: SubcategoryData[] = [
-  { id: '1', name: 'Toor Dal', category: 'Pulses & Legumes', hsnCodesCount: 0, status: 'Inactive', createdDate: '2026-02-05' },
-  { id: '2', name: 'Turmeric Powder', category: 'Spices & Herbs', hsnCodesCount: 1, status: 'Active', createdDate: '2026-02-01' },
-  { id: '3', name: 'Fresh Tomatoes', category: 'Fruits & Vegetables', hsnCodesCount: 1, status: 'Active', createdDate: '2026-01-18' },
-  { id: '4', name: 'Basmati Rice', category: 'Grains & Cereals', hsnCodesCount: 1, status: 'Active', createdDate: '2026-01-15' },
-];
+interface SubcategoryListProps {
+  data: SubcategoryData[];
+  onEdit: (item: SubcategoryData) => void;
+  onDelete: (id: string) => void;
+}
 
-export function SubcategoryList() {
+export function SubcategoryList({ data, onEdit, onDelete }: SubcategoryListProps) {
   const [searchTerm, setSearchTerm] = useState('');
+  const [deleteModalOpen, setDeleteModalOpen] = useState(false);
+  const [itemToDelete, setItemToDelete] = useState<SubcategoryData | null>(null);
 
   const columns: Column<SubcategoryData>[] = [
     {
@@ -66,12 +68,21 @@ export function SubcategoryList() {
     },
     {
       header: 'Actions',
-      cell: () => (
+      cell: (item) => (
         <div className="flex gap-2">
-          <button className="text-blue-500 hover:text-blue-700">
+          <button 
+            className="text-blue-500 hover:text-blue-700"
+            onClick={() => onEdit(item)}
+          >
             <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M17 3a2.85 2.83 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5Z"/><path d="m15 5 4 4"/></svg>
           </button>
-          <button className="text-red-500 hover:text-red-700">
+          <button 
+            className="text-red-500 hover:text-red-700"
+            onClick={() => {
+              setItemToDelete(item);
+              setDeleteModalOpen(true);
+            }}
+          >
             <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M3 6h18"/><path d="M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6"/><path d="M8 6V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2"/></svg>
           </button>
         </div>
@@ -79,10 +90,11 @@ export function SubcategoryList() {
     }
   ];
 
-  const filteredData = mockData.filter(d => d.name.toLowerCase().includes(searchTerm.toLowerCase()));
+  const filteredData = data.filter(d => d.name.toLowerCase().includes(searchTerm.toLowerCase()));
 
   return (
-    <DataTable 
+    <>
+      <DataTable 
       columns={columns} 
       data={filteredData} 
       searchPlaceholder="Search subcategories..."
@@ -115,5 +127,20 @@ export function SubcategoryList() {
         onPrev: () => {}
       }}
     />
+
+      <ConfirmDeleteModal 
+        isOpen={deleteModalOpen}
+        onClose={() => {
+          setDeleteModalOpen(false);
+          setItemToDelete(null);
+        }}
+        onConfirm={() => {
+          if (itemToDelete) {
+            onDelete(itemToDelete.id);
+          }
+        }}
+        itemName={itemToDelete?.name}
+      />
+    </>
   );
 }

@@ -1,15 +1,17 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Input } from '@/components/ui/Input';
 import { ImageUpload } from '@/components/ui/ImageUpload';
 import { Button } from '@/components/ui/Button';
 
 interface CategoryFormProps {
+  initialData?: any;
+  onSave: (data: any) => void;
   onCancel: () => void;
 }
 
-export function CategoryForm({ onCancel }: CategoryFormProps) {
+export function CategoryForm({ initialData, onSave, onCancel }: CategoryFormProps) {
   const [formData, setFormData] = useState({
     name: '',
     priority: '',
@@ -18,11 +20,24 @@ export function CategoryForm({ onCancel }: CategoryFormProps) {
 
   const [image, setImage] = useState<File | null>(null);
 
+  useEffect(() => {
+    if (initialData) {
+      setFormData({
+        name: initialData.name || '',
+        priority: initialData.priority?.toString() || '',
+        description: initialData.description || '',
+      });
+    }
+  }, [initialData]);
+
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     console.log('Category Form Submitted:', { ...formData, image });
-    // Simulate successful save
-    onCancel();
+    onSave({
+      name: formData.name,
+      priority: parseInt(formData.priority, 10),
+      description: formData.description,
+    });
   };
 
   return (
@@ -69,7 +84,7 @@ export function CategoryForm({ onCancel }: CategoryFormProps) {
           Cancel
         </Button>
         <Button type="submit">
-          Save Category
+          {initialData ? 'Update Category' : 'Save Category'}
         </Button>
       </div>
     </form>

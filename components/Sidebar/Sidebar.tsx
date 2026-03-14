@@ -18,7 +18,7 @@ export default function Sidebar() {
   ];
 
   return (
-    <aside className="w-[260px] bg-white border-r border-[#f3f4f6] flex flex-col h-full shrink-0">
+    <aside className="w-[300px] bg-white border-r border-[#f3f4f6] flex flex-col h-full shrink-0">
       <div className="px-5 py-6 flex items-center gap-3 relative after:absolute after:top-1/2 after:-right-[14px] after:-translate-y-1/2 after:w-7 after:h-7 after:bg-white after:border after:border-[#f3f4f6] after:rounded-full after:z-10 after:flex after:justify-center after:items-center after:bg-no-repeat after:bg-center after:cursor-pointer after:bg-[url('data:image/svg+xml,%3Csvg xmlns=\'http://www.w3.org/2000/svg\' width=\'14\' height=\'14\' viewBox=\'0 0 24 24\' fill=\'none\' stroke=\'%23cbd5e1\' stroke-width=\'2\' stroke-linecap=\'round\' stroke-linejoin=\'round\'%3E%3Cpolyline points=\'15 18 9 12 15 6\'%3E%3C/polyline%3E%3C/svg%3E')]">
         <div className="w-10 h-10 bg-[#07ac57] text-white rounded-lg flex items-center justify-center [&>svg]:w-5 [&>svg]:h-5">
           <LeafIcon />

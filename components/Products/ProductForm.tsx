@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Input } from '@/components/ui/Input';
 import { Select } from '@/components/ui/Select';
 import { Button } from '@/components/ui/Button';
@@ -8,10 +8,12 @@ import { Toggle } from '@/components/ui/Toggle';
 import { ImageUpload } from '@/components/ui/ImageUpload';
 
 interface ProductFormProps {
+  initialData?: any;
+  onSave: (data: any) => void;
   onCancel: () => void;
 }
 
-export function ProductForm({ onCancel }: ProductFormProps) {
+export function ProductForm({ initialData, onSave, onCancel }: ProductFormProps) {
   const [formData, setFormData] = useState({
     title: '',
     category: '',
@@ -31,6 +33,37 @@ export function ProductForm({ onCancel }: ProductFormProps) {
   const [variations, setVariations] = useState([{ quantity: '', price: '', sellingPrice: '' }]);
   const [image, setImage] = useState<File | null>(null);
 
+  useEffect(() => {
+    if (initialData) {
+      // Find the value for select by generic text matching or defaulting
+      let catValue = '';
+      if (initialData.category?.includes('Fruits')) catValue = 'fruits';
+      else if (initialData.category?.includes('Grains')) catValue = 'grains';
+      else if (initialData.category?.includes('Spices')) catValue = 'spices';
+      else if (initialData.category?.includes('Pulses')) catValue = 'pulses';
+
+      setFormData({
+        title: initialData.name || '',
+        category: catValue || 'fruits', // Fallback
+        hsn: initialData.hsn || '',
+        mrp: initialData.mrp || '', // This could be extracted from basePrice if needed
+        baseUnit: 'kg', // Defaulting as mock doesn't have it
+        basePrice: initialData.basePrice?.replace(/[^0-9.]/g, '') || '', // Extract number from string like '₹80/Kg'
+        status: initialData.status === 'Active',
+        description: initialData.description || '',
+        organic: initialData.organic || false,
+        origin: initialData.origin || '',
+        shelfLife: initialData.shelfLife || '',
+        storage: initialData.storage || '',
+        b2bEnabled: initialData.b2b === 'Enabled'
+      });
+
+      if (initialData.variations && initialData.variations.length > 0) {
+        setVariations(initialData.variations);
+      }
+    }
+  }, [initialData]);
+
   const handleAddVarRow = () => {
     setVariations([...variations, { quantity: '', price: '', sellingPrice: '' }]);
   };
@@ -49,7 +82,23 @@ export function ProductForm({ onCancel }: ProductFormProps) {
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     console.log('Product Form Submitted:', { ...formData, variations, image });
-    onCancel();
+    
+    // Map form data back to table data structure
+    let categoryDisplay = formData.category;
+    if (formData.category === 'fruits') categoryDisplay = 'Fruits & Vegetables';
+    if (formData.category === 'grains') categoryDisplay = 'Grains & Cereals';
+    if (formData.category === 'spices') categoryDisplay = 'Spices & Herbs';
+    if (formData.category === 'pulses') categoryDisplay = 'Pulses & Legumes';
+
+    onSave({
+      name: formData.title,
+      category: categoryDisplay,
+      hsn: formData.hsn,
+      basePrice: `₹${formData.basePrice}/${formData.baseUnit==='g' ? 'g' : formData.baseUnit==='pc' ? 'pc' : formData.baseUnit==='l' ? 'L' : 'Kg'}`,
+      b2b: formData.b2bEnabled ? 'Enabled' : 'Off',
+      status: formData.status ? 'Active' : 'Inactive',
+      variations: variations
+    });
   };
 
   return (
@@ -273,7 +322,7 @@ export function ProductForm({ onCancel }: ProductFormProps) {
           Cancel
         </Button>
         <Button type="submit">
-          Save Product
+          {initialData ? 'Update Product' : 'Save Product'}
         </Button>
       </div>
     </form>

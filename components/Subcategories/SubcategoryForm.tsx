@@ -1,22 +1,45 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Input } from '@/components/ui/Input';
 import { Select } from '@/components/ui/Select';
 import { Button } from '@/components/ui/Button';
 
 interface SubcategoryFormProps {
+  initialData?: any;
+  onSave: (data: any) => void;
   onCancel: () => void;
 }
 
-export function SubcategoryForm({ onCancel }: SubcategoryFormProps) {
+export function SubcategoryForm({ initialData, onSave, onCancel }: SubcategoryFormProps) {
   const [formData, setFormData] = useState({
-    parentCategory: '',
+    category: '',
     name: '',
     description: '',
   });
 
   const [hsnCodes, setHsnCodes] = useState([{ code: '', gst: '' }]);
+
+  useEffect(() => {
+    if (initialData) {
+      // Find the value for select by generic text matching or defaulting
+      let catValue = '';
+      if (initialData.category.includes('Fruits')) catValue = 'fruits';
+      else if (initialData.category.includes('Grains')) catValue = 'grains';
+      else if (initialData.category.includes('Spices')) catValue = 'spices';
+      else if (initialData.category.includes('Pulses')) catValue = 'pulses';
+
+      setFormData({
+        category: catValue || 'fruits', // Fallback
+        name: initialData.name || '',
+        description: initialData.description || '',
+      });
+
+      if (initialData.hsnCodes && initialData.hsnCodes.length > 0) {
+        setHsnCodes(initialData.hsnCodes);
+      }
+    }
+  }, [initialData]);
 
   const handleAddHsnRow = () => {
     setHsnCodes([...hsnCodes, { code: '', gst: '' }]);
@@ -36,7 +59,20 @@ export function SubcategoryForm({ onCancel }: SubcategoryFormProps) {
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     console.log('Subcategory Form Submitted:', { ...formData, hsnCodes });
-    onCancel();
+    
+    // Convert Select value back to display value for the table
+    let categoryDisplay = formData.category;
+    if (formData.category === 'fruits') categoryDisplay = 'Fruits & Vegetables';
+    if (formData.category === 'grains') categoryDisplay = 'Grains & Cereals';
+    if (formData.category === 'spices') categoryDisplay = 'Spices & Herbs';
+    if (formData.category === 'pulses') categoryDisplay = 'Pulses & Legumes';
+
+    onSave({
+      name: formData.name,
+      category: categoryDisplay,
+      description: formData.description,
+      hsnCodes: hsnCodes
+    });
   };
 
   return (
@@ -50,9 +86,10 @@ export function SubcategoryForm({ onCancel }: SubcategoryFormProps) {
               { label: 'Fruits & Vegetables', value: 'fruits' },
               { label: 'Grains & Cereals', value: 'grains' },
               { label: 'Spices & Herbs', value: 'spices' },
+              { label: 'Pulses & Legumes', value: 'pulses' },
             ]}
-            value={formData.parentCategory}
-            onChange={(e) => setFormData({...formData, parentCategory: e.target.value})}
+            value={formData.category}
+            onChange={(e) => setFormData({...formData, category: e.target.value})}
             required
           />
           <Input 
@@ -131,7 +168,7 @@ export function SubcategoryForm({ onCancel }: SubcategoryFormProps) {
           Cancel
         </Button>
         <Button type="submit">
-          Save Subcategory
+          {initialData ? 'Update Subcategory' : 'Save Subcategory'}
         </Button>
       </div>
     </form>
