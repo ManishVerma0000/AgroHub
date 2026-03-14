@@ -22,7 +22,7 @@ export default function Home() {
           icon={<TagIcon />} 
         />
         <StatCard 
-          title="Subcategories" value="87" subtext="+12 this month" theme="purple"
+          title="Sub Categories" value="87" subtext="+12 this month" theme="purple"
           icon={<TagsIcon />} 
         />
         <StatCard 
@@ -30,7 +30,7 @@ export default function Home() {
           icon={<BoxIcon />} 
         />
         <StatCard 
-          title="Warehouses" value="8" subtext="+1 this month" theme="orange"
+          title="Ware Houses" value="8" subtext="+1 this month" theme="orange"
           icon={<WarehouseIcon />} 
         />
       </section>
