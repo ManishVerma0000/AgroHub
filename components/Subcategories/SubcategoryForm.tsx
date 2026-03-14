@@ -203,7 +203,7 @@ export function SubcategoryForm({ initialData, onSave, onCancel }: SubcategoryFo
       <div className="flex items-center justify-between pt-6 border-t border-[#f3f4f6]">
         <StatusToggle 
           label="Status"
-          initialValue={formData.status === 'Active'}
+          // initialValue={formData.status === 'Active'}
           onChange={(val) => setFormData({...formData, status: val ? 'Active' : 'Inactive'})}
         />
         <div className="flex gap-4">
