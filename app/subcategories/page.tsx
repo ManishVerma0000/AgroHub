@@ -1,20 +1,28 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { PageHeader } from '@/components/ui/PageHeader';
 import { Button } from '@/components/ui/Button';
 import { SubcategoryList, SubcategoryData } from '@/components/Subcategories/SubcategoryList';
 import { SubcategoryForm } from '@/components/Subcategories/SubcategoryForm';
+import toast from 'react-hot-toast';
 
-const initialMockData: SubcategoryData[] = [
-  { id: '1', name: 'Toor Dal', category: 'Pulses & Legumes', hsnCodesCount: 0, status: 'Inactive', createdDate: '2026-02-05', hsnCodes: [] },
-  { id: '2', name: 'Turmeric Powder', category: 'Spices & Herbs', hsnCodesCount: 1, status: 'Active', createdDate: '2026-02-01', hsnCodes: [{ code: '0910', gst: '5' }] },
-  { id: '3', name: 'Fresh Tomatoes', category: 'Fruits & Vegetables', hsnCodesCount: 1, status: 'Active', createdDate: '2026-01-18', hsnCodes: [{ code: '0702', gst: '0' }] },
-  { id: '4', name: 'Basmati Rice', category: 'Grains & Cereals', hsnCodesCount: 1, status: 'Active', createdDate: '2026-01-15', hsnCodes: [{ code: '1006', gst: '5' }] },
-];
+import { subcategoryService } from '@/services/subcategoryService';
 
 export default function SubcategoriesPage() {
-  const [data, setData] = useState<SubcategoryData[]>(initialMockData);
+  const [data, setData] = useState<SubcategoryData[]>([]);
+
+  useEffect(() => {
+    const fetchSubcategories = async () => {
+      try {
+        const result = await subcategoryService.getAll();
+        setData(result);
+      } catch (error) {
+        console.error('Failed to fetch subcategories:', error);
+      }
+    };
+    fetchSubcategories();
+  }, []);
   const [isAdding, setIsAdding] = useState(false);
   const [editingItem, setEditingItem] = useState<SubcategoryData | null>(null);
 
@@ -23,24 +31,38 @@ export default function SubcategoriesPage() {
     setIsAdding(true);
   };
 
-  const handleDelete = (id: string) => {
-    setData(data.filter(item => item.id !== id));
+  const handleDelete = async (id: string) => {
+    try {
+      await subcategoryService.delete(id);
+      setData(data.filter(item => item.id !== id));
+      toast.success('Subcategory deleted successfully');
+    } catch (error) {
+      console.error('Failed to delete subcategory:', error);
+      toast.error('Failed to delete subcategory');
+    }
   };
 
-  const handleSave = (savedData: any) => {
-    if (editingItem) {
-      // Update existing
-      setData(data.map(item => item.id === editingItem.id ? { ...item, ...savedData, hsnCodesCount: savedData.hsnCodes.length } as SubcategoryData : item));
-    } else {
-      // Add new
-      const newItem: SubcategoryData = {
-        ...savedData,
-        hsnCodesCount: savedData.hsnCodes.length,
-        id: Math.random().toString(36).substr(2, 9),
-        status: 'Active',
-        createdDate: new Date().toISOString().split('T')[0]
-      };
-      setData([newItem, ...data]);
+  const handleSave = async (savedData: any) => {
+    try {
+      if (editingItem) {
+        // Update existing
+        const result = await subcategoryService.update(editingItem.id, { ...savedData, hsnCodesCount: savedData.hsnCodes.length });
+        setData(data.map(item => item.id === editingItem.id ? result : item));
+        toast.success('Subcategory updated successfully');
+      } else {
+        // Add new
+        const newItem = await subcategoryService.create({
+          ...savedData,
+          hsnCodesCount: savedData.hsnCodes.length,
+          status: 'Active',
+          createdDate: new Date().toISOString().split('T')[0]
+        });
+        setData([newItem, ...data]);
+        toast.success('Subcategory added successfully');
+      }
+    } catch (error) {
+      console.error('Failed to save subcategory:', error);
+      toast.error('Failed to save subcategory');
     }
     setIsAdding(false);
     setEditingItem(null);

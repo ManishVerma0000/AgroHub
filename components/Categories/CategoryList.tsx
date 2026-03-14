@@ -9,7 +9,7 @@ export interface CategoryData {
   name: string;
   description: string;
   priority: number;
-  status: 'Active' | 'Inactive';
+  status: boolean;
   createdDate: string;
 }
 
@@ -51,7 +51,7 @@ export function CategoryList({ data, onEdit, onDelete }: CategoryListProps) {
     {
       header: 'Status',
       cell: (item) => (
-        <Badge variant={item.status === 'Active' ? 'success' : 'neutral'}>
+        <Badge variant={item.status === false ? 'success' : 'neutral'}>
           {item.status}
         </Badge>
       )

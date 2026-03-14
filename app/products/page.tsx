@@ -1,18 +1,28 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { PageHeader } from '@/components/ui/PageHeader';
 import { Button } from '@/components/ui/Button';
 import { ProductList, ProductData } from '@/components/Products/ProductList';
 import { ProductForm } from '@/components/Products/ProductForm';
+import toast from 'react-hot-toast';
 
-const initialMockData: ProductData[] = [
-  { id: '1', code: 'SP-001', name: 'Fresh Turmeric Powder', category: 'Spices & Herbs', hsn: '0910', basePrice: '₹80/Kg', b2b: 'Off', status: 'Active', createdDate: '2026-02-01' },
-  { id: '2', code: 'GR-001', name: 'Organic Basmati Rice', category: 'Grains & Cereals', hsn: '1006', basePrice: '₹120/Kg', b2b: 'Enabled', status: 'Active', createdDate: '2026-01-15' },
-];
+import { productService } from '@/services/productService';
 
 export default function ProductsPage() {
-  const [data, setData] = useState<ProductData[]>(initialMockData);
+  const [data, setData] = useState<ProductData[]>([]);
+
+  useEffect(() => {
+    const fetchProducts = async () => {
+      try {
+        const result = await productService.getAll();
+        setData(result);
+      } catch (error) {
+        console.error('Failed to fetch products:', error);
+      }
+    };
+    fetchProducts();
+  }, []);
   const [isAdding, setIsAdding] = useState(false);
   const [editingItem, setEditingItem] = useState<ProductData | null>(null);
 
@@ -21,23 +31,37 @@ export default function ProductsPage() {
     setIsAdding(true);
   };
 
-  const handleDelete = (id: string) => {
-    setData(data.filter(item => item.id !== id));
+  const handleDelete = async (id: string) => {
+    try {
+      await productService.delete(id);
+      setData(data.filter(item => item.id !== id));
+      toast.success('Product deleted successfully');
+    } catch (error) {
+      console.error('Failed to delete product:', error);
+      toast.error('Failed to delete product');
+    }
   };
 
-  const handleSave = (savedData: any) => {
-    if (editingItem) {
-      // Update existing
-      setData(data.map(item => item.id === editingItem.id ? { ...item, ...savedData } as ProductData : item));
-    } else {
-      // Add new
-      const newItem: ProductData = {
-        ...savedData,
-        code: `PR-${Math.random().toString(36).substr(2, 5).toUpperCase()}`,
-        id: Math.random().toString(36).substr(2, 9),
-        createdDate: new Date().toISOString().split('T')[0]
-      };
-      setData([newItem, ...data]);
+  const handleSave = async (savedData: any) => {
+    try {
+      if (editingItem) {
+        // Update existing
+        const result = await productService.update(editingItem.id, savedData);
+        setData(data.map(item => item.id === editingItem.id ? result : item));
+        toast.success('Product updated successfully');
+      } else {
+        // Add new
+        const newItem = await productService.create({
+          ...savedData,
+          code: `PR-${Math.random().toString(36).substr(2, 5).toUpperCase()}`,
+          createdDate: new Date().toISOString().split('T')[0]
+        });
+        setData([newItem, ...data]);
+        toast.success('Product added successfully');
+      }
+    } catch (error) {
+      console.error('Failed to save product:', error);
+      toast.error('Failed to save product');
     }
     setIsAdding(false);
     setEditingItem(null);

@@ -1,20 +1,28 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { PageHeader } from '@/components/ui/PageHeader';
 import { Button } from '@/components/ui/Button';
 import { WarehouseList, WarehouseData } from '@/components/Warehouse/WarehouseList';
 import { WarehouseForm } from '@/components/Warehouse/WarehouseForm';
+import toast from 'react-hot-toast';
 
-const initialMockData: WarehouseData[] = [
-  { id: '1', name: 'West Zone Hub', manager: 'Amit Desai', contact: '+91 9876543210', location: 'Navi Mumbai, Maharashtra', status: 'Active', createdDate: '2026-03-01' },
-  { id: '2', name: 'North Region Cold', manager: 'Priya Sharma', contact: '+91 9123456780', location: 'Sonipat, Haryana', status: 'Active', createdDate: '2026-02-15' },
-  { id: '3', name: 'South Transit', manager: 'Rahul Kumar', contact: '+91 8876543210', location: 'Bangalore, Karnataka', status: 'Inactive', createdDate: '2026-01-20' },
-  { id: '4', name: 'East Main', manager: 'Sneha Roy', contact: '+91 7876543210', location: 'Kolkata, West Bengal', status: 'Active', createdDate: '2025-12-05' },
-];
+import { warehouseService } from '@/services/warehouseService';
 
 export default function WarehousePage() {
-  const [data, setData] = useState<WarehouseData[]>(initialMockData);
+  const [data, setData] = useState<WarehouseData[]>([]);
+
+  useEffect(() => {
+    const fetchWarehouses = async () => {
+      try {
+        const result = await warehouseService.getAll();
+        setData(result);
+      } catch (error) {
+        console.error('Failed to fetch warehouses:', error);
+      }
+    };
+    fetchWarehouses();
+  }, []);
   const [isAdding, setIsAdding] = useState(false);
   const [editingItem, setEditingItem] = useState<WarehouseData | null>(null);
 
@@ -23,23 +31,37 @@ export default function WarehousePage() {
     setIsAdding(true);
   };
 
-  const handleDelete = (id: string) => {
-    setData(data.filter(item => item.id !== id));
+  const handleDelete = async (id: string) => {
+    try {
+      await warehouseService.delete(id);
+      setData(data.filter(item => item.id !== id));
+      toast.success('Warehouse deleted successfully');
+    } catch (error) {
+      console.error('Failed to delete warehouse:', error);
+      toast.error('Failed to delete warehouse');
+    }
   };
 
-  const handleSave = (savedData: any) => {
-    if (editingItem) {
-      // Update existing
-      setData(data.map(item => item.id === editingItem.id ? { ...item, ...savedData } as WarehouseData : item));
-    } else {
-      // Add new
-      const newItem: WarehouseData = {
-        ...savedData,
-        status: 'Active',
-        id: Math.random().toString(36).substr(2, 9),
-        createdDate: new Date().toISOString().split('T')[0]
-      };
-      setData([newItem, ...data]);
+  const handleSave = async (savedData: any) => {
+    try {
+      if (editingItem) {
+        // Update existing
+        const result = await warehouseService.update(editingItem.id, savedData);
+        setData(data.map(item => item.id === editingItem.id ? result : item));
+        toast.success('Warehouse updated successfully');
+      } else {
+        // Add new
+        const newItem = await warehouseService.create({
+          ...savedData,
+          status: 'Active',
+          createdDate: new Date().toISOString().split('T')[0]
+        });
+        setData([newItem, ...data]);
+        toast.success('Warehouse added successfully');
+      }
+    } catch (error) {
+      console.error('Failed to save warehouse:', error);
+      toast.error('Failed to save warehouse');
     }
     setIsAdding(false);
     setEditingItem(null);

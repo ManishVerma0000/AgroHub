@@ -1,20 +1,28 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { PageHeader } from '@/components/ui/PageHeader';
 import { Button } from '@/components/ui/Button';
 import { CategoryList, CategoryData } from '@/components/Categories/CategoryList';
 import { CategoryForm } from '@/components/Categories/CategoryForm';
+import toast from 'react-hot-toast';
 
-const initialMockData: CategoryData[] = [
-  { id: '1', name: 'Fruits & Vegetables', description: 'Fresh fruits and vegetables', priority: 1, status: 'Active', createdDate: '2026-01-10' },
-  { id: '2', name: 'Grains & Cereals', description: 'Rice, wheat, and other grains', priority: 2, status: 'Active', createdDate: '2026-01-12' },
-  { id: '3', name: 'Spices & Herbs', description: 'All kinds of spices and herbs', priority: 3, status: 'Active', createdDate: '2026-01-15' },
-  { id: '4', name: 'Pulses & Legumes', description: 'Dal, lentils, chickpeas', priority: 4, status: 'Inactive', createdDate: '2026-01-18' },
-];
+import { categoryService } from '@/services/categoryService';
 
 export default function CategoriesPage() {
-  const [data, setData] = useState<CategoryData[]>(initialMockData);
+  const [data, setData] = useState<CategoryData[]>([]);
+
+  useEffect(() => {
+    const fetchCategories = async () => {
+      try {
+        const result = await categoryService.getAll();
+        setData(result);
+      } catch (error) {
+        console.error('Failed to fetch categories:', error);
+      }
+    };
+    fetchCategories();
+  }, []);
   const [isAdding, setIsAdding] = useState(false);
   const [editingItem, setEditingItem] = useState<CategoryData | null>(null);
 
@@ -23,23 +31,37 @@ export default function CategoriesPage() {
     setIsAdding(true);
   };
 
-  const handleDelete = (id: string) => {
-    setData(data.filter(item => item.id !== id));
+  const handleDelete = async (id: string) => {
+    try {
+      await categoryService.delete(id);
+      setData(data.filter(item => item.id !== id));
+      toast.success('Category deleted successfully');
+    } catch (error) {
+      console.error('Failed to delete category:', error);
+      toast.error('Failed to delete category');
+    }
   };
 
-  const handleSave = (savedData: any) => {
-    if (editingItem) {
-      // Update existing
-      setData(data.map(item => item.id === editingItem.id ? { ...item, ...savedData } as CategoryData : item));
-    } else {
-      // Add new
-      const newItem: CategoryData = {
-        ...savedData,
-        id: Math.random().toString(36).substr(2, 9),
-        status: 'Active',
-        createdDate: new Date().toISOString().split('T')[0]
-      };
-      setData([newItem, ...data]);
+  const handleSave = async (savedData: any) => {
+    try {
+      if (editingItem) {
+        // Update existing
+        const result = await categoryService.update(editingItem.id, savedData);
+        setData(data.map(item => item.id === editingItem.id ? result : item));
+        toast.success('Category updated successfully');
+      } else {
+        // Add new
+        const newItem = await categoryService.create({
+          ...savedData,
+          status: savedData.status,
+          createdDate: new Date().toISOString().split('T')[0]
+        });
+        setData([newItem, ...data]);
+        toast.success('Category added successfully');
+      }
+    } catch (error) {
+      console.error('Failed to save category:', error);
+      toast.error('Failed to save category');
     }
     setIsAdding(false);
     setEditingItem(null);

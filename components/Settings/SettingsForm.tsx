@@ -4,6 +4,7 @@ import React, { useState } from 'react';
 import { Input } from '@/components/ui/Input';
 import { Button } from '@/components/ui/Button';
 import { ImageUpload } from '@/components/ui/ImageUpload';
+import toast from 'react-hot-toast';
 
 export function SettingsForm() {
   const [formData, setFormData] = useState({
@@ -24,7 +25,7 @@ export function SettingsForm() {
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     console.log('Settings Form Submitted:', { ...formData, logo });
-    // Handle submission logic (toast notification, API call, etc.)
+    toast.success('Settings saved successfully');
   };
 
   return (

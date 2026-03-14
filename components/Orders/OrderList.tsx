@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { DataTable, Column } from '@/components/ui/DataTable';
 import { Badge } from '@/components/ui/Badge';
 import { Button } from '@/components/ui/Button';
@@ -14,19 +14,26 @@ interface OrderData {
   status: 'Pending' | 'Confirmed' | 'Packing' | 'In-Transit' | 'Delivered' | 'Cancelled';
 }
 
-const mockData: OrderData[] = [
-  { id: '1', orderId: '#ORD-001', date: '2026-03-14 10:30 AM', customerName: 'John Doe', totalAmount: '₹1,250.00', status: 'Pending' },
-  { id: '2', orderId: '#ORD-002', date: '2026-03-14 09:15 AM', customerName: 'Jane Smith', totalAmount: '₹850.00', status: 'Confirmed' },
-  { id: '3', orderId: '#ORD-003', date: '2026-03-13 04:45 PM', customerName: 'Acme Supermarket', totalAmount: '₹12,400.00', status: 'In-Transit' },
-  { id: '4', orderId: '#ORD-004', date: '2026-03-12 11:20 AM', customerName: 'Fresh Mart', totalAmount: '₹5,600.00', status: 'Delivered' },
-  { id: '5', orderId: '#ORD-005', date: '2026-03-12 02:10 PM', customerName: 'Alice Johnson', totalAmount: '₹320.00', status: 'Cancelled' },
-];
+import { orderService } from '@/services/orderService';
 
 const TABS = ['All', 'Pending', 'Confirmed', 'Packing', 'In-Transit', 'Delivered', 'Cancelled'];
 
 export function OrderList() {
   const [searchTerm, setSearchTerm] = useState('');
   const [activeTab, setActiveTab] = useState('All');
+  const [data, setData] = useState<OrderData[]>([]);
+
+  useEffect(() => {
+    const fetchOrders = async () => {
+      try {
+        const result = await orderService.getAll();
+        setData(result);
+      } catch (error) {
+        console.error('Failed to fetch orders:', error);
+      }
+    };
+    fetchOrders();
+  }, []);
 
   const columns: Column<OrderData>[] = [
     {
@@ -78,7 +85,7 @@ export function OrderList() {
     }
   ];
 
-  const filteredData = mockData.filter(d => {
+  const filteredData = data.filter(d => {
     const matchesSearch = d.orderId.toLowerCase().includes(searchTerm.toLowerCase()) || 
                           d.customerName.toLowerCase().includes(searchTerm.toLowerCase());
     const matchesTab = activeTab === 'All' || d.status === activeTab;
