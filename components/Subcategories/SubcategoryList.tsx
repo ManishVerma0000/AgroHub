@@ -1,8 +1,11 @@
+'use client';
+
 import React, { useState } from 'react';
 import { DataTable, Column } from '@/components/ui/DataTable';
 import { Badge } from '@/components/ui/Badge';
 import { Select } from '@/components/ui/Select';
 import { ConfirmDeleteModal } from '@/components/ui/ConfirmDeleteModal';
+import { ImagePreviewModal } from '@/components/ui/ImagePreviewModal';
 
 export interface SubcategoryData {
   id: string;
@@ -10,9 +13,10 @@ export interface SubcategoryData {
   category: string;
   description?: string;
   hsnCodesCount: number;
-  hsnCodes?: { code: string; gst: string }[];
+  hsnCodes?: { code: string; gst: string; description?: string }[];
   status: 'Active' | 'Inactive';
   createdDate: string;
+  imageUrl?: string | null;
 }
 
 interface SubcategoryListProps {
@@ -25,17 +29,29 @@ export function SubcategoryList({ data, onEdit, onDelete }: SubcategoryListProps
   const [searchTerm, setSearchTerm] = useState('');
   const [deleteModalOpen, setDeleteModalOpen] = useState(false);
   const [itemToDelete, setItemToDelete] = useState<SubcategoryData | null>(null);
+  const [previewImage, setPreviewImage] = useState<string | null>(null);
 
   const columns: Column<SubcategoryData>[] = [
     {
       header: 'Subcategory Name',
       cell: (item) => (
         <div className="flex items-center gap-3">
-          <div className="w-10 h-10 rounded bg-[#f3e8ff] flex items-center justify-center text-[#9333ea] bg-opacity-20">
-             <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                <rect width="18" height="18" x="3" y="3" rx="2" ry="2"/><circle cx="9" cy="9" r="2"/><path d="m21 15-3.086-3.086a2 2 0 0 0-2.828 0L6 21"/>
-              </svg>
-          </div>
+          {item.imageUrl ? (
+            <button
+              type="button"
+              onClick={() => setPreviewImage(item.imageUrl!)}
+              className="w-10 h-10 rounded overflow-hidden border border-[#e5e7eb] hover:ring-2 hover:ring-[#07ac57]/50 transition-all group"
+            >
+              {/* eslint-disable-next-line @next/next/no-img-element */}
+              <img src={item.imageUrl} alt={item.name} className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-200" />
+            </button>
+          ) : (
+            <div className="w-10 h-10 rounded bg-[#f3e8ff] flex items-center justify-center text-[#9333ea] bg-opacity-20">
+               <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                  <rect width="18" height="18" x="3" y="3" rx="2" ry="2"/><circle cx="9" cy="9" r="2"/><path d="m21 15-3.086-3.086a2 2 0 0 0-2.828 0L6 21"/>
+                </svg>
+            </div>
+          )}
           <span className="font-medium text-[#111827]">{item.name}</span>
         </div>
       )
@@ -140,6 +156,13 @@ export function SubcategoryList({ data, onEdit, onDelete }: SubcategoryListProps
           }
         }}
         itemName={itemToDelete?.name}
+      />
+
+      <ImagePreviewModal
+        isOpen={!!previewImage}
+        onClose={() => setPreviewImage(null)}
+        imageUrl={previewImage}
+        altText="Subcategory Image"
       />
     </>
   );

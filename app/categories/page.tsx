@@ -42,20 +42,20 @@ export default function CategoriesPage() {
     }
   };
 
-  const handleSave = async (savedData: any) => {
+  const handleSave = async (savedData: any, imageFile?: File | null) => {
     try {
       if (editingItem) {
-        // Update existing
-        const result = await categoryService.update(editingItem.id, savedData);
+        // Update existing — pass imageFile so service can upload to S3 and save URL
+        const result = await categoryService.update(editingItem.id, savedData, imageFile);
         setData(data.map(item => item.id === editingItem.id ? result : item));
         toast.success('Category updated successfully');
       } else {
-        // Add new
+        // Add new — pass imageFile so service can upload to S3 and save URL
         const newItem = await categoryService.create({
           ...savedData,
           status: savedData.status,
           createdDate: new Date().toISOString().split('T')[0]
-        });
+        }, imageFile);
         setData([newItem, ...data]);
         toast.success('Category added successfully');
       }

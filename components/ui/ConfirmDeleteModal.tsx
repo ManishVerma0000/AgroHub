@@ -29,14 +29,14 @@ export function ConfirmDeleteModal({ isOpen, onClose, onConfirm, itemName = 'thi
             Are you sure you want to delete <span className="font-semibold text-[#111827]">{itemName}</span>? This action cannot be undone.
           </p>
         </div>
-        <div className="flex justify-end gap-3 pb-2">
-          <Button variant="outline" onClick={onClose}>
+        <div className="flex justify-end gap-3 mt-4">
+          <Button variant="outline" onClick={onClose} className="px-6">
             Cancel
           </Button>
           <Button variant="danger" onClick={() => {
             onConfirm();
             onClose();
-          }} className="bg-red-600 text-white hover:bg-red-700">
+          }} className="px-6">
             Delete
           </Button>
         </div>

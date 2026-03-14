@@ -9,7 +9,7 @@ export default function Sidebar() {
 
   const navItems = [
     { label: "Dashboard", href: "/", icon: DashboardIcon },
-    { label: "Orders", href: "/orders", icon: BoxIcon },
+    // { label: "Orders", href: "/orders", icon: BoxIcon },
     { label: "Category Management", href: "/categories", icon: TagIcon },
     { label: "Subcategory Management", href: "/subcategories", icon: TagIcon },
     { label: "Product Management", href: "/products", icon: BoxIcon },

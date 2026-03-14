@@ -42,11 +42,14 @@ export default function SubcategoriesPage() {
     }
   };
 
-  const handleSave = async (savedData: any) => {
+  const handleSave = async (savedData: any, imageFile?: File | null) => {
     try {
       if (editingItem) {
         // Update existing
-        const result = await subcategoryService.update(editingItem.id, { ...savedData, hsnCodesCount: savedData.hsnCodes.length });
+        const result = await subcategoryService.update(editingItem.id, { 
+          ...savedData, 
+          hsnCodesCount: savedData.hsnCodes.length 
+        }, imageFile);
         setData(data.map(item => item.id === editingItem.id ? result : item));
         toast.success('Subcategory updated successfully');
       } else {
@@ -54,9 +57,8 @@ export default function SubcategoriesPage() {
         const newItem = await subcategoryService.create({
           ...savedData,
           hsnCodesCount: savedData.hsnCodes.length,
-          status: 'Active',
           createdDate: new Date().toISOString().split('T')[0]
-        });
+        }, imageFile);
         setData([newItem, ...data]);
         toast.success('Subcategory added successfully');
       }

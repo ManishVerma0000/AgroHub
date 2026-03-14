@@ -9,7 +9,7 @@ import { ImageUpload } from '@/components/ui/ImageUpload';
 
 interface ProductFormProps {
   initialData?: any;
-  onSave: (data: any) => void;
+  onSave: (data: any, imageFile?: File | null) => void;
   onCancel: () => void;
 }
 
@@ -32,6 +32,7 @@ export function ProductForm({ initialData, onSave, onCancel }: ProductFormProps)
 
   const [variations, setVariations] = useState([{ quantity: '', price: '', sellingPrice: '' }]);
   const [image, setImage] = useState<File | null>(null);
+  const existingImageUrl = initialData?.imageUrl || null;
 
   useEffect(() => {
     if (initialData) {
@@ -81,7 +82,6 @@ export function ProductForm({ initialData, onSave, onCancel }: ProductFormProps)
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    console.log('Product Form Submitted:', { ...formData, variations, image });
     
     // Map form data back to table data structure
     let categoryDisplay = formData.category;
@@ -90,6 +90,7 @@ export function ProductForm({ initialData, onSave, onCancel }: ProductFormProps)
     if (formData.category === 'spices') categoryDisplay = 'Spices & Herbs';
     if (formData.category === 'pulses') categoryDisplay = 'Pulses & Legumes';
 
+    // Pass image file separately so the parent page can upload it to S3
     onSave({
       name: formData.title,
       category: categoryDisplay,
@@ -98,7 +99,7 @@ export function ProductForm({ initialData, onSave, onCancel }: ProductFormProps)
       b2b: formData.b2bEnabled ? 'Enabled' : 'Off',
       status: formData.status ? 'Active' : 'Inactive',
       variations: variations
-    });
+    }, image);
   };
 
   return (
@@ -187,6 +188,7 @@ export function ProductForm({ initialData, onSave, onCancel }: ProductFormProps)
               label="Product Image" 
               onChange={setImage}
               className="h-full"
+              existingImage={existingImageUrl}
             />
           </div>
         </div>

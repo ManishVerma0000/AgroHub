@@ -1,9 +1,12 @@
+'use client';
+
 import React, { useState } from 'react';
 import { DataTable, Column } from '@/components/ui/DataTable';
 import { Badge } from '@/components/ui/Badge';
 import { Select } from '@/components/ui/Select';
 import { Button } from '@/components/ui/Button';
 import { ConfirmDeleteModal } from '@/components/ui/ConfirmDeleteModal';
+import { ImagePreviewModal } from '@/components/ui/ImagePreviewModal';
 
 export interface ProductData {
   id: string;
@@ -15,6 +18,7 @@ export interface ProductData {
   b2b: 'Enabled' | 'Off';
   status: 'Active' | 'Inactive';
   createdDate: string;
+  imageUrl?: string | null;
 }
 
 interface ProductListProps {
@@ -27,17 +31,31 @@ export function ProductList({ data, onEdit, onDelete }: ProductListProps) {
   const [searchTerm, setSearchTerm] = useState('');
   const [deleteModalOpen, setDeleteModalOpen] = useState(false);
   const [itemToDelete, setItemToDelete] = useState<ProductData | null>(null);
+  const [previewImage, setPreviewImage] = useState<string | null>(null);
 
   const columns: Column<ProductData>[] = [
     {
       header: 'Product',
       cell: (item) => (
         <div className="flex items-center gap-3">
-          <div className="w-10 h-10 rounded bg-[#dcfce7] flex items-center justify-center text-[#166534] bg-opacity-40">
-            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-              <path d="M21 8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16Z"/><path d="m3.3 7 8.7 5 8.7-5"/><path d="M12 22V12"/>
-            </svg>
-          </div>
+          {/* Clickable image/thumbnail */}
+          {item.imageUrl ? (
+            <button
+              type="button"
+              title="Click to preview image"
+              onClick={() => setPreviewImage(item.imageUrl!)}
+              className="w-10 h-10 rounded overflow-hidden border border-[#e5e7eb] hover:ring-2 hover:ring-[#07ac57]/50 transition-all focus:outline-none focus:ring-2 focus:ring-[#07ac57] group flex-shrink-0"
+            >
+              {/* eslint-disable-next-line @next/next/no-img-element */}
+              <img src={item.imageUrl} alt={item.name} className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-200" />
+            </button>
+          ) : (
+            <div className="w-10 h-10 rounded bg-[#dcfce7] flex items-center justify-center text-[#166534] bg-opacity-40 flex-shrink-0">
+              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                <path d="M21 8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16Z"/><path d="m3.3 7 8.7 5 8.7-5"/><path d="M12 22V12"/>
+              </svg>
+            </div>
+          )}
           <div className="flex flex-col">
             <span className="font-medium text-[#111827]">{item.name}</span>
             <span className="text-xs text-[#6b7280]">{item.code}</span>
@@ -80,22 +98,22 @@ export function ProductList({ data, onEdit, onDelete }: ProductListProps) {
     {
       header: 'Created Date',
       cell: (item) => (
-         <div className="flex flex-col text-sm text-[#4b5563]">
-            <span>{item.createdDate}</span>
-         </div>
+        <div className="flex flex-col text-sm text-[#4b5563]">
+          <span>{item.createdDate}</span>
+        </div>
       )
     },
     {
       header: 'Actions',
       cell: (item) => (
         <div className="flex gap-2">
-          <button 
+          <button
             className="text-blue-500 hover:text-blue-700"
             onClick={() => onEdit(item)}
           >
             <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M17 3a2.85 2.83 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5Z"/><path d="m15 5 4 4"/></svg>
           </button>
-          <button 
+          <button
             className="text-red-500 hover:text-red-700"
             onClick={() => {
               setItemToDelete(item);
@@ -109,52 +127,52 @@ export function ProductList({ data, onEdit, onDelete }: ProductListProps) {
     }
   ];
 
-  const filteredData = data.filter(d => 
-    d.name.toLowerCase().includes(searchTerm.toLowerCase()) || 
+  const filteredData = data.filter(d =>
+    d.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
     d.code.toLowerCase().includes(searchTerm.toLowerCase())
   );
 
   return (
     <>
-      <DataTable 
-      columns={columns} 
-      data={filteredData} 
-      searchPlaceholder="Search products..."
-      onSearch={setSearchTerm}
-      filters={
-        <>
-           <Button variant="outline" className="hidden border-[#d1d5db] font-normal sm:flex items-center gap-2">
-            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect width="18" height="18" x="3" y="4" rx="2" ry="2"/><line x1="16" x2="16" y1="2" y2="6"/><line x1="8" x2="8" y1="2" y2="6"/><line x1="3" x2="21" y1="10" y2="10"/></svg>
-            Date Range
-          </Button>
-          <Select 
-            className="w-40"
-            options={[
-              { label: 'All Category', value: '' },
-              { label: 'Fruits & Vegetables', value: 'fruits' },
-              { label: 'Spices & Herbs', value: 'spices' }
-            ]}
-          />
-          <Select 
-            className="w-40"
-            options={[
-              { label: 'All Status', value: '' },
-              { label: 'Active', value: 'Active' },
-              { label: 'Inactive', value: 'Inactive' }
-            ]}
-          />
-        </>
-      }
-      pagination={{
-        currentPage: 1,
-        totalPages: 1,
-        totalItems: filteredData.length,
-        onNext: () => {},
-        onPrev: () => {}
-      }}
-    />
+      <DataTable
+        columns={columns}
+        data={filteredData}
+        searchPlaceholder="Search products..."
+        onSearch={setSearchTerm}
+        filters={
+          <>
+            <Button variant="outline" className="hidden border-[#d1d5db] font-normal sm:flex items-center gap-2">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect width="18" height="18" x="3" y="4" rx="2" ry="2"/><line x1="16" x2="16" y1="2" y2="6"/><line x1="8" x2="8" y1="2" y2="6"/><line x1="3" x2="21" y1="10" y2="10"/></svg>
+              Date Range
+            </Button>
+            <Select
+              className="w-40"
+              options={[
+                { label: 'All Category', value: '' },
+                { label: 'Fruits & Vegetables', value: 'fruits' },
+                { label: 'Spices & Herbs', value: 'spices' }
+              ]}
+            />
+            <Select
+              className="w-40"
+              options={[
+                { label: 'All Status', value: '' },
+                { label: 'Active', value: 'Active' },
+                { label: 'Inactive', value: 'Inactive' }
+              ]}
+            />
+          </>
+        }
+        pagination={{
+          currentPage: 1,
+          totalPages: 1,
+          totalItems: filteredData.length,
+          onNext: () => {},
+          onPrev: () => {}
+        }}
+      />
 
-      <ConfirmDeleteModal 
+      <ConfirmDeleteModal
         isOpen={deleteModalOpen}
         onClose={() => {
           setDeleteModalOpen(false);
@@ -166,6 +184,13 @@ export function ProductList({ data, onEdit, onDelete }: ProductListProps) {
           }
         }}
         itemName={itemToDelete?.name}
+      />
+
+      <ImagePreviewModal
+        isOpen={!!previewImage}
+        onClose={() => setPreviewImage(null)}
+        imageUrl={previewImage}
+        altText="Product Image"
       />
     </>
   );

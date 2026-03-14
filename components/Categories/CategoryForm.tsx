@@ -8,7 +8,7 @@ import StatusToggle from '../StatusToggle/StatusToggle';
 
 interface CategoryFormProps {
   initialData?: any;
-  onSave: (data: any) => void;
+  onSave: (data: any, imageFile?: File | null) => void;
   onCancel: () => void;
 }
 
@@ -21,7 +21,8 @@ export function CategoryForm({ initialData, onSave, onCancel }: CategoryFormProp
   });
 
   const [image, setImage] = useState<File | null>(null);
-  const [status, setStatus] = useState<string>('')
+  const [status, setStatus] = useState<string>('');
+  const existingImageUrl = initialData?.imageUrl || null;
 
   useEffect(() => {
     if (initialData) {
@@ -36,13 +37,13 @@ export function CategoryForm({ initialData, onSave, onCancel }: CategoryFormProp
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    console.log('Category Form Submitted:', { ...formData, image });
+    // Pass image file separately so the parent page can upload it to S3
     onSave({
       name: formData.name,
       priority: parseInt(formData.priority, 10),
       description: formData.description,
-      status:status
-    });
+      status: status
+    }, image);
   };
 
   return (
@@ -80,6 +81,7 @@ export function CategoryForm({ initialData, onSave, onCancel }: CategoryFormProp
             label="Category Image"
             className="h-full flex-1"
             onChange={setImage}
+            existingImage={existingImageUrl}
           />
         </div>
         <StatusToggle

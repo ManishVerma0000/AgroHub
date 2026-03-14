@@ -42,11 +42,11 @@ export default function WarehousePage() {
     }
   };
 
-  const handleSave = async (savedData: any) => {
+  const handleSave = async (savedData: any, newImages?: File[], newDocuments?: File[]) => {
     try {
       if (editingItem) {
         // Update existing
-        const result = await warehouseService.update(editingItem.id, savedData);
+        const result = await warehouseService.update(editingItem.id, savedData, newImages, newDocuments);
         setData(data.map(item => item.id === editingItem.id ? result : item));
         toast.success('Warehouse updated successfully');
       } else {
@@ -55,7 +55,7 @@ export default function WarehousePage() {
           ...savedData,
           status: 'Active',
           createdDate: new Date().toISOString().split('T')[0]
-        });
+        }, newImages, newDocuments);
         setData([newItem, ...data]);
         toast.success('Warehouse added successfully');
       }

@@ -12,6 +12,16 @@ export interface WarehouseData {
   manager: string;
   contact: string;
   location: string;
+  email: string;
+  state: string;
+  city: string;
+  pinCode: string;
+  gstNo?: string;
+  fssaiNo?: string;
+  openTime?: string;
+  closeTime?: string;
+  gstOwner?: string;
+  latitudeLink?: string;
   status: 'Active' | 'Inactive';
   createdDate: string;
 }
@@ -49,6 +59,7 @@ export function WarehouseList({ data, onEdit, onDelete }: WarehouseListProps) {
       cell: (item) => (
         <div className="flex flex-col">
           <span className="text-[#111827] font-medium text-sm">{item.manager}</span>
+          <span className="text-xs text-[#6b7280]">{item.email}</span>
           <span className="text-xs text-[#6b7280]">{item.contact}</span>
         </div>
       )
@@ -56,7 +67,10 @@ export function WarehouseList({ data, onEdit, onDelete }: WarehouseListProps) {
     {
       header: 'Location',
       cell: (item) => (
-        <span className="text-[#4b5563] text-sm">{item.location}</span>
+        <div className="flex flex-col">
+          <span className="text-[#111827] font-medium text-sm">{item.location}</span>
+          <span className="text-[#4b5563] text-xs">{`${item.city}, ${item.state} - ${item.pinCode}`}</span>
+        </div>
       )
     },
     {

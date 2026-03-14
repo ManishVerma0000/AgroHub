@@ -42,20 +42,20 @@ export default function ProductsPage() {
     }
   };
 
-  const handleSave = async (savedData: any) => {
+  const handleSave = async (savedData: any, imageFile?: File | null) => {
     try {
       if (editingItem) {
-        // Update existing
-        const result = await productService.update(editingItem.id, savedData);
+        // Update existing — pass imageFile so service can upload to S3 and save URL
+        const result = await productService.update(editingItem.id, savedData, imageFile);
         setData(data.map(item => item.id === editingItem.id ? result : item));
         toast.success('Product updated successfully');
       } else {
-        // Add new
+        // Add new — pass imageFile so service can upload to S3 and save URL
         const newItem = await productService.create({
           ...savedData,
           code: `PR-${Math.random().toString(36).substr(2, 5).toUpperCase()}`,
           createdDate: new Date().toISOString().split('T')[0]
-        });
+        }, imageFile);
         setData([newItem, ...data]);
         toast.success('Product added successfully');
       }
