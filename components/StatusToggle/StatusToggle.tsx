@@ -22,8 +22,8 @@ export default function StatusToggle({
   };
 
   return (
-    <div className="flex items-center justify-between bg-gray-100 p-4 rounded-xl">
-      
+    <div className="flex items-center justify-between bg-gray-100 p-4 rounded-xl w-[250px]">
+
       {/* Left Text */}
       <div>
         <p className="font-medium text-gray-800">{label}</p>
@@ -34,14 +34,12 @@ export default function StatusToggle({
       <button
         type="button"
         onClick={toggle}
-        className={`relative w-12 h-6 flex items-center rounded-full transition-colors ${
-          status === "active" ? "bg-green-500" : "bg-gray-300"
-        }`}
+        className={`relative w-12 h-6 flex items-center rounded-full transition-colors ${status === "active" ? "bg-green-500" : "bg-gray-300"
+          }`}
       >
         <span
-          className={`absolute w-5 h-5 bg-white rounded-full shadow transform transition-transform ${
-            status === "active" ? "translate-x-6" : "translate-x-1"
-          }`}
+          className={`absolute w-5 h-5 bg-white rounded-full shadow transform transition-transform ${status === "active" ? "translate-x-6" : "translate-x-1"
+            }`}
         />
       </button>
     </div>

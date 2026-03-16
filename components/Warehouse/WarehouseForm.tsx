@@ -14,7 +14,9 @@ interface WarehouseFormProps {
 
 export function WarehouseForm({ initialData, onSave, onCancel }: WarehouseFormProps) {
   const [selectedImages, setSelectedImages] = useState<File[]>([]);
+  const [existingImages, setExistingImages] = useState<string[]>([]);
   const [selectedDocs, setSelectedDocs] = useState<File[]>([]);
+  const [existingDocs, setExistingDocs] = useState<string[]>([]);
   const [formData, setFormData] = useState({
     name: '',
     manager: '',
@@ -56,6 +58,8 @@ export function WarehouseForm({ initialData, onSave, onCancel }: WarehouseFormPr
 
         status: initialData.status !== 'Inactive',
       });
+      setExistingImages(initialData.images || []);
+      setExistingDocs(initialData.documents || []);
     }
   }, [initialData]);
 
@@ -76,7 +80,9 @@ export function WarehouseForm({ initialData, onSave, onCancel }: WarehouseFormPr
       closeTime: formData.closeTime,
       gstOwner: formData.gstOwner,
       latitudeLink: formData.latitudeLink,
-      status: formData.status ? 'Active' : 'Inactive'
+      status: formData.status ? 'Active' : 'Inactive',
+      images: existingImages,
+      documents: existingDocs
     }, selectedImages, selectedDocs);
   };
 
@@ -175,7 +181,17 @@ export function WarehouseForm({ initialData, onSave, onCancel }: WarehouseFormPr
                  </svg>
                </div>
                <p className="text-sm text-[#6b7280]">Drag Images here or <br/><span className="text-[#07ac57] font-medium">Browse Images</span></p>
-               {selectedImages.length > 0 && <p className="text-xs text-[#07ac57] mt-2 font-medium bg-[#07ac57]/10 px-2 py-1 rounded-full">{selectedImages.length} images selected</p>}
+               {selectedImages.length > 0 && <p className="text-xs text-[#07ac57] mt-2 font-medium bg-[#07ac57]/10 px-2 py-1 rounded-full">{selectedImages.length} new images selected</p>}
+               {existingImages.length > 0 && (
+                 <div className="flex gap-2 mt-4 flex-wrap justify-center px-2">
+                   {existingImages.map((url, i) => (
+                     <div key={i} className="relative w-12 h-12 rounded overflow-hidden shadow-sm border border-gray-200">
+                       {/* eslint-disable-next-line @next/next/no-img-element */}
+                       <img src={url} alt={`Existing img ${i+1}`} className="w-full h-full object-cover" />
+                     </div>
+                   ))}
+                 </div>
+               )}
              </label>
           </div>
         </div>
@@ -251,7 +267,22 @@ export function WarehouseForm({ initialData, onSave, onCancel }: WarehouseFormPr
            </div>
            <p className="text-sm text-[#6b7280]">Drag documents here or <span className="text-[#07ac57] font-medium">Browse Files</span></p>
            <p className="text-xs text-[#9ca3af] mt-2">GST Certificate · FSSAI Certificate · Warehouse License</p>
-           {selectedDocs.length > 0 && <p className="text-xs text-[#07ac57] mt-3 font-medium bg-[#07ac57]/10 px-3 py-1 rounded-full">{selectedDocs.length} documents selected</p>}
+           {selectedDocs.length > 0 && <p className="text-xs text-[#07ac57] mt-3 font-medium bg-[#07ac57]/10 px-3 py-1 rounded-full">{selectedDocs.length} new documents selected</p>}
+
+           {existingDocs.length > 0 && (
+             <div className="flex flex-col gap-2 mt-4 text-left w-full max-w-sm px-4">
+               <span className="text-xs font-semibold text-gray-500 uppercase text-center mt-2">Existing Documents</span>
+               {existingDocs.map((url, i) => {
+                 const filename = url.split('/').pop() || `Document ${i+1}`;
+                 return (
+                   <a key={i} href={url} target="_blank" rel="noreferrer" className="text-sm text-blue-600 truncate hover:underline bg-blue-50 py-1.5 px-3 rounded-md border border-blue-100 flex items-center gap-2" onClick={(e) => e.stopPropagation()}>
+                     <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M14.5 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7.5L14.5 2z"/><polyline points="14 2 14 8 20 8"/></svg>
+                     {filename}
+                   </a>
+                 );
+               })}
+             </div>
+           )}
         </label>
       </div>
 

@@ -8,20 +8,35 @@ import { ProductForm } from '@/components/Products/ProductForm';
 import toast from 'react-hot-toast';
 
 import { productService } from '@/services/productService';
+import { categoryService } from '@/services/categoryService';
 
 export default function ProductsPage() {
   const [data, setData] = useState<ProductData[]>([]);
+  const [categories, setCategories] = useState<any[]>([]);
 
   useEffect(() => {
-    const fetchProducts = async () => {
+    const fetchProductsAndCategories = async () => {
       try {
-        const result = await productService.getAll();
-        setData(result);
+        const [productsList, categoriesList] = await Promise.all([
+          productService.getAll(),
+          categoryService.getAll()
+        ]);
+        
+        setCategories(categoriesList);
+
+        const categoryMap = new Map(categoriesList.map((c: any) => [c.id, c.name]));
+        
+        const mappedProducts = productsList.map((p: any) => ({
+          ...p,
+          categoryName: categoryMap.get(p.categoryId) || undefined
+        }));
+        
+        setData(mappedProducts);
       } catch (error) {
-        console.error('Failed to fetch products:', error);
+        console.error('Failed to fetch data:', error);
       }
     };
-    fetchProducts();
+    fetchProductsAndCategories();
   }, []);
   const [isAdding, setIsAdding] = useState(false);
   const [editingItem, setEditingItem] = useState<ProductData | null>(null);
@@ -47,16 +62,24 @@ export default function ProductsPage() {
       if (editingItem) {
         // Update existing — pass imageFile so service can upload to S3 and save URL
         const result = await productService.update(editingItem.id, savedData, imageFile);
-        setData(data.map(item => item.id === editingItem.id ? result : item));
+        const mappedResult = {
+          ...result,
+          categoryName: categories.find(c => c.id === result.categoryId)?.name
+        };
+        setData(data.map(item => item.id === editingItem.id ? mappedResult : item));
         toast.success('Product updated successfully');
       } else {
         // Add new — pass imageFile so service can upload to S3 and save URL
         const newItem = await productService.create({
           ...savedData,
-          code: `PR-${Math.random().toString(36).substr(2, 5).toUpperCase()}`,
+          code: savedData.partcode || `PR-${Math.random().toString(36).substr(2, 5).toUpperCase()}`,
           createdDate: new Date().toISOString().split('T')[0]
         }, imageFile);
-        setData([newItem, ...data]);
+        const mappedNewItem = {
+          ...newItem,
+          categoryName: categories.find(c => c.id === newItem.categoryId)?.name
+        };
+        setData([mappedNewItem, ...data]);
         toast.success('Product added successfully');
       }
     } catch (error) {
@@ -103,6 +126,7 @@ export default function ProductsPage() {
       ) : (
         <ProductList 
           data={data} 
+          categories={categories}
           onEdit={handleEdit} 
           onDelete={handleDelete} 
         />

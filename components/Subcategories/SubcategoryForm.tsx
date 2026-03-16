@@ -6,6 +6,7 @@ import { Select } from '@/components/ui/Select';
 import { Button } from '@/components/ui/Button';
 import { ImageUpload } from '@/components/ui/ImageUpload';
 import StatusToggle from '../StatusToggle/StatusToggle';
+import { categoryService } from '@/services/categoryService';
 
 interface SubcategoryFormProps {
   initialData?: any;
@@ -15,26 +16,33 @@ interface SubcategoryFormProps {
 
 export function SubcategoryForm({ initialData, onSave, onCancel }: SubcategoryFormProps) {
   const [formData, setFormData] = useState({
-    category: '',
+    categoryId: '',
     name: '',
     description: '',
     status: 'Active',
   });
 
+  const [categories, setCategories] = useState<any[]>([]);
   const [image, setImage] = useState<File | null>(null);
   const [hsnCodes, setHsnCodes] = useState([{ code: '', gst: '', description: '' }]);
   const existingImageUrl = initialData?.imageUrl || null;
 
   useEffect(() => {
-    if (initialData) {
-      let catValue = '';
-      if (initialData.category.includes('Fruits')) catValue = 'fruits';
-      else if (initialData.category.includes('Grains')) catValue = 'grains';
-      else if (initialData.category.includes('Spices')) catValue = 'spices';
-      else if (initialData.category.includes('Pulses')) catValue = 'pulses';
+    const fetchCategories = async () => {
+      try {
+        const result = await categoryService.getAll();
+        setCategories(result);
+      } catch (error) {
+        console.error('Failed to fetch categories:', error);
+      }
+    };
+    fetchCategories();
+  }, []);
 
+  useEffect(() => {
+    if (initialData) {
       setFormData({
-        category: catValue || 'fruits',
+        categoryId: initialData.categoryId || '',
         name: initialData.name || '',
         description: initialData.description || '',
         status: initialData.status || 'Active',
@@ -68,15 +76,9 @@ export function SubcategoryForm({ initialData, onSave, onCancel }: SubcategoryFo
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     
-    let categoryDisplay = formData.category;
-    if (formData.category === 'fruits') categoryDisplay = 'Fruits & Vegetables';
-    if (formData.category === 'grains') categoryDisplay = 'Grains & Cereals';
-    if (formData.category === 'spices') categoryDisplay = 'Spices & Herbs';
-    if (formData.category === 'pulses') categoryDisplay = 'Pulses & Legumes';
-
     onSave({
       name: formData.name,
-      category: categoryDisplay,
+      categoryId: formData.categoryId,
       description: formData.description,
       status: formData.status,
       hsnCodes: hsnCodes
@@ -91,27 +93,14 @@ export function SubcategoryForm({ initialData, onSave, onCancel }: SubcategoryFo
             <Select
               label="Category"
               options={[
-                { label: 'Fruits & Vegetables', value: 'fruits' },
-                { label: 'Grains & Cereals', value: 'grains' },
-                { label: 'Spices & Herbs', value: 'spices' },
-                { label: 'Pulses & Legumes', value: 'pulses' },
+                { label: 'Select Category', value: '' },
+                ...categories.map(c => ({ label: c.name, value: c.id }))
               ]}
-              value={formData.category}
-              onChange={(e) => setFormData({...formData, category: e.target.value})}
+              value={formData.categoryId}
+              onChange={(e) => setFormData({...formData, categoryId: e.target.value})}
               required
             />
-            <Select
-              label="Parent Category"
-              options={[
-                { label: 'Fruits & Vegetables', value: 'fruits' },
-                { label: 'Grains & Cereals', value: 'grains' },
-                { label: 'Spices & Herbs', value: 'spices' },
-                { label: 'Pulses & Legumes', value: 'pulses' },
-              ]}
-              value={formData.category} // Using same for now as per UI
-              onChange={() => {}} 
-              required
-            />
+
           </div>
           <Input 
             label="Subcategory Name" 
@@ -188,7 +177,7 @@ export function SubcategoryForm({ initialData, onSave, onCancel }: SubcategoryFo
                 <button 
                   type="button" 
                   onClick={() => handleRemoveHsnRow(index)}
-                  className="p-2 text-[#ef4444] hover:bg-red-50 rounded-lg transition-colors border border-transparent hover:border-red-100"
+                  className="p-2 text-[#ef4444] hover:bg-red-50 rounded-lg transition-colors border border-transparent hover:border-red-100 w-1"
                 >
                   <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                     <path d="M3 6h18"/><path d="M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6"/><path d="M8 6V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2"/>

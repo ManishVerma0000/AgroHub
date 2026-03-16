@@ -8,20 +8,35 @@ import { SubcategoryForm } from '@/components/Subcategories/SubcategoryForm';
 import toast from 'react-hot-toast';
 
 import { subcategoryService } from '@/services/subcategoryService';
+import { categoryService } from '@/services/categoryService';
 
 export default function SubcategoriesPage() {
   const [data, setData] = useState<SubcategoryData[]>([]);
+  const [categories, setCategories] = useState<any[]>([]);
 
   useEffect(() => {
-    const fetchSubcategories = async () => {
+    const fetchSubcategoriesAndCategories = async () => {
       try {
-        const result = await subcategoryService.getAll();
-        setData(result);
+        const [subcatsRes, catsRes] = await Promise.all([
+          subcategoryService.getAll(),
+          categoryService.getAll()
+        ]);
+        
+        setCategories(catsRes);
+        
+        const categoryMap = new Map(catsRes.map((c: any) => [c.id, c.name]));
+        
+        const mappedSubcats = subcatsRes.map((sc: any) => ({
+          ...sc,
+          categoryName: categoryMap.get(sc.categoryId) || undefined
+        }));
+        
+        setData(mappedSubcats);
       } catch (error) {
-        console.error('Failed to fetch subcategories:', error);
+        console.error('Failed to fetch data:', error);
       }
     };
-    fetchSubcategories();
+    fetchSubcategoriesAndCategories();
   }, []);
   const [isAdding, setIsAdding] = useState(false);
   const [editingItem, setEditingItem] = useState<SubcategoryData | null>(null);
@@ -50,7 +65,11 @@ export default function SubcategoriesPage() {
           ...savedData, 
           hsnCodesCount: savedData.hsnCodes.length 
         }, imageFile);
-        setData(data.map(item => item.id === editingItem.id ? result : item));
+        const mappedResult = {
+          ...result,
+          categoryName: categories.find(c => c.id === result.categoryId)?.name
+        };
+        setData(data.map(item => item.id === editingItem.id ? mappedResult : item));
         toast.success('Subcategory updated successfully');
       } else {
         // Add new
@@ -59,7 +78,11 @@ export default function SubcategoriesPage() {
           hsnCodesCount: savedData.hsnCodes.length,
           createdDate: new Date().toISOString().split('T')[0]
         }, imageFile);
-        setData([newItem, ...data]);
+        const mappedNewItem = {
+          ...newItem,
+          categoryName: categories.find(c => c.id === newItem.categoryId)?.name
+        };
+        setData([mappedNewItem, ...data]);
         toast.success('Subcategory added successfully');
       }
     } catch (error) {
@@ -105,7 +128,8 @@ export default function SubcategoriesPage() {
         />
       ) : (
         <SubcategoryList 
-          data={data} 
+          data={data}
+          categories={categories} 
           onEdit={handleEdit} 
           onDelete={handleDelete} 
         />

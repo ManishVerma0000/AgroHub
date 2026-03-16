@@ -12,7 +12,9 @@ export interface ProductData {
   id: string;
   code: string;
   name: string;
-  category: string;
+  categoryId: string;
+  subcategoryId: string;
+  categoryName?: string;
   hsn: string;
   basePrice: string;
   b2b: 'Enabled' | 'Off';
@@ -23,15 +25,20 @@ export interface ProductData {
 
 interface ProductListProps {
   data: ProductData[];
+  categories: any[];
   onEdit: (item: ProductData) => void;
   onDelete: (id: string) => void;
 }
 
-export function ProductList({ data, onEdit, onDelete }: ProductListProps) {
+export function ProductList({ data, categories, onEdit, onDelete }: ProductListProps) {
   const [searchTerm, setSearchTerm] = useState('');
   const [deleteModalOpen, setDeleteModalOpen] = useState(false);
   const [itemToDelete, setItemToDelete] = useState<ProductData | null>(null);
   const [previewImage, setPreviewImage] = useState<string | null>(null);
+  
+  const [categoryFilter, setCategoryFilter] = useState('');
+  const [statusFilter, setStatusFilter] = useState('');
+  const [dateFilter, setDateFilter] = useState('');
 
   const columns: Column<ProductData>[] = [
     {
@@ -67,7 +74,7 @@ export function ProductList({ data, onEdit, onDelete }: ProductListProps) {
       header: 'Category',
       cell: (item) => (
         <Badge variant="blue" className="font-normal border border-blue-200 bg-blue-50 text-center inline-block">
-          {item.category}
+          {item.categoryName || item.categoryId}
         </Badge>
       )
     },
@@ -127,10 +134,14 @@ export function ProductList({ data, onEdit, onDelete }: ProductListProps) {
     }
   ];
 
-  const filteredData = data.filter(d =>
-    d.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    d.code.toLowerCase().includes(searchTerm.toLowerCase())
-  );
+  const filteredData = data.filter(d => {
+    const matchesSearch = d.name.toLowerCase().includes(searchTerm.toLowerCase()) || 
+                          d.code.toLowerCase().includes(searchTerm.toLowerCase());
+    const matchesCategory = categoryFilter ? d.categoryId === categoryFilter : true;
+    const matchesStatus = statusFilter ? d.status === statusFilter : true;
+    const matchesDate = dateFilter ? d.createdDate === dateFilter : true;
+    return matchesSearch && matchesCategory && matchesStatus && matchesDate;
+  });
 
   return (
     <>
@@ -141,25 +152,30 @@ export function ProductList({ data, onEdit, onDelete }: ProductListProps) {
         onSearch={setSearchTerm}
         filters={
           <>
-            <Button variant="outline" className="hidden border-[#d1d5db] font-normal sm:flex items-center gap-2">
-              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect width="18" height="18" x="3" y="4" rx="2" ry="2"/><line x1="16" x2="16" y1="2" y2="6"/><line x1="8" x2="8" y1="2" y2="6"/><line x1="3" x2="21" y1="10" y2="10"/></svg>
-              Date Range
-            </Button>
-            <Select
-              className="w-40"
-              options={[
-                { label: 'All Category', value: '' },
-                { label: 'Fruits & Vegetables', value: 'fruits' },
-                { label: 'Spices & Herbs', value: 'spices' }
-              ]}
+            <input 
+              type="date"
+              className="hidden sm:block border border-[#d1d5db] rounded-lg px-3 py-2 text-sm text-[#374151] focus:outline-none focus:ring-2 focus:ring-[#07ac57]/20 focus:border-[#07ac57] h-10 w-40 bg-white"
+              value={dateFilter}
+              onChange={(e) => setDateFilter(e.target.value)}
             />
             <Select
               className="w-40"
               options={[
-                { label: 'All Status', value: '' },
+                { label: 'All Categories', value: '' },
+                ...categories.map(c => ({ label: c.name, value: c.id }))
+              ]}
+              value={categoryFilter}
+              onChange={(e) => setCategoryFilter(e.target.value)}
+            />
+            <Select
+              className="w-40"
+              options={[
+                { label: 'All Statuses', value: '' },
                 { label: 'Active', value: 'Active' },
                 { label: 'Inactive', value: 'Inactive' }
               ]}
+              value={statusFilter}
+              onChange={(e) => setStatusFilter(e.target.value)}
             />
           </>
         }

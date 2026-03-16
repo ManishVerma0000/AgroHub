@@ -10,7 +10,8 @@ import { ImagePreviewModal } from '@/components/ui/ImagePreviewModal';
 export interface SubcategoryData {
   id: string;
   name: string;
-  category: string;
+  categoryId: string;
+  categoryName?: string;
   description?: string;
   hsnCodesCount: number;
   hsnCodes?: { code: string; gst: string; description?: string }[];
@@ -21,11 +22,12 @@ export interface SubcategoryData {
 
 interface SubcategoryListProps {
   data: SubcategoryData[];
+  categories: any[];
   onEdit: (item: SubcategoryData) => void;
   onDelete: (id: string) => void;
 }
 
-export function SubcategoryList({ data, onEdit, onDelete }: SubcategoryListProps) {
+export function SubcategoryList({ data, categories, onEdit, onDelete }: SubcategoryListProps) {
   const [searchTerm, setSearchTerm] = useState('');
   const [deleteModalOpen, setDeleteModalOpen] = useState(false);
   const [itemToDelete, setItemToDelete] = useState<SubcategoryData | null>(null);
@@ -60,7 +62,7 @@ export function SubcategoryList({ data, onEdit, onDelete }: SubcategoryListProps
       header: 'Category',
       cell: (item) => (
         <Badge variant="blue" className="font-normal border border-blue-200 bg-blue-50">
-          {item.category}
+          {item.categoryName || item.categoryId || 'Unknown'}
         </Badge>
       )
     },
@@ -106,7 +108,15 @@ export function SubcategoryList({ data, onEdit, onDelete }: SubcategoryListProps
     }
   ];
 
-  const filteredData = data.filter(d => d.name.toLowerCase().includes(searchTerm.toLowerCase()));
+  const [categoryFilter, setCategoryFilter] = useState('');
+  const [statusFilter, setStatusFilter] = useState('');
+
+  const filteredData = data.filter(d => {
+    const matchesSearch = d.name.toLowerCase().includes(searchTerm.toLowerCase());
+    const matchesCategory = categoryFilter ? d.categoryId === categoryFilter : true;
+    const matchesStatus = statusFilter ? d.status === statusFilter : true;
+    return matchesSearch && matchesCategory && matchesStatus;
+  });
 
   return (
     <>
@@ -120,10 +130,11 @@ export function SubcategoryList({ data, onEdit, onDelete }: SubcategoryListProps
           <Select 
             className="w-40"
             options={[
-              { label: 'All Category', value: '' },
-              { label: 'Fruits & Vegetables', value: 'fruits' },
-              { label: 'Grains & Cereals', value: 'grains' }
+              { label: 'All Categories', value: '' },
+              ...categories.map(c => ({ label: c.name, value: c.id }))
             ]}
+            value={categoryFilter}
+            onChange={(e) => setCategoryFilter(e.target.value)}
           />
           <Select 
             className="w-40"
@@ -132,6 +143,8 @@ export function SubcategoryList({ data, onEdit, onDelete }: SubcategoryListProps
               { label: 'Active', value: 'Active' },
               { label: 'Inactive', value: 'Inactive' }
             ]}
+            value={statusFilter}
+            onChange={(e) => setStatusFilter(e.target.value)}
           />
         </>
       }
