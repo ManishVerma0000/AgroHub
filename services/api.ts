@@ -1,7 +1,9 @@
 import axios from 'axios';
 
 const api = axios.create({
-  baseURL:"https://api.healthvandanam.com/api/v1/categories/api/v1",
+  // baseURL: 'http://127.0.0.1:8000/api/v1',
+  // 'https://api.healthvandanam.com/api/v1/categories/'
+  baseURL:"https://api.healthvandanam.com/api/v1",
   headers: {
     'Content-Type': 'application/json',
   },
