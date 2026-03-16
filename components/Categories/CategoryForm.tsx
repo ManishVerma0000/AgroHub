@@ -21,7 +21,7 @@ export function CategoryForm({ initialData, onSave, onCancel }: CategoryFormProp
   });
 
   const [image, setImage] = useState<File | null>(null);
-  const [status, setStatus] = useState<string>('');
+  const [status, setStatus] = useState<string>('Active');
   const existingImageUrl = initialData?.imageUrl || null;
 
   useEffect(() => {
@@ -30,8 +30,9 @@ export function CategoryForm({ initialData, onSave, onCancel }: CategoryFormProp
         name: initialData.name || '',
         priority: initialData.priority?.toString() || '',
         description: initialData.description || '',
-        status: status
+        status: initialData.status || 'Active'
       });
+      setStatus(initialData.status || 'Active');
     }
   }, [initialData]);
 
@@ -86,8 +87,9 @@ export function CategoryForm({ initialData, onSave, onCancel }: CategoryFormProp
         </div>
         <StatusToggle
           label="Status"
+          defaultStatus={initialData?.status === 'Inactive' ? 'inactive' : 'active'}
           onChange={(value) =>
-            setStatus(value)
+            setStatus(value === 'active' ? 'Active' : 'Inactive')
           }
         />
 
