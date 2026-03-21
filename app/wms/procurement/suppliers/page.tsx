@@ -4,81 +4,196 @@ import React, { useState } from "react";
 import { SVGProps } from "react";
 
 export default function SuppliersPage() {
-  const [searchQuery, setSearchQuery] = useState("");
+  const [selectedStatus, setSelectedStatus] = useState("All Status");
+  const [selectedLocation, setSelectedLocation] = useState("All Locations");
+  const [showAddModal, setShowAddModal] = useState(false);
 
   const mockSuppliers = [
-    { id: "V-1001", name: "AgroFarms Ltd.", contact: "Vivek Sharma", phone: "+91 9876543210", categories: "Grains, Pulses", lastOrder: "15 Oct 2026", status: "Active" },
-    { id: "V-1002", name: "PureOils Central", contact: "Anita R.", phone: "+91 8765432109", categories: "Oils", lastOrder: "18 Oct 2026", status: "Active" },
-    { id: "V-1003", name: "Spices Connect", contact: "Mohit D.", phone: "+91 7654321098", categories: "Spices", lastOrder: "02 Oct 2026", status: "Evaluation" },
-    { id: "V-1004", name: "SweetRoots Co.", contact: "Priya Singh", phone: "+91 6543210987", categories: "Sweeteners", lastOrder: "20 Oct 2026", status: "Active" }
+    { 
+      id: "SUP-001", 
+      name: "Fresh Farms Ltd", 
+      contact: "Rajesh Kumar", 
+      phone: "+91 98765 43210", 
+      gst: "27AABCU9603R1ZM", 
+      location: "Pune,\nMaharashtra", 
+      products: 2,
+      poCount: 1,
+      totalAmount: "NaN",
+      pendingAmount: "NaN",
+      paidAmount: "NaN",
+      status: "Active",
+      initial: "F",
+      avatarColor: "from-[#0d9488] to-[#0284c7]" // Teal to Blue
+    },
+    { 
+      id: "SUP-002", 
+      name: "Green Valley Suppliers", 
+      contact: "Priya Sharma", 
+      phone: "+91 98234 56789", 
+      gst: "27AABCU9603R1ZN", 
+      location: "Mumbai,\nMaharashtra", 
+      products: 0,
+      poCount: 1,
+      totalAmount: "NaN",
+      pendingAmount: "NaN",
+      paidAmount: "NaN",
+      status: "Active",
+      initial: "G",
+      avatarColor: "from-[#10b981] to-[#0284c7]" // Green to Blue
+    }
   ];
 
   return (
     <div className="flex flex-col gap-6 max-w-[1400px]">
+      
+      {/* Top Header Row */}
       <div className="flex justify-between items-center">
-        <div>
-          <h1 className="text-2xl font-bold text-[#111827]">Suppliers Directory</h1>
-          <p className="text-sm text-[#6b7280] mt-1">Manage all your verified suppliers and vendors.</p>
-        </div>
-        <button className="flex items-center gap-2 px-4 py-2 bg-[#07ac57] text-white rounded-lg text-sm font-medium hover:opacity-90 transition-opacity">
-          <PlusIcon className="w-4 h-4" />
-          Add Supplier
-        </button>
-      </div>
-
-      <div className="bg-white border border-[#f3f4f6] rounded-xl shadow-sm flex flex-col">
-        <div className="p-4 border-b border-[#f3f4f6] flex justify-between items-center bg-[#fcfcfc]">
-          <div className="relative w-[300px]">
-            <SearchIcon className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-[#94a3b8]" />
-            <input 
-              type="text" 
-              placeholder="Search by ID, Name or Contact..." 
-              value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
-              className="w-full pl-9 pr-4 py-2 border border-[#e2e8f0] rounded-lg text-sm outline-none focus:border-[#07ac57]"
-            />
+        <div className="flex items-center gap-3">
+          <h1 className="text-[26px] font-bold text-[#1e293b]">Suppliers</h1>
+          <div className="flex items-center gap-1 text-[#64748b]">
+            <span className="text-xl">2</span>
+            <ChevronDownIcon className="w-5 h-5 pointer-events-none" />
           </div>
-          <button className="p-2 border border-[#e2e8f0] rounded-lg text-[#6b7280] hover:text-[#111827] hover:bg-[#f9fafb]">
-            <FilterIcon className="w-4 h-4" />
+        </div>
+        
+        <div className="flex items-center gap-3">
+          <button className="flex items-center gap-2 px-4 py-2 border border-[#e2e8f0] bg-white text-[#475569] rounded-lg text-sm font-medium hover:bg-[#f8fafc] transition-colors shadow-sm">
+            Bulk Action
+            <ChevronDownIcon className="w-4 h-4 text-[#64748b]" />
+          </button>
+          
+          <button 
+            onClick={() => setShowAddModal(true)}
+            className="flex items-center gap-2 px-4 py-2 bg-[#15803d] text-white rounded-lg text-sm font-semibold hover:bg-[#166534] transition-colors shadow-[0_4px_12px_-2px_rgba(21,128,61,0.2)]"
+          >
+            <PlusIcon className="w-4 h-4" />
+            New
+          </button>
+          
+          <button className="flex items-center justify-center p-2 border border-[#e2e8f0] bg-white text-[#475569] rounded-lg hover:bg-[#f8fafc] transition-colors shadow-sm">
+            <MoreVerticalIcon className="w-4 h-4" />
           </button>
         </div>
+      </div>
 
+      {/* Filter Row */}
+      <div className="flex items-center gap-3">
+        <span className="text-sm font-medium text-[#64748b] mr-1">Filter by:</span>
+        
+        <div className="relative">
+          <select 
+            value={selectedStatus} 
+            onChange={e => setSelectedStatus(e.target.value)}
+            className="appearance-none pl-4 pr-10 py-2 border border-[#e2e8f0] bg-white rounded-lg text-[#1e293b] text-sm font-medium transition-colors outline-none cursor-pointer shadow-sm w-[130px]"
+          >
+            <option value="All Status">All Status</option>
+            <option value="Active">Active</option>
+            <option value="Inactive">Inactive</option>
+          </select>
+          <ChevronDownIcon className="w-4 h-4 text-[#64748b] absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none" />
+        </div>
+
+        <div className="relative">
+          <select 
+            value={selectedLocation} 
+            onChange={e => setSelectedLocation(e.target.value)}
+            className="appearance-none pl-4 pr-10 py-2 border border-[#e2e8f0] bg-white rounded-lg text-[#1e293b] text-sm font-medium transition-colors outline-none cursor-pointer shadow-sm w-[150px]"
+          >
+            <option value="All Locations">All Locations</option>
+            <option value="Pune">Pune</option>
+            <option value="Mumbai">Mumbai</option>
+          </select>
+          <ChevronDownIcon className="w-4 h-4 text-[#64748b] absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none" />
+        </div>
+      </div>
+
+      {/* Main Table Container */}
+      <div className="bg-white border border-[#e2e8f0] rounded-xl shadow-sm overflow-hidden flex flex-col">
         <div className="overflow-x-auto">
           <table className="w-full text-left text-sm whitespace-nowrap">
-            <thead className="bg-[#f9fafb] text-[#6b7280] font-medium border-b border-[#f3f4f6]">
+            <thead className="bg-[#f8fafc] text-[#64748b] font-semibold border-b border-[#e2e8f0]">
               <tr>
-                <th className="px-6 py-4 font-semibold">Supplier ID</th>
-                <th className="px-6 py-4 font-semibold">Business Name</th>
-                <th className="px-6 py-4 font-semibold">Contact Person</th>
-                <th className="px-6 py-4 font-semibold">Phone</th>
-                <th className="px-6 py-4 font-semibold">Provides</th>
-                <th className="px-6 py-4 font-semibold">Last Order</th>
-                <th className="px-6 py-4 font-semibold text-center">Status</th>
-                <th className="px-6 py-4 font-semibold text-right">Actions</th>
+                <th className="px-5 py-4 uppercase text-[11px] tracking-wider">Supplier Name</th>
+                <th className="px-5 py-4 uppercase text-[11px] tracking-wider">Contact<br/>Person</th>
+                <th className="px-5 py-4 uppercase text-[11px] tracking-wider">Phone<br/>Number</th>
+                <th className="px-5 py-4 uppercase text-[11px] tracking-wider">GST Number</th>
+                <th className="px-5 py-4 uppercase text-[11px] tracking-wider">Location</th>
+                <th className="px-5 py-4 uppercase text-[11px] tracking-wider text-center">Products</th>
+                <th className="px-5 py-4 uppercase text-[11px] tracking-wider text-center">PO<br/>Count</th>
+                <th className="px-5 py-4 uppercase text-[11px] tracking-wider text-center">Total PO<br/>Amount</th>
+                <th className="px-5 py-4 uppercase text-[11px] tracking-wider text-center">Pending<br/>Amount</th>
+                <th className="px-5 py-4 uppercase text-[11px] tracking-wider text-center">Paid<br/>Amount</th>
+                <th className="px-5 py-4 uppercase text-[11px] tracking-wider text-center">Status</th>
+                <th className="px-5 py-4 uppercase text-[11px] tracking-wider text-center">Actions</th>
               </tr>
             </thead>
-            <tbody className="divide-y divide-[#f3f4f6]">
+            <tbody className="divide-y divide-[#e2e8f0]">
               {mockSuppliers.map((supplier) => (
-                <tr key={supplier.id} className="hover:bg-[#fcfcfc]">
-                  <td className="px-6 py-4 font-medium text-[#111827]">{supplier.id}</td>
-                  <td className="px-6 py-4 font-semibold text-[#07ac57] cursor-pointer hover:underline">{supplier.name}</td>
-                  <td className="px-6 py-4 text-[#6b7280]">{supplier.contact}</td>
-                  <td className="px-6 py-4 text-[#6b7280]">{supplier.phone}</td>
-                  <td className="px-6 py-4 flex flex-wrap gap-1">
-                    {supplier.categories.split(',').map((cat, i) => (
-                      <span key={i} className="px-2 py-0.5 border border-[#e2e8f0] rounded bg-[#f8fafc] text-xs text-[#475569]">{cat.trim()}</span>
-                    ))}
+                <tr key={supplier.id} className="hover:bg-[#f8fafc] transition-colors">
+                  <td className="px-5 py-4">
+                    <div className="flex items-center gap-4">
+                      <div className={`w-12 h-12 rounded-full flex items-center justify-center text-white font-bold text-lg shrink-0 bg-gradient-to-br ${supplier.avatarColor}`}>
+                        {supplier.initial}
+                      </div>
+                      <div className="flex flex-col">
+                        <span className="font-bold text-[#0f172a] text-[15px]">{supplier.name}</span>
+                        <span className="text-[#94a3b8] text-xs font-semibold">{supplier.id}</span>
+                      </div>
+                    </div>
                   </td>
-                  <td className="px-6 py-4 text-[#6b7280]">{supplier.lastOrder}</td>
-                  <td className="px-6 py-4 text-center">
-                    <span className={`inline-flex items-center px-2 py-1 rounded text-xs font-bold ${
-                      supplier.status === 'Active' ? 'bg-[#ecfdf5] text-[#059669]' : 'bg-[#fff7ed] text-[#ea580c]'
-                    }`}>
-                      {supplier.status}
+                  <td className="px-5 py-4">
+                    <div className="flex flex-col text-[#475569]">
+                      <span className="font-medium">{supplier.contact.split(' ')[0]}</span>
+                      <span>{supplier.contact.split(' ')[1]}</span>
+                    </div>
+                  </td>
+                  <td className="px-5 py-4">
+                    <div className="flex flex-col text-[#475569]">
+                      <span>{supplier.phone.split(' ').slice(0,2).join(' ')}</span>
+                      <span>{supplier.phone.split(' ')[2]}</span>
+                    </div>
+                  </td>
+                  <td className="px-5 py-4 text-[#475569] font-medium">{supplier.gst}</td>
+                  <td className="px-5 py-4">
+                    <div className="flex flex-col text-[#475569]">
+                      <span>{supplier.location.split(',\n')[0]},</span>
+                      <span>{supplier.location.split(',\n')[1]}</span>
+                    </div>
+                  </td>
+                  <td className="px-5 py-4 text-center">
+                    <span className="inline-flex items-center justify-center min-w-[28px] h-7 px-2 rounded-full bg-[#e0e7ff] text-[#4f46e5] font-bold text-xs">
+                      {supplier.products}
                     </span>
                   </td>
-                  <td className="px-6 py-4 text-right">
-                    <button className="text-[#6b7280] hover:text-[#07ac57] transition-colors font-medium">Edit</button>
+                  <td className="px-5 py-4 text-center">
+                    <span className="inline-flex items-center justify-center min-w-[28px] h-7 px-2 rounded-full bg-[#f3e8ff] text-[#9333ea] font-bold text-xs">
+                      {supplier.poCount}
+                    </span>
+                  </td>
+                  <td className="px-5 py-4 text-center font-bold text-[#1e293b]">
+                    ₹{supplier.totalAmount}
+                  </td>
+                  <td className="px-5 py-4 text-center font-bold text-[#ea580c]">
+                    ₹{supplier.pendingAmount}
+                  </td>
+                  <td className="px-5 py-4 text-center font-bold text-[#16a34a]">
+                    ₹{supplier.paidAmount}
+                  </td>
+                  <td className="px-5 py-4 text-center">
+                     <span className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-[#dcfce7] text-[#16a34a] text-xs font-bold border border-[#bbf7d0]">
+                       <CheckCircleIcon className="w-3.5 h-3.5" />
+                       {supplier.status}
+                     </span>
+                  </td>
+                  <td className="px-5 py-4 text-center">
+                    <div className="flex items-center justify-center gap-3">
+                       <button className="text-[#3b82f6] hover:text-[#2563eb] transition-colors" title="View Details">
+                         <EyeIcon className="w-4 h-4" />
+                       </button>
+                       <button className="text-[#16a34a] hover:text-[#15803d] transition-colors" title="Edit Supplier">
+                         <EditPencilIcon className="w-4 h-4" />
+                       </button>
+                    </div>
                   </td>
                 </tr>
               ))}
@@ -86,36 +201,157 @@ export default function SuppliersPage() {
           </table>
         </div>
       </div>
+
+      {/* Add New Supplier Modal Overlay */}
+      {showAddModal && (
+        <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4">
+          <div className="bg-white rounded-xl w-full max-w-2xl shadow-xl flex flex-col max-h-[90vh] overflow-hidden animate-in fade-in zoom-in duration-200">
+            {/* Modal Header */}
+            <div className="flex justify-between items-center p-6 border-b border-[#e2e8f0]">
+              <h2 className="text-[20px] font-semibold text-[#0f172a]">Add New Supplier</h2>
+              <button 
+                onClick={() => setShowAddModal(false)}
+                className="text-[#64748b] hover:text-[#0f172a] transition-colors p-1"
+              >
+                <CloseIcon className="w-5 h-5" />
+              </button>
+            </div>
+
+            {/* Modal Body */}
+            <div className="p-6 overflow-y-auto">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
+                <div>
+                  <label className="block text-sm font-medium text-[#1e293b] mb-1.5">Supplier Name <span className="text-red-500">*</span></label>
+                  <input type="text" className="w-full px-4 py-2 border border-[#cbd5e1] rounded-lg text-sm outline-none focus:border-[#15803d]" />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-[#1e293b] mb-1.5">Contact Person <span className="text-red-500">*</span></label>
+                  <input type="text" className="w-full px-4 py-2 border border-[#cbd5e1] rounded-lg text-sm outline-none focus:border-[#15803d]" />
+                </div>
+                
+                <div>
+                  <label className="block text-sm font-medium text-[#1e293b] mb-1.5">Phone Number <span className="text-red-500">*</span></label>
+                  <input type="text" placeholder="9876543210" className="w-full px-4 py-2 border border-[#cbd5e1] rounded-lg text-sm text-[#64748b] outline-none focus:border-[#15803d]" />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-[#1e293b] mb-1.5">Email <span className="text-red-500">*</span></label>
+                  <input type="email" className="w-full px-4 py-2 border border-[#cbd5e1] rounded-lg text-sm outline-none focus:border-[#15803d]" />
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium text-[#1e293b] mb-1.5">Location <span className="text-red-500">*</span></label>
+                  <input type="text" placeholder="City A" className="w-full px-4 py-2 border border-[#cbd5e1] rounded-lg text-sm text-[#64748b] outline-none focus:border-[#15803d]" />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-[#1e293b] mb-1.5">GST Number</label>
+                  <input type="text" placeholder="123456789012" className="w-full px-4 py-2 border border-[#cbd5e1] rounded-lg text-sm text-[#64748b] outline-none focus:border-[#15803d]" />
+                </div>
+              </div>
+
+              <div className="mb-6">
+                <label className="block text-sm font-medium text-[#1e293b] mb-1.5">Address <span className="text-red-500">*</span></label>
+                <textarea 
+                  placeholder="Street address, City, State, Pincode"
+                  rows={3}
+                  className="w-full px-4 py-3 border border-[#cbd5e1] rounded-lg text-sm text-[#64748b] outline-none focus:border-[#15803d] resize-none"
+                ></textarea>
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-[#1e293b] mb-1.5">Status</label>
+                <div className="relative w-1/2">
+                  <select className="w-full appearance-none px-4 py-2 border border-[#cbd5e1] bg-white rounded-lg text-[#1e293b] text-sm outline-none focus:border-[#15803d] cursor-pointer">
+                    <option value="Active">Active</option>
+                    <option value="Inactive">Inactive</option>
+                  </select>
+                  <ChevronDownIcon className="w-4 h-4 text-[#1e293b] absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none" />
+                </div>
+              </div>
+            </div>
+
+            {/* Modal Footer */}
+            <div className="p-6 border-t border-[#e2e8f0] flex justify-end gap-3 bg-white">
+              <button 
+                onClick={() => setShowAddModal(false)}
+                className="px-6 py-2.5 border border-[#cbd5e1] text-[#0f172a] font-semibold rounded-lg hover:bg-[#f8fafc] transition-colors"
+              >
+                Cancel
+              </button>
+              <button 
+                onClick={() => setShowAddModal(false)}
+                className="px-6 py-2.5 bg-[#15803d] hover:bg-[#166534] text-white font-semibold rounded-lg transition-colors"
+              >
+                Add Supplier
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
     </div>
   );
 }
 
-// Icons
-function PlusIcon(props: SVGProps<SVGSVGElement>) {
+// SVG Icons
+function ChevronDownIcon(props: SVGProps<SVGSVGElement>) {
   return (
     <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" {...props}>
+      <polyline points="6 9 12 15 18 9"/>
+    </svg>
+  );
+}
+
+function PlusIcon(props: SVGProps<SVGSVGElement>) {
+  return (
+    <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round" {...props}>
       <line x1="12" y1="5" x2="12" y2="19"/>
       <line x1="5" y1="12" x2="19" y2="12"/>
     </svg>
   );
 }
 
-function SearchIcon(props: SVGProps<SVGSVGElement>) {
+function MoreVerticalIcon(props: SVGProps<SVGSVGElement>) {
   return (
     <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" {...props}>
-      <circle cx="11" cy="11" r="8"/>
-      <line x1="21" y1="21" x2="16.65" y2="16.65"/>
+      <circle cx="12" cy="12" r="1"/>
+      <circle cx="12" cy="5" r="1"/>
+      <circle cx="12" cy="19" r="1"/>
     </svg>
   );
 }
 
-function FilterIcon(props: SVGProps<SVGSVGElement>) {
+function CheckCircleIcon(props: SVGProps<SVGSVGElement>) {
   return (
     <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" {...props}>
-      <rect x="3" y="4" width="18" height="18" rx="2" ry="2"/>
-      <line x1="16" y1="2" x2="16" y2="6"/>
-      <line x1="8" y1="2" x2="8" y2="6"/>
-      <line x1="3" y1="10" x2="21" y2="10"/>
+      <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/>
+      <polyline points="22 4 12 14.01 9 11.01"/>
+    </svg>
+  );
+}
+
+function EyeIcon(props: SVGProps<SVGSVGElement>) {
+  return (
+    <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" {...props}>
+      <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/>
+      <circle cx="12" cy="12" r="3"/>
+    </svg>
+  );
+}
+
+function EditPencilIcon(props: SVGProps<SVGSVGElement>) {
+  return (
+    <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" {...props}>
+      <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/>
+      <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/>
+    </svg>
+  );
+}
+
+function CloseIcon(props: SVGProps<SVGSVGElement>) {
+  return (
+    <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" {...props}>
+      <line x1="18" y1="6" x2="6" y2="18"/>
+      <line x1="6" y1="6" x2="18" y2="18"/>
     </svg>
   );
 }

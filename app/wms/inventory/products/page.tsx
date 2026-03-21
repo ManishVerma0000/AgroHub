@@ -2,6 +2,7 @@
 
 import React, { useState } from "react";
 import { SVGProps } from "react";
+import { ConfirmDeleteModal } from "../../../../components/ui/ConfirmDeleteModal";
 
 export default function WMSProductInventory() {
   const [selectedItems, setSelectedItems] = useState<number[]>([]);
@@ -16,8 +17,21 @@ export default function WMSProductInventory() {
   const [showBulkActionMenu, setShowBulkActionMenu] = useState(false);
   const [showColumnsModal, setShowColumnsModal] = useState(false);
 
+  // Modal states for Action column
+  const [deleteModalOpen, setDeleteModalOpen] = useState(false);
+  const [itemToDelete, setItemToDelete] = useState<{ id: number; name: string } | null>(null);
+
   // Filter states
   const [selectedCategory, setSelectedCategory] = useState("All Categories");
+  const [dateRange, setDateRange] = useState("Loading...");
+
+  React.useEffect(() => {
+    const today = new Date();
+    const nextYear = new Date();
+    nextYear.setFullYear(today.getFullYear() + 1);
+    const formatDate = (date: Date) => date.toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: '2-digit' }).replace(/ /g, ' '); 
+    setDateRange(`${formatDate(today)} - ${formatDate(nextYear)}`);
+  }, []);
   const [selectedStatus, setSelectedStatus] = useState("All Status");
 
   const initialColumns = [
@@ -96,7 +110,7 @@ export default function WMSProductInventory() {
 
           <button className="flex items-center gap-2 px-4 py-2 border border-[#e2e8f0] bg-white rounded-lg text-sm font-medium text-[#111827] hover:bg-[#f9fafb] transition-colors">
             <CalendarIcon className="w-4 h-4 text-[#6b7280]" />
-            28 Feb 24 - 31 Mar 25
+            {dateRange}
             <ChevronDownIcon className="w-4 h-4 ml-1" />
           </button>
 
@@ -288,6 +302,7 @@ export default function WMSProductInventory() {
                 {columns.find(c => c.id === 'sellingPrice')?.visible && <th className="px-6 py-4 font-semibold uppercase text-xs tracking-wider">Selling Price</th>}
                 {columns.find(c => c.id === 'location')?.visible && <th className="px-6 py-4 font-semibold uppercase text-xs tracking-wider">Location</th>}
                 {columns.find(c => c.id === 'status')?.visible && <th className="px-6 py-4 font-semibold uppercase text-xs tracking-wider text-center">Status</th>}
+                <th className="px-6 py-4 font-semibold uppercase text-xs tracking-wider text-center">Action</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-[#f3f4f6]">
@@ -339,6 +354,23 @@ export default function WMSProductInventory() {
                         {isLowStock ? 'Low Stock' : 'In Stock'}
                       </span>
                     </td>}
+                    <td className="px-6 py-4 text-center">
+                      <div className="flex items-center justify-center gap-2">
+                        <button className="text-[#3b82f6] hover:bg-[#eff6ff] p-1.5 rounded transition-colors" title="Update">
+                          <EditIcon className="w-4 h-4" />
+                        </button>
+                        <button 
+                          onClick={() => {
+                            setItemToDelete({ id: item.id, name: item.name });
+                            setDeleteModalOpen(true);
+                          }}
+                          className="text-[#ef4444] hover:bg-[#fef2f2] p-1.5 rounded transition-colors" 
+                          title="Delete"
+                        >
+                          <TrashIcon className="w-4 h-4" />
+                        </button>
+                      </div>
+                    </td>
                   </tr>
                 );
               })}
@@ -525,6 +557,21 @@ export default function WMSProductInventory() {
         </div>
       )}
 
+      {/* Delete Confirmation Modal */}
+      <ConfirmDeleteModal
+        isOpen={deleteModalOpen}
+        onClose={() => {
+          setDeleteModalOpen(false);
+          setItemToDelete(null);
+        }}
+        onConfirm={() => {
+          // Implement delete logic here in real app
+          setDeleteModalOpen(false);
+          setItemToDelete(null);
+        }}
+        itemName={itemToDelete?.name}
+      />
+
     </div>
   );
 }
@@ -545,6 +592,15 @@ function StatMini({ icon, title, value, unit, color, iconColor, borderHighlight 
 }
 
 // Icons
+function EditIcon(props: SVGProps<SVGSVGElement>) {
+  return (
+    <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" {...props}>
+      <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/>
+      <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/>
+    </svg>
+  );
+}
+
 function FilterIcon(props: SVGProps<SVGSVGElement>) {
   return (
     <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" {...props}>
