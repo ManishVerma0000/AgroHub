@@ -38,6 +38,8 @@ export default function WMSSidebar() {
         { label: "Packing", href: "/wms/orders/packing", icon: BoxIcon },
         { label: "Dispatch", href: "/wms/orders/dispatch", icon: FastForwardIcon },
         { label: "Customers", href: "/wms/customers", icon: UserCogIcon },
+        { label: "Users", href: "/wms/users", icon: UsersIcon },
+        { label: "Reports", href: "/wms/reports", icon: BarChartIcon },
       ]
     }
   ];
@@ -221,6 +223,16 @@ function UserCogIcon(props: SVGProps<SVGSVGElement>) {
       <circle cx="9" cy="7" r="4"/>
       <circle cx="19" cy="11" r="3"/>
       <path d="M19 6.5v2M19 13.5v2M22.5 11h-2M15.5 11h-2"/>
+    </svg>
+  );
+}
+
+function BarChartIcon(props: SVGProps<SVGSVGElement>) {
+  return (
+    <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" {...props}>
+      <line x1="18" y1="20" x2="18" y2="10"/>
+      <line x1="12" y1="20" x2="12" y2="4"/>
+      <line x1="6" y1="20" x2="6" y2="14"/>
     </svg>
   );
 }

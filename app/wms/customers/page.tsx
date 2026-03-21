@@ -158,9 +158,9 @@ export default function CustomersPage() {
                   </td>
                   <td className="px-6 py-5">
                     <div className="flex justify-center items-center">
-                       <button className="text-[#64748b] hover:text-[#0f172a] transition-colors p-1.5">
+                       <Link href={`/wms/customers/${customer.id}`} className="text-[#64748b] hover:text-[#0f172a] transition-colors p-1.5 flex items-center justify-center">
                          <EyeIcon className="w-[18px] h-[18px]" />
-                       </button>
+                       </Link>
                     </div>
                   </td>
                 </tr>
