@@ -2,117 +2,268 @@
 
 import React, { useState } from "react";
 import { SVGProps } from "react";
+import Link from "next/link";
 
 export default function POReceivingPage() {
-  const mockPendingReceiving = [
-    { poNumber: "PO-2044", supplier: "PureOils Central", expected: "22 Oct 2026", items: 2, qty: 150 },
-    { poNumber: "PO-2050", supplier: "AgroFarms Ltd.", expected: "Today", items: 5, qty: 1200 },
-  ];
+  const [showReceiveModal, setShowReceiveModal] = useState(false);
 
   return (
-    <div className="flex flex-col gap-6 max-w-[1400px]">
+    <div className="flex flex-col gap-8 max-w-[1400px]">
+      
+      {/* Top Header Row */}
       <div className="flex justify-between items-center">
-        <div>
-          <h1 className="text-2xl font-bold text-[#111827]">PO Receiving</h1>
-          <p className="text-sm text-[#6b7280] mt-1">Scan and record incoming shipments against Purchase Orders.</p>
+        <h1 className="text-[26px] font-bold text-[#1e293b]">PO Receiving</h1>
+        
+        <div className="flex items-center gap-3">
+          <button className="flex items-center gap-2 px-4 py-2 border border-[#e2e8f0] bg-white text-[#475569] rounded-lg text-sm font-medium hover:bg-[#f8fafc] transition-colors shadow-sm">
+            <CalendarIcon className="w-4 h-4 text-[#64748b]" />
+            28 Feb 24 - 31 Mar 25
+            <ChevronDownIcon className="w-4 h-4 text-[#64748b]" />
+          </button>
+          
+          <button className="flex items-center justify-center p-2 border border-[#e2e8f0] bg-white text-[#475569] rounded-lg hover:bg-[#f8fafc] transition-colors shadow-sm">
+            <MoreVerticalIcon className="w-4 h-4" />
+          </button>
         </div>
       </div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        {/* Pending Deliveries */}
-        <div className="bg-white border border-[#f3f4f6] rounded-xl shadow-sm overflow-hidden flex flex-col">
-          <div className="p-4 border-b border-[#f3f4f6] bg-[#fcfcfc] flex items-center gap-2">
-            <TruckIcon className="w-5 h-5 text-[#07ac57]" />
-            <h2 className="font-bold text-[#111827]">Pending to Receive</h2>
-          </div>
+      {/* Pending to Receive Section */}
+      <div className="flex flex-col gap-4">
+        <h2 className="text-[17px] font-bold text-[#0f172a]">Pending to Receive</h2>
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
           
-          <div className="p-4 flex flex-col gap-4">
-            {mockPendingReceiving.map((po) => (
-              <div key={po.poNumber} className="border border-[#e2e8f0] rounded-lg p-4 hover:border-[#07ac57] transition-colors group">
-                <div className="flex justify-between items-start mb-3">
-                  <div>
-                    <h3 className="font-bold text-[#111827] text-lg">{po.poNumber}</h3>
-                    <p className="text-sm text-[#475569]">{po.supplier}</p>
-                  </div>
-                  <span className={`text-xs font-bold px-2 py-1 rounded ${po.expected === 'Today' ? 'bg-[#fff7ed] text-[#ea580c]' : 'bg-[#f1f5f9] text-[#475569]'}`}>
-                    Expected: {po.expected}
-                  </span>
-                </div>
-                
-                <div className="flex justify-between items-end border-t border-[#f3f4f6] pt-3">
-                  <div className="text-sm text-[#6b7280]">
-                    <span className="font-medium text-[#111827]">{po.items}</span> Items | <span className="font-medium text-[#111827]">{po.qty}</span> Units
-                  </div>
-                  <button className="px-4 py-1.5 bg-[#07ac57] text-white rounded text-sm font-medium hover:opacity-90">
-                    Receive Stock
-                  </button>
-                </div>
-              </div>
-            ))}
+          {/* Active Pending Card */}
+          <div className="bg-white border border-[#e2e8f0] rounded-xl p-5 shadow-sm flex flex-col hover:shadow-md transition-shadow">
+            <div className="flex justify-between items-start mb-3">
+              <Link href="/wms/procurement/orders/PO-002" className="text-[#2563eb] font-semibold hover:underline">
+                PO-002
+              </Link>
+              <span className="inline-flex items-center px-2.5 py-1 rounded-full bg-[#fefce8] text-[#ca8a04] text-[11px] font-bold">
+                Pending
+              </span>
+            </div>
             
-            {mockPendingReceiving.length === 0 && (
-              <div className="text-center py-8 text-[#94a3b8] flex flex-col items-center">
-                <BoxIcon className="w-12 h-12 mb-2 opacity-30" />
-                <p>No shipments pending delivery today.</p>
+            <div className="flex flex-col gap-1 mb-4">
+              <h3 className="text-[#0f172a] font-bold text-[15px]">Green Valley Suppliers</h3>
+              <span className="text-[#64748b] text-xs">Expected: 15 Mar 2024</span>
+            </div>
+            
+            <div className="flex justify-between items-center mb-5">
+              <div className="flex items-center gap-2">
+                <span className="text-[#475569] text-sm">1 items</span>
+                <span className="inline-flex items-center px-2 py-0.5 rounded-full bg-[#ffedd5] text-[#ea580c] text-[11px] font-semibold">
+                  1 pending
+                </span>
               </div>
-            )}
-          </div>
-        </div>
-
-        {/* Scan & Manual Entry placeholder */}
-        <div className="bg-white border text-center border-[#f3f4f6] rounded-xl shadow-sm p-8 flex flex-col items-center justify-center">
-          <div className="w-20 h-20 bg-[#f2fcf6] text-[#07ac57] rounded-full flex items-center justify-center mb-6">
-            <ScanIcon className="w-10 h-10" />
-          </div>
-          <h2 className="text-xl font-bold text-[#111827] mb-2">Scan Shipment Barcode</h2>
-          <p className="text-[#6b7280] mb-8 max-w-[300px]">Use barcode scanner or manually enter the PO number to begin receiving items.</p>
-          
-          <div className="flex w-full max-w-[350px]">
-            <input 
-              type="text" 
-              placeholder="Enter PO Number..." 
-              className="flex-1 border border-[#e2e8f0] rounded-l-lg px-4 py-3 outline-none focus:border-[#07ac57]"
-            />
-            <button className="bg-[#07ac57] text-white px-6 py-3 rounded-r-lg font-medium hover:opacity-90">
-              Find
+              <span className="text-[#0f172a] font-bold">₹8,500</span>
+            </div>
+            
+            <button 
+              onClick={() => setShowReceiveModal(true)}
+              className="w-full py-2.5 bg-[#16a34a] hover:bg-[#15803d] text-white font-semibold rounded-lg transition-colors text-sm shadow-sm mt-auto"
+            >
+              Receive Stock
             </button>
           </div>
+
         </div>
       </div>
+
+      {/* Recently Received Section */}
+      <div className="flex flex-col gap-4">
+        <h2 className="text-[17px] font-bold text-[#0f172a]">Recently Received</h2>
+        
+        <div className="bg-white border border-[#e2e8f0] rounded-xl shadow-sm overflow-hidden">
+          <div className="overflow-x-auto">
+            <table className="w-full text-left text-sm whitespace-nowrap">
+              <thead className="bg-[#f8fafc] text-[#64748b] font-bold text-[11px] uppercase tracking-wider border-b border-[#e2e8f0]">
+                <tr>
+                  <th className="px-6 py-4">PO ID</th>
+                  <th className="px-6 py-4">Supplier</th>
+                  <th className="px-6 py-4">Order Date</th>
+                  <th className="px-6 py-4">Items</th>
+                  <th className="px-6 py-4">Planned Amount</th>
+                  <th className="px-6 py-4">Actual Amount</th>
+                  <th className="px-6 py-4">Variance</th>
+                  <th className="px-6 py-4">Status</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-[#e2e8f0]">
+                <tr className="hover:bg-[#f8fafc] transition-colors">
+                  <td className="px-6 py-4">
+                    <Link href="/wms/procurement/orders/PO-001" className="text-[#2563eb] font-semibold hover:underline">
+                      PO-001
+                    </Link>
+                  </td>
+                  <td className="px-6 py-4 text-[#0f172a] font-medium">Fresh Farms Ltd</td>
+                  <td className="px-6 py-4 text-[#64748b]">10 Mar 2024</td>
+                  <td className="px-6 py-4 text-[#475569]">2 items</td>
+                  <td className="px-6 py-4 text-[#0f172a] font-bold">₹15,000</td>
+                  <td className="px-6 py-4 text-[#16a34a] font-bold">₹15,200</td>
+                  <td className="px-6 py-4 text-[#ef4444] font-bold">+₹200 <span className="text-xs ml-0.5">(+1.3%)</span></td>
+                  <td className="px-6 py-4">
+                     <span className="inline-flex items-center justify-center px-3 py-1 rounded-full bg-[#dcfce7] text-[#16a34a] text-[11px] font-bold">
+                       Completed
+                     </span>
+                  </td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+
+      {/* Receive Purchase Order Modal Overlay */}
+      {showReceiveModal && (
+        <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4">
+          <div className="bg-white rounded-xl w-full max-w-5xl shadow-xl flex flex-col max-h-[90vh] overflow-hidden animate-in fade-in zoom-in duration-200">
+            {/* Modal Header */}
+            <div className="flex justify-between items-center p-5 border-b border-[#e2e8f0]">
+              <div className="flex flex-col">
+                <h2 className="text-[20px] font-bold text-[#0f172a]">Receive Purchase Order</h2>
+                <span className="text-sm text-[#64748b] mt-0.5">PO-002 - Green Valley Suppliers - Expected: 15 Mar 2024</span>
+              </div>
+              <button 
+                onClick={() => setShowReceiveModal(false)}
+                className="text-[#64748b] hover:text-[#0f172a] transition-colors p-1"
+              >
+                <CloseIcon className="w-5 h-5" />
+              </button>
+            </div>
+
+            {/* Modal Body */}
+            <div className="p-6 overflow-y-auto flex flex-col gap-6 bg-[#fafafa]">
+              
+              {/* Instructions Banner */}
+              <div className="bg-[#eff6ff] border border-[#bfdbfe] rounded-lg p-4 text-sm text-[#1e40af]">
+                <span className="font-bold">Instructions:</span> Enter the quantity received and actual procurement price for each item. Leave quantity as 0 for items not received. The system will update inventory and create stock movement records.
+              </div>
+
+              {/* Editable Receiving Form Block */}
+              <div className="flex flex-col border border-[#e2e8f0] rounded-lg overflow-hidden bg-white shadow-sm">
+                <div className="overflow-x-auto">
+                  <table className="w-full text-left text-sm whitespace-nowrap">
+                    <thead className="bg-[#f8fafc] text-[#64748b] font-bold text-[11px] uppercase tracking-wider border-b border-[#e2e8f0]">
+                      <tr>
+                        <th className="px-5 py-4">Product</th>
+                        <th className="px-5 py-4">Ordered</th>
+                        <th className="px-5 py-4">Already Received</th>
+                        <th className="px-5 py-4">Remaining</th>
+                        <th className="px-5 py-4">Receive Qty<span className="text-[#94a3b8]">*</span></th>
+                        <th className="px-5 py-4">Actual Price<span className="text-[#94a3b8]">*</span></th>
+                        <th className="px-5 py-4 text-right">Line Amount</th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-[#e2e8f0]">
+                      <tr className="bg-[#f0fdf4]/30">
+                        <td className="px-5 py-4">
+                          <div className="flex flex-col">
+                            <span className="font-bold text-[#0f172a]">Onion</span>
+                            <span className="text-xs text-[#64748b]">Kg</span>
+                          </div>
+                        </td>
+                        <td className="px-5 py-4 text-[#0f172a] font-semibold">150</td>
+                        <td className="px-5 py-4 text-[#475569]">0</td>
+                        <td className="px-5 py-4 text-[#ea580c] font-bold">150</td>
+                        <td className="px-5 py-4">
+                          <input type="number" defaultValue={150} className="w-full max-w-[120px] px-3 py-2 border border-[#cbd5e1] rounded-md text-sm outline-none focus:border-[#16a34a] bg-white transition-colors" />
+                        </td>
+                        <td className="px-5 py-4">
+                          <input type="number" defaultValue={55} className="w-full max-w-[120px] px-3 py-2 border border-[#cbd5e1] rounded-md text-sm outline-none focus:border-[#16a34a] bg-white transition-colors" />
+                        </td>
+                        <td className="px-5 py-4 font-bold text-[#0f172a] text-right">₹8,250</td>
+                      </tr>
+                    </tbody>
+                    <tfoot className="border-t border-[#e2e8f0] bg-white">
+                      <tr>
+                        <td colSpan={5}></td>
+                        <td className="px-5 py-4 font-bold text-[#475569] text-right">Total Amount:</td>
+                        <td className="px-5 py-4 font-bold text-[#0f172a] text-[15px] text-right">₹8,250</td>
+                      </tr>
+                    </tfoot>
+                  </table>
+                </div>
+              </div>
+
+              {/* Receiving Summary Stats */}
+              <div className="bg-white border border-[#e2e8f0] rounded-xl p-5 shadow-sm mt-2">
+                <h3 className="text-sm font-bold text-[#0f172a] mb-4">Receiving Summary</h3>
+                <div className="grid grid-cols-4 gap-8">
+                  <div className="flex flex-col gap-1.5">
+                    <span className="text-[13px] text-[#64748b]">Items to Receive</span>
+                    <span className="font-bold text-[#2563eb] text-[15px]">1</span>
+                  </div>
+                  <div className="flex flex-col gap-1.5">
+                    <span className="text-[13px] text-[#64748b]">Total Quantity</span>
+                    <span className="font-bold text-[#0f172a] text-[15px]">150</span>
+                  </div>
+                  <div className="flex flex-col gap-1.5">
+                    <span className="text-[13px] text-[#64748b]">Total Amount</span>
+                    <span className="font-bold text-[#16a34a] text-[15px]">₹8,250</span>
+                  </div>
+                </div>
+              </div>
+
+            </div>
+
+            {/* Modal Footer */}
+            <div className="px-6 py-4 border-t border-[#e2e8f0] flex justify-end gap-3 bg-white">
+              <button 
+                onClick={() => setShowReceiveModal(false)}
+                className="px-6 py-2.5 border border-[#cbd5e1] text-[#0f172a] font-semibold rounded-lg hover:bg-[#f8fafc] transition-colors text-sm"
+              >
+                Cancel
+              </button>
+              <button 
+                onClick={() => setShowReceiveModal(false)}
+                className="px-6 py-2.5 bg-[#16a34a] hover:bg-[#15803d] text-white font-semibold rounded-lg transition-colors text-sm shadow-sm"
+              >
+                Confirm Receiving
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
     </div>
   );
 }
 
 // Icons
-function TruckIcon(props: SVGProps<SVGSVGElement>) {
+function CalendarIcon(props: SVGProps<SVGSVGElement>) {
   return (
     <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" {...props}>
-      <rect x="1" y="3" width="15" height="13"/>
-      <polygon points="16 8 20 8 23 11 23 16 16 16 16 8"/>
-      <circle cx="5.5" cy="18.5" r="2.5"/>
-      <circle cx="18.5" cy="18.5" r="2.5"/>
+      <rect x="3" y="4" width="18" height="18" rx="2" ry="2"/>
+      <line x1="16" y1="2" x2="16" y2="6"/>
+      <line x1="8" y1="2" x2="8" y2="6"/>
+      <line x1="3" y1="10" x2="21" y2="10"/>
     </svg>
   );
 }
 
-function BoxIcon(props: SVGProps<SVGSVGElement>) {
+function MoreVerticalIcon(props: SVGProps<SVGSVGElement>) {
   return (
     <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" {...props}>
-      <path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"/>
-      <polyline points="3.27 6.96 12 12.01 20.73 6.96"/>
-      <line x1="12" y1="22.08" x2="12" y2="12"/>
+      <circle cx="12" cy="12" r="1"/>
+      <circle cx="12" cy="5" r="1"/>
+      <circle cx="12" cy="19" r="1"/>
     </svg>
   );
 }
 
-function ScanIcon(props: SVGProps<SVGSVGElement>) {
+function ChevronDownIcon(props: SVGProps<SVGSVGElement>) {
   return (
     <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" {...props}>
-      <path d="M3 7V5a2 2 0 0 1 2-2h2"/>
-      <path d="M17 3h2a2 2 0 0 1 2 2v2"/>
-      <path d="M21 17v2a2 2 0 0 1-2 2h-2"/>
-      <path d="M7 21H5a2 2 0 0 1-2-2v-2"/>
-      <line x1="7" y1="12" x2="17" y2="12"/>
+      <polyline points="6 9 12 15 18 9"/>
+    </svg>
+  );
+}
+
+function CloseIcon(props: SVGProps<SVGSVGElement>) {
+  return (
+    <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" {...props}>
+      <line x1="18" y1="6" x2="6" y2="18"/>
+      <line x1="6" y1="6" x2="18" y2="18"/>
     </svg>
   );
 }
