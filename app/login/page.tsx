@@ -12,17 +12,22 @@ export default function LoginPage() {
   const [password, setPassword] = useState('');
   const [rememberMe, setRememberMe] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
+  const [loginRole, setLoginRole] = useState<'Admin' | 'Warehouse'>('Admin');
 
   const handleLogin = (e: React.FormEvent) => {
     e.preventDefault();
     setIsLoading(true);
     
-    console.log('Login attempt:', { email, password, rememberMe });
+    console.log('Login attempt:', { email, password, rememberMe, role: loginRole });
     
     // Simulate API call and redirect
     setTimeout(() => {
       setIsLoading(false);
-      router.push('/');
+      if (loginRole === 'Warehouse') {
+        router.push('/wms/dashboard');
+      } else {
+        router.push('/');
+      }
     }, 1000);
   };
 
@@ -40,6 +45,23 @@ export default function LoginPage() {
       </div>
 
       {/* Login Form */}
+      <div className="flex bg-[#f3f4f6] p-1 rounded-lg mb-6 shadow-inner">
+        <button
+          type="button"
+          onClick={() => setLoginRole('Admin')}
+          className={`flex-1 py-2 text-sm font-medium rounded-md transition-all duration-200 ${loginRole === 'Admin' ? 'bg-white text-[#111827] shadow-sm' : 'text-[#6b7280] hover:text-[#111827]'}`}
+        >
+          Admin Portal
+        </button>
+        <button
+          type="button"
+          onClick={() => setLoginRole('Warehouse')}
+          className={`flex-1 py-2 text-sm font-medium rounded-md transition-all duration-200 ${loginRole === 'Warehouse' ? 'bg-[#07ac57] text-white shadow-sm' : 'text-[#6b7280] hover:text-[#111827]'}`}
+        >
+          Warehouse WMS
+        </button>
+      </div>
+
       <form onSubmit={handleLogin} className="flex flex-col gap-5">
         <Input 
           label="Email Address" 

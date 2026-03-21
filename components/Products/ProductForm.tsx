@@ -37,6 +37,7 @@ export function ProductForm({ initialData, onSave, onCancel }: ProductFormProps)
   });
 
   const [variations, setVariations] = useState([{ quantity: '', price: '', sellingPrice: '' }]);
+  const [b2bSlabs, setB2bSlabs] = useState([{ minQty: '', maxQty: '', rate: '' }]);
   const [image, setImage] = useState<File | null>(null);
   const existingImageUrl = initialData?.imageUrl || null;
 
@@ -102,6 +103,9 @@ export function ProductForm({ initialData, onSave, onCancel }: ProductFormProps)
       if (initialData.variations && initialData.variations.length > 0) {
         setVariations(initialData.variations);
       }
+      if (initialData.b2bBulkSlabs && initialData.b2bBulkSlabs.length > 0) {
+        setB2bSlabs(initialData.b2bBulkSlabs);
+      }
     }
   }, [initialData]);
 
@@ -118,6 +122,21 @@ export function ProductForm({ initialData, onSave, onCancel }: ProductFormProps)
     const newVars = [...variations];
     newVars[index][field] = value;
     setVariations(newVars);
+  };
+
+  const handleAddB2bRow = () => {
+    setB2bSlabs([...b2bSlabs, { minQty: '', maxQty: '', rate: '' }]);
+  };
+
+  const handleRemoveB2bRow = (index: number) => {
+    const newSlabs = b2bSlabs.filter((_, i) => i !== index);
+    setB2bSlabs(newSlabs);
+  };
+
+  const updateB2bRow = (index: number, field: 'minQty' | 'maxQty' | 'rate', value: string) => {
+    const newSlabs = [...b2bSlabs];
+    newSlabs[index][field] = value;
+    setB2bSlabs(newSlabs);
   };
 
   const handleSubmit = (e: React.FormEvent) => {
@@ -142,7 +161,8 @@ export function ProductForm({ initialData, onSave, onCancel }: ProductFormProps)
       storage: formData.storage,
       b2b: formData.b2bEnabled ? 'Enabled' : 'Off',
       status: formData.status ? 'Active' : 'Inactive',
-      variations: variations
+      variations: variations,
+      b2bBulkSlabs: formData.b2bEnabled ? b2bSlabs : []
     }, image);
   };
 
@@ -406,7 +426,66 @@ export function ProductForm({ initialData, onSave, onCancel }: ProductFormProps)
               
               {formData.b2bEnabled && (
                 <div className="pt-4 border-t border-[#e5e7eb] flex flex-col gap-4 mt-2">
-                   <p className="text-sm text-[#4b5563]">Detailed B2B settings will be configured in advanced panel.</p>
+                   <div className="flex items-center justify-between mb-2">
+                     <span className="text-sm font-semibold text-[#111827]">B2B Pricing <span className="text-xs text-gray-400 font-normal">(Bulk Slabs)</span></span>
+                     <Button 
+                       type="button" 
+                       variant="outline" 
+                       className="h-8 px-3 text-sm text-[#07ac57] border-[#07ac57] hover:bg-[#e6f7ef] flex items-center gap-1"
+                       onClick={handleAddB2bRow}
+                     >
+                       <span className="text-lg leading-none mt-[-2px]">+</span> Add Slab
+                     </Button>
+                   </div>
+                   
+                   <div className="flex flex-col gap-4">
+                     {b2bSlabs.map((slab, index) => (
+                       <div key={index} className="flex flex-col gap-2 p-3 bg-white border border-[#e5e7eb] rounded-lg relative shadow-sm">
+                         <div className="flex items-center gap-2 w-full">
+                           <div className="flex-1">
+                             <Input 
+                               label="Min Qty"
+                               placeholder="e.g. 50kg" 
+                               value={slab.minQty}
+                               onChange={(e) => updateB2bRow(index, 'minQty', e.target.value)}
+                               required
+                             />
+                           </div>
+                           <div className="flex-1">
+                             <Input 
+                               label="Max Qty"
+                               placeholder="e.g. 100kg" 
+                               value={slab.maxQty}
+                               onChange={(e) => updateB2bRow(index, 'maxQty', e.target.value)}
+                               required
+                             />
+                           </div>
+                         </div>
+                         <div className="flex items-end gap-2 w-full mt-1">
+                           <div className="flex-1">
+                             <Input 
+                               label="Rate (₹/kg)"
+                               placeholder="₹38/kg" 
+                               value={slab.rate}
+                               onChange={(e) => updateB2bRow(index, 'rate', e.target.value)}
+                               required
+                             />
+                           </div>
+                           {b2bSlabs.length > 1 && (
+                             <button 
+                               type="button" 
+                               onClick={() => handleRemoveB2bRow(index)}
+                               className="h-[42px] px-3 mb-1 text-[#ef4444] hover:bg-red-50 rounded-lg transition-colors border border-transparent hover:border-red-100 flex items-center justify-center flex-shrink-0"
+                             >
+                               <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                                 <path d="M3 6h18"/><path d="M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6"/><path d="M8 6V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2"/>
+                               </svg>
+                             </button>
+                           )}
+                         </div>
+                       </div>
+                     ))}
+                   </div>
                 </div>
               )}
             </div>
