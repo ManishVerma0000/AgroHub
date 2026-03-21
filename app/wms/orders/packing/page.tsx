@@ -1,155 +1,180 @@
 "use client";
 
-import React, { useState } from "react";
+import React from "react";
+import Link from "next/link";
 import { SVGProps } from "react";
 
-export default function PackingPage() {
-  const [searchQuery, setSearchQuery] = useState("");
+const mockPackingList = [
+  { id: "ORD-002", customer: "XYZ Hotel", initial: "X", avatarBg: "bg-[#0d9488]", items: "8 items", location: "Pune", date: "18 Mar 2024", status: "Packing" },
+  { id: "ORD-003", customer: "Fresh Mart", initial: "F", avatarBg: "bg-[#0ea5e9]", items: "12 items", location: "Delhi", date: "17 Mar 2024", status: "Packing" },
+  { id: "ORD-004", customer: "Green Grocers", initial: "G", avatarBg: "bg-[#10b981]", items: "6 items", location: "Bangalore", date: "17 Mar 2024", status: "Packed" }
+];
 
-  const mockPackingTasks = [
-    { id: "ORD-9923", customer: "Nature's Basket", priority: "High", items: 3, weight: "6.5kg", pickedBy: "Rajesh K.", status: "In Packing" },
-    { id: "ORD-9924", customer: "Local Kirana Store", priority: "Normal", items: 2, weight: "10.5kg", pickedBy: "Arun V.", status: "Waiting to Pack" },
-  ];
-
+export default function PackingListPage() {
   return (
-    <div className="flex flex-col gap-6 max-w-[1400px]">
+    <div className="flex flex-col gap-8 max-w-[1400px]">
+      
+      {/* Top Header Row */}
       <div className="flex justify-between items-center">
-        <div>
-          <h1 className="text-2xl font-bold text-[#111827]">Packing Module</h1>
-          <p className="text-sm text-[#6b7280] mt-1">Verify picked items, pack them into boxes, and generate shipping labels.</p>
+        <div className="flex items-center gap-2">
+          <h1 className="text-[26px] font-bold text-[#0f172a]">Packing Module</h1>
+          <span className="text-[#64748b] text-[20px] font-medium mr-1">3</span>
+          <ChevronDownIcon className="w-5 h-5 text-[#64748b]" />
+        </div>
+        
+        <div className="flex items-center gap-3">
+          <button className="flex items-center gap-2 px-4 py-2 border border-[#e2e8f0] bg-white text-[#475569] text-sm font-semibold rounded-lg hover:bg-[#f8fafc] transition-colors shadow-sm">
+            <CalendarIcon className="w-4 h-4 text-[#64748b]" />
+            28 Feb 24 - 31 Mar 25
+            <ChevronDownIcon className="w-4 h-4 ml-1" />
+          </button>
+          <button className="flex items-center justify-center p-2 border border-[#e2e8f0] bg-white text-[#475569] rounded-lg hover:bg-[#f8fafc] transition-colors shadow-sm">
+            <MoreVerticalIcon className="w-4 h-4" />
+          </button>
         </div>
       </div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        {/* Left Column: Packing Queue */}
-        <div className="lg:col-span-1 flex flex-col gap-4">
-          <div className="bg-white border text-center border-[#f3f4f6] rounded-xl shadow-sm p-6 flex flex-col items-center justify-center">
-            <div className="w-16 h-16 bg-[#f2fcf6] text-[#07ac57] rounded-full flex items-center justify-center mb-4">
-              <ScanIcon className="w-8 h-8" />
-            </div>
-            <h2 className="text-lg font-bold text-[#111827] mb-1">Scan to Pack</h2>
-            <p className="text-[#6b7280] text-sm mb-4">Scan the order barcode from the pick list.</p>
-            
-            <input 
-              type="text" 
-              placeholder="Order ID..." 
-              className="w-full border border-[#e2e8f0] rounded-lg px-4 py-2 outline-none focus:border-[#07ac57] text-center"
-            />
-          </div>
-
-          <div className="bg-white border border-[#f3f4f6] rounded-xl shadow-sm overflow-hidden flex flex-col">
-            <div className="p-4 border-b border-[#f3f4f6] bg-[#fcfcfc] flex items-center gap-2">
-              <h2 className="font-bold text-[#111827]">Packing Queue</h2>
-              <span className="px-2 py-0.5 bg-[#f1f5f9] text-[#475569] text-xs font-bold rounded-full">{mockPackingTasks.length}</span>
-            </div>
-            <div className="p-0 divide-y divide-[#f3f4f6]">
-              {mockPackingTasks.map((task) => (
-                <div key={task.id} className="p-4 hover:bg-[#f8fafc] cursor-pointer transition-colors border-l-4 border-transparent hover:border-[#07ac57] flex flex-col gap-2">
-                  <div className="flex justify-between items-start">
-                    <h3 className="font-bold text-[#111827]">{task.id}</h3>
-                    {task.priority === 'High' && (
-                      <span className="px-2 py-0.5 bg-[#fef2f2] text-[#dc2626] border border-[#fecaca] rounded text-[10px] font-bold uppercase tracking-wider">High</span>
-                    )}
-                  </div>
-                  <div className="flex justify-between items-center text-sm text-[#6b7280]">
-                    <span>{task.items} Items</span>
-                    <span>~{task.weight}</span>
-                  </div>
-                  <div className="text-xs text-[#94a3b8]">Picked by: {task.pickedBy}</div>
-                </div>
-              ))}
-            </div>
-          </div>
+      {/* KPI Metric Dashboards Stack */}
+      <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
+        
+        <div className="bg-white border border-[#e2e8f0] rounded-xl p-6 shadow-sm flex flex-col gap-2">
+          <span className="text-[#64748b] text-[15px] font-medium">Ready to Pack</span>
+          <span className="text-[#f97316] text-[32px] font-bold leading-none">2</span>
         </div>
 
-        {/* Right Column: Active Packing */}
-        <div className="lg:col-span-2 bg-white border border-[#f3f4f6] rounded-xl shadow-sm flex flex-col">
-          <div className="p-6 flex flex-col gap-6">
-            <div className="flex justify-between items-start">
-              <div className="flex items-center gap-4">
-                <div className="w-12 h-12 bg-[#ecfdf5] text-[#059669] rounded-lg border border-[#a7f3d0] flex items-center justify-center">
-                  <BoxIcon className="w-6 h-6" />
-                </div>
-                <div>
-                  <h2 className="text-xl font-bold text-[#111827]">ORD-9923</h2>
-                  <p className="text-[#6b7280]">Nature's Basket</p>
-                </div>
-              </div>
-              <div className="flex gap-2">
-                <button className="px-4 py-2 border border-[#e2e8f0] rounded-lg text-sm font-medium text-[#111827] hover:bg-[#f9fafb]">Hold Order</button>
-              </div>
-            </div>
+        <div className="bg-white border border-[#e2e8f0] rounded-xl p-6 shadow-sm flex flex-col gap-2">
+          <span className="text-[#64748b] text-[15px] font-medium">In Packing</span>
+          <span className="text-[#ea580c] text-[32px] font-bold leading-none">2</span>
+        </div>
 
-            <div className="grid grid-cols-2 gap-4">
-              <div className="p-4 rounded-lg bg-[#f8fafc] border border-[#e2e8f0]">
-                <p className="text-xs font-semibold uppercase text-[#94a3b8] mb-1">Total Items to Pack</p>
-                <p className="text-2xl font-bold text-[#111827]">3</p>
-              </div>
-              <div className="p-4 rounded-lg bg-[#f8fafc] border border-[#e2e8f0]">
-                <p className="text-xs font-semibold uppercase text-[#94a3b8] mb-1">Est. Weight</p>
-                <p className="text-2xl font-bold text-[#111827]">6.5 kg</p>
-              </div>
-            </div>
+        <div className="bg-white border border-[#e2e8f0] rounded-xl p-6 shadow-sm flex flex-col gap-2">
+          <span className="text-[#64748b] text-[15px] font-medium">Packed Today</span>
+          <span className="text-[#16a34a] text-[32px] font-bold leading-none">3</span>
+        </div>
 
-            <div className="border border-[#e2e8f0] rounded-lg overflow-hidden">
-              <div className="p-3 bg-[#f8fafc] border-b border-[#e2e8f0] font-semibold text-sm text-[#475569]">Items Verification</div>
-              <table className="w-full text-left text-sm whitespace-nowrap">
-                <tbody className="divide-y divide-[#f3f4f6]">
-                  <tr className="bg-[#fcfcfc]">
-                    <td className="px-4 py-3 w-10 text-center"><span className="text-[#059669] font-bold">1.</span></td>
-                    <td className="px-4 py-3 font-medium text-[#111827]">Premium Basmati Rice - 5kg</td>
-                    <td className="px-4 py-3 text-right">x2</td>
-                    <td className="px-4 py-3 text-center"><span className="px-2 py-0.5 bg-[#ecfdf5] text-[#059669] text-xs font-bold rounded">Packed</span></td>
-                  </tr>
-                  <tr>
-                    <td className="px-4 py-3 w-10 text-center"><span className="text-[#94a3b8] font-bold">2.</span></td>
-                    <td className="px-4 py-3 font-medium text-[#111827]">Organic Toor Dal - 1kg</td>
-                    <td className="px-4 py-3 text-right">x5</td>
-                    <td className="px-4 py-3 text-center"><span className="px-2 py-0.5 bg-[#f1f5f9] text-[#64748b] text-xs font-bold rounded">Pending Scan</span></td>
-                  </tr>
-                  <tr>
-                    <td className="px-4 py-3 w-10 text-center"><span className="text-[#94a3b8] font-bold">3.</span></td>
-                    <td className="px-4 py-3 font-medium text-[#111827]">Cold Pressed Mustard Oil - 1L</td>
-                    <td className="px-4 py-3 text-right">x3</td>
-                    <td className="px-4 py-3 text-center"><span className="px-2 py-0.5 bg-[#f1f5f9] text-[#64748b] text-xs font-bold rounded">Pending Scan</span></td>
-                  </tr>
-                </tbody>
-              </table>
-            </div>
-            
-            <div className="mt-auto border-t border-[#f3f4f6] pt-6 flex justify-between items-center">
-              <div className="flex flex-col">
-                <span className="text-sm font-medium text-[#111827]">Box Type: <span className="text-[#07ac57]">Medium Corrugated (30x30x30)</span></span>
-              </div>
-              <button disabled className="px-8 py-3 bg-[#e2e8f0] text-[#94a3b8] rounded-lg font-bold cursor-not-allowed">
-                Mark Packed & Print Label
-              </button>
-            </div>
-          </div>
+        <div className="bg-white border border-[#e2e8f0] rounded-xl p-6 shadow-sm flex flex-col gap-2">
+          <span className="text-[#64748b] text-[15px] font-medium">Avg Packing Time</span>
+          <span className="text-[#0f172a] text-[32px] font-bold leading-none">12 min</span>
+        </div>
+
+      </div>
+
+      {/* Main Table Payload Container */}
+      <div className="bg-white border border-[#e2e8f0] rounded-xl shadow-sm flex flex-col overflow-hidden">
+        <div className="overflow-x-auto w-full">
+          <table className="w-full text-left text-sm whitespace-nowrap">
+            <thead className="bg-[#f8fafc] text-[#64748b] font-bold text-[11px] uppercase tracking-wider border-b border-[#e2e8f0]">
+              <tr>
+                <th className="px-6 py-4">ORDER ID</th>
+                <th className="px-6 py-4">CUSTOMER</th>
+                <th className="px-6 py-4">ITEMS</th>
+                <th className="px-6 py-4">LOCATION</th>
+                <th className="px-6 py-4">ORDER DATE</th>
+                <th className="px-6 py-4">STATUS</th>
+                <th className="px-6 py-4">ACTION</th>
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-[#e2e8f0]">
+              {mockPackingList.map((order) => (
+                <tr key={order.id} className="hover:bg-[#f8fafc] transition-colors">
+                  <td className="px-6 py-5">
+                    <Link href={`/wms/orders/packing`} className="text-[#2563eb] font-semibold hover:underline">
+                      {order.id}
+                    </Link>
+                  </td>
+                  <td className="px-6 py-5">
+                    <div className="flex items-center gap-3">
+                      <div className={`w-8 h-8 rounded-full flex items-center justify-center text-white font-bold text-[13px] ${order.avatarBg} shadow-sm`}>
+                        {order.initial}
+                      </div>
+                      <span className="text-[#0f172a] font-medium text-[14px]">{order.customer}</span>
+                    </div>
+                  </td>
+                  <td className="px-6 py-5 text-[#475569]">
+                    <span className="inline-flex items-center gap-1.5">
+                      <CubeIcon className="w-4 h-4 text-[#94a3b8]" />
+                      {order.items}
+                    </span>
+                  </td>
+                  <td className="px-6 py-5 text-[#475569]">{order.location}</td>
+                  <td className="px-6 py-5 text-[#475569]">{order.date}</td>
+                  <td className="px-6 py-5">
+                    {order.status === "Packing" ? (
+                      <span className="inline-flex items-center px-3 py-1.5 rounded-full bg-[#ffedd5] text-[#ea580c] text-[12px] font-bold">
+                        {order.status}
+                      </span>
+                    ) : (
+                      <span className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-[#dcfce3] text-[#16a34a] text-[12px] font-bold">
+                        <CheckIcon className="w-3.5 h-3.5" />
+                        {order.status}
+                      </span>
+                    )}
+                  </td>
+                  <td className="px-6 py-5">
+                    {order.status === "Packing" ? (
+                      <button className="px-4 py-2 bg-[#16a34a] hover:bg-[#15803d] text-white font-bold rounded-lg transition-colors text-[13px] shadow-sm">
+                        Mark Packed
+                      </button>
+                    ) : (
+                      <button className="px-4 py-2 bg-white border border-[#e2e8f0] text-[#0f172a] hover:bg-[#f8fafc] font-bold rounded-lg transition-colors text-[13px] shadow-sm">
+                        View Details
+                      </button>
+                    )}
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
         </div>
       </div>
     </div>
   );
 }
 
-function ScanIcon(props: SVGProps<SVGSVGElement>) {
+// Inline SVG Icons
+function ChevronDownIcon(props: SVGProps<SVGSVGElement>) {
   return (
     <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" {...props}>
-      <path d="M3 7V5a2 2 0 0 1 2-2h2"/>
-      <path d="M17 3h2a2 2 0 0 1 2 2v2"/>
-      <path d="M21 17v2a2 2 0 0 1-2 2h-2"/>
-      <path d="M7 21H5a2 2 0 0 1-2-2v-2"/>
-      <line x1="7" y1="12" x2="17" y2="12"/>
+      <polyline points="6 9 12 15 18 9"/>
     </svg>
   );
 }
 
-function BoxIcon(props: SVGProps<SVGSVGElement>) {
+function MoreVerticalIcon(props: SVGProps<SVGSVGElement>) {
   return (
     <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" {...props}>
-      <rect x="3" y="3" width="18" height="18" rx="2" ry="2"/>
-      <line x1="12" y1="8" x2="12" y2="16"/>
-      <line x1="8" y1="12" x2="16" y2="12"/>
+      <circle cx="12" cy="12" r="1"/>
+      <circle cx="12" cy="5" r="1"/>
+      <circle cx="12" cy="19" r="1"/>
+    </svg>
+  );
+}
+
+function CalendarIcon(props: SVGProps<SVGSVGElement>) {
+  return (
+    <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" {...props}>
+      <rect x="3" y="4" width="18" height="18" rx="2" ry="2"/>
+      <line x1="16" y1="2" x2="16" y2="6"/>
+      <line x1="8" y1="2" x2="8" y2="6"/>
+      <line x1="3" y1="10" x2="21" y2="10"/>
+    </svg>
+  );
+}
+
+function CubeIcon(props: SVGProps<SVGSVGElement>) {
+  return (
+    <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" {...props}>
+      <path d="m21 16-9 5-9-5V8l9-5 9 5z"></path>
+      <polyline points="3.27 6.96 12 12.01 20.73 6.96"></polyline>
+      <line x1="12" y1="22.08" x2="12" y2="12"></line>
+    </svg>
+  );
+}
+
+function CheckIcon(props: SVGProps<SVGSVGElement>) {
+  return (
+    <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round" {...props}>
+      <polyline points="20 6 9 17 4 12"></polyline>
     </svg>
   );
 }

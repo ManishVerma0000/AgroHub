@@ -37,6 +37,7 @@ export default function WMSSidebar() {
         { label: "Picking", href: "/wms/orders/picking", icon: HandIcon },
         { label: "Packing", href: "/wms/orders/packing", icon: BoxIcon },
         { label: "Dispatch", href: "/wms/orders/dispatch", icon: FastForwardIcon },
+        { label: "Customers", href: "/wms/customers", icon: UserCogIcon },
       ]
     }
   ];
@@ -209,6 +210,17 @@ function ProfileIcon(props: SVGProps<SVGSVGElement>) {
     <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" {...props}>
       <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/>
       <circle cx="12" cy="7" r="4"/>
+    </svg>
+  );
+}
+
+function UserCogIcon(props: SVGProps<SVGSVGElement>) {
+  return (
+    <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" {...props}>
+      <path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/>
+      <circle cx="9" cy="7" r="4"/>
+      <circle cx="19" cy="11" r="3"/>
+      <path d="M19 6.5v2M19 13.5v2M22.5 11h-2M15.5 11h-2"/>
     </svg>
   );
 }
