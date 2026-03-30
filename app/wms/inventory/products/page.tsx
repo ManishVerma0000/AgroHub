@@ -3,6 +3,10 @@
 import React, { useState } from "react";
 import { SVGProps } from "react";
 import { ConfirmDeleteModal } from "../../../../components/ui/ConfirmDeleteModal";
+import Link from "next/link";
+import { productService } from "../../../../services/productService";
+import { warehouseProductService } from "../../../../services/warehouseProductService";
+import { categoryService } from "../../../../services/categoryService";
 
 export default function WMSProductInventory() {
   const [selectedItems, setSelectedItems] = useState<number[]>([]);
@@ -10,7 +14,83 @@ export default function WMSProductInventory() {
   // Modal states
   const [isAddModalOpen, setIsAddModalOpen] = useState(false);
   const [addStep, setAddStep] = useState(1);
-  const [selectedGlobalProducts, setSelectedGlobalProducts] = useState<number[]>([]);
+  const [selectedGlobalProducts, setSelectedGlobalProducts] = useState<string[]>([]);
+  const [globalProducts, setGlobalProducts] = useState<any[]>([]);
+  const [categories, setCategories] = useState<any[]>([]);
+  const [inventoryItems, setInventoryItems] = useState<any[]>([]);
+  const [modalSearchValue, setModalSearchValue] = useState("");
+  const [modalSelectedCategory, setModalSelectedCategory] = useState("All Categories");
+  const [isLoadingProducts, setIsLoadingProducts] = useState(false);
+  const [isLoadingInventory, setIsLoadingInventory] = useState(false);
+  const [setupData, setSetupData] = useState<Record<string, any>>({});
+  const [isSubmitting, setIsSubmitting] = useState(false);
+
+  React.useEffect(() => {
+    fetchInitialData();
+  }, []);
+
+  const fetchInitialData = async () => {
+    setIsLoadingProducts(true);
+    setIsLoadingInventory(true);
+    try {
+      const [productsData, inventoryData, categoriesData] = await Promise.all([
+        productService.getAll(),
+        warehouseProductService.getAll(),
+        categoryService.getAll()
+      ]);
+      setGlobalProducts(productsData);
+      setInventoryItems(inventoryData);
+      setCategories(categoriesData);
+    } catch (error) {
+      console.error("Failed to fetch initial data:", error);
+    } finally {
+      setIsLoadingProducts(false);
+      setIsLoadingInventory(false);
+    }
+  };
+
+  const handleSetupChange = (productId: string, field: string, value: any) => {
+    setSetupData(prev => ({
+      ...prev,
+      [productId]: {
+        ...(prev[productId] || {}),
+        [field]: value
+      }
+    }));
+  };
+
+  const handleAddInventory = async () => {
+    setIsSubmitting(true);
+    try {
+      const promises = selectedGlobalProducts.map(gid => {
+        const itemData = setupData[gid] || {};
+        const gp = globalProducts.find(p => p.id === gid);
+        const payload = {
+          productId: gid,
+          initialStock: itemData.initialStock !== undefined ? Number(itemData.initialStock) : 0,
+          reorderLevel: itemData.reorderLevel !== undefined ? Number(itemData.reorderLevel) : 0,
+          basePrice: itemData.basePrice !== undefined ? Number(itemData.basePrice) : (gp?.basePrice ? Number(gp.basePrice) : 0),
+          location: itemData.location || "",
+          status: itemData.status || "Active",
+        };
+        return warehouseProductService.create(payload);
+      });
+      await Promise.all(promises);
+      
+      // Refresh inventory
+      const inventoryData = await warehouseProductService.getAll();
+      setInventoryItems(inventoryData);
+      
+      setIsAddModalOpen(false);
+      setSelectedGlobalProducts([]);
+      setAddStep(1);
+      setSetupData({});
+    } catch (err) {
+      console.error("Error creating inventory:", err);
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
   
   // Dropdown states
   const [showMoreActions, setShowMoreActions] = useState(false);
@@ -64,25 +144,40 @@ export default function WMSProductInventory() {
   const showAllColumns = () => setColumns(columns.map(c => ({ ...c, visible: true })));
   const resetColumns = () => setColumns(initialColumns);
 
-  const mockInventory = [
-    { id: 1, name: "Tomato Kg", category: "Vegetables", stock: 450, available: 370, reserved: 80, stockIn: 1200, stockOut: 750, missing: 15, wastage: 25, reorder: 100, basePrice: "$60.00", sellingPrice: "$80.00", location: "A-12" },
-    { id: 2, name: "Potato Kg", category: "Vegetables", stock: 380, available: 320, reserved: 60, stockIn: 980, stockOut: 600, missing: 8, wastage: 12, reorder: 150, basePrice: "$50.00", sellingPrice: "$70.00", location: "A-15" },
-    { id: 3, name: "Onion Kg", category: "Vegetables", stock: 85, available: 65, reserved: 20, stockIn: 450, stockOut: 365, missing: 5, wastage: 8, reorder: 100, basePrice: "$55.00", sellingPrice: "$75.00", location: "A-18" },
-    { id: 4, name: "Carrot Kg", category: "Vegetables", stock: 220, available: 175, reserved: 45, stockIn: 650, stockOut: 430, missing: 3, wastage: 7, reorder: 80, basePrice: "$48.00", sellingPrice: "$65.00", location: "B-02" },
-  ];
+  const mappedInventory = inventoryItems.map(invItem => {
+    const gp = globalProducts.find(p => p.id === invItem.productId) || {};
+    return {
+      id: invItem.id,
+      productId: invItem.productId,
+      name: gp.name || "Unknown Product",
+      category: gp.category || "-",
+      stock: invItem.initialStock || 0,
+      available: invItem.initialStock || 0,
+      reserved: 0,
+      stockIn: invItem.initialStock || 0,
+      stockOut: 0,
+      missing: 0,
+      wastage: 0,
+      reorder: invItem.reorderLevel || 0,
+      basePrice: invItem.basePrice ? `$${Number(invItem.basePrice).toFixed(2)}` : "-",
+      sellingPrice: gp.sellingPrice ? `$${Number(gp.sellingPrice).toFixed(2)}` : "-",
+      location: invItem.location || "-",
+      status: invItem.status || "In Stock",
+    };
+  });
 
-  const globalProducts = [
-    { id: 101, name: "Spinach", category: "Vegetables", unit: "kg", hsn: "0709", gst: "0%" },
-    { id: 102, name: "Cabbage", category: "Vegetables", unit: "kg", hsn: "0704", gst: "0%" },
-    { id: 103, name: "Cauliflower", category: "Vegetables", unit: "kg", hsn: "0704", gst: "0%" },
-  ];
-
-  const filteredInventory = mockInventory.filter((item) => {
+  const filteredInventory = mappedInventory.filter((item) => {
     const isLowStock = item.available <= item.reorder;
     const itemStatus = isLowStock ? 'Low Stock' : 'In Stock';
     
     if (selectedCategory !== "All Categories" && item.category !== selectedCategory) return false;
     if (selectedStatus !== "All Status" && itemStatus !== selectedStatus) return false;
+    return true;
+  });
+
+  const filteredGlobalProducts = globalProducts.filter(gp => {
+    if (modalSelectedCategory !== "All Categories" && gp.category !== modalSelectedCategory) return false;
+    if (modalSearchValue && !gp.name.toLowerCase().includes(modalSearchValue.toLowerCase())) return false;
     return true;
   });
 
@@ -220,7 +315,7 @@ export default function WMSProductInventory() {
               className="appearance-none flex items-center justify-between min-w-[140px] px-3 py-1.5 border border-[#e2e8f0] bg-white rounded-lg hover:bg-[#f9fafb] text-[#111827] transition-colors outline-none focus:border-[#07ac57] cursor-pointer font-medium"
             >
               <option value="All Categories">All Categories</option>
-              {Array.from(new Set(mockInventory.map(i => i.category))).map(c => (
+              {Array.from(new Set(mappedInventory.map(i => i.category))).map(c => (
                 <option key={c} value={c}>{c}</option>
               ))}
             </select>
@@ -356,6 +451,11 @@ export default function WMSProductInventory() {
                     </td>}
                     <td className="px-6 py-4 text-center">
                       <div className="flex items-center justify-center gap-2">
+                        <Link href={`/wms/inventory/products/${item.id}`}>
+                          <button className="text-[#07ac57] hover:bg-[#f2fcf6] p-1.5 rounded transition-colors" title="View Details">
+                            <EyeIcon className="w-4 h-4" />
+                          </button>
+                        </Link>
                         <button className="text-[#3b82f6] hover:bg-[#eff6ff] p-1.5 rounded transition-colors" title="Update">
                           <EditIcon className="w-4 h-4" />
                         </button>
@@ -402,11 +502,23 @@ export default function WMSProductInventory() {
                 <div className="flex gap-4">
                   <div className="relative flex-1">
                     <SearchIcon className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-[#94a3b8]" />
-                    <input type="text" placeholder="Search product catalogue..." className="w-full pl-9 pr-4 py-2 border border-[#e2e8f0] rounded-lg text-sm outline-none focus:border-[#07ac57]" />
+                    <input 
+                      type="text" 
+                      placeholder="Search product catalogue..." 
+                      value={modalSearchValue}
+                      onChange={(e) => setModalSearchValue(e.target.value)}
+                      className="w-full pl-9 pr-4 py-2 border border-[#e2e8f0] rounded-lg text-sm outline-none focus:border-[#07ac57]" 
+                    />
                   </div>
-                  <select className="border border-[#e2e8f0] rounded-lg px-4 py-2 text-sm outline-none w-48 bg-white text-[#111827]">
-                    <option>All Categories</option>
-                    <option>Vegetables</option>
+                  <select 
+                    value={modalSelectedCategory}
+                    onChange={(e) => setModalSelectedCategory(e.target.value)}
+                    className="border border-[#e2e8f0] rounded-lg px-4 py-2 text-sm outline-none w-48 bg-white text-[#111827]"
+                  >
+                    <option value="All Categories">All Categories</option>
+                    {categories.map(c => (
+                      <option key={c.id} value={c.name}>{c.name}</option>
+                    ))}
                   </select>
                 </div>
                 
@@ -423,7 +535,19 @@ export default function WMSProductInventory() {
                       </tr>
                     </thead>
                     <tbody className="divide-y divide-[#f3f4f6]">
-                      {globalProducts.map(gp => (
+                      {isLoadingProducts ? (
+                        <tr>
+                          <td colSpan={6} className="px-4 py-8 text-center text-[#6b7280]">
+                            Loading products...
+                          </td>
+                        </tr>
+                      ) : filteredGlobalProducts.length === 0 ? (
+                        <tr>
+                          <td colSpan={6} className="px-4 py-8 text-center text-[#6b7280]">
+                            No products found matching the criteria.
+                          </td>
+                        </tr>
+                      ) : filteredGlobalProducts.map(gp => (
                         <tr key={gp.id} className="hover:bg-[#fcfcfc] cursor-pointer" onClick={() => {
                           if (selectedGlobalProducts.includes(gp.id)) setSelectedGlobalProducts(selectedGlobalProducts.filter(id => id !== gp.id));
                           else setSelectedGlobalProducts([...selectedGlobalProducts, gp.id]);
@@ -437,10 +561,10 @@ export default function WMSProductInventory() {
                             />
                           </td>
                           <td className="px-4 py-3 font-medium text-[#111827]">{gp.name}</td>
-                          <td className="px-4 py-3 text-[#6b7280]">{gp.category}</td>
-                          <td className="px-4 py-3 text-[#6b7280]">{gp.unit}</td>
-                          <td className="px-4 py-3 text-[#6b7280]">{gp.hsn}</td>
-                          <td className="px-4 py-3 text-[#6b7280]">{gp.gst}</td>
+                          <td className="px-4 py-3 text-[#6b7280]">{gp.category || '-'}</td>
+                          <td className="px-4 py-3 text-[#6b7280]">{gp.baseUnit || '-'}</td>
+                          <td className="px-4 py-3 text-[#6b7280]">{gp.hsn || '-'}</td>
+                          <td className="px-4 py-3 text-[#6b7280]">{gp.gstRate ? `${gp.gstRate}%` : '-'}</td>
                         </tr>
                       ))}
                     </tbody>
@@ -479,15 +603,15 @@ export default function WMSProductInventory() {
                           <tr key={gp.id}>
                             <td className="px-4 py-4">
                               <p className="font-bold text-[#111827] text-base">{gp.name}</p>
-                              <p className="text-xs text-[#94a3b8] mt-0.5">Box</p>
+                              <p className="text-xs text-[#94a3b8] mt-0.5">{gp.baseUnit || 'Unit'}</p>
                             </td>
-                            <td className="px-4 py-4"><input type="number" placeholder="0" className="w-[100px] border border-[#e2e8f0] px-3 py-2 rounded-lg outline-none focus:border-[#07ac57] text-[#111827] bg-white"/></td>
-                            <td className="px-4 py-4"><input type="number" placeholder="0" className="w-[100px] border border-[#e2e8f0] px-3 py-2 rounded-lg outline-none focus:border-[#07ac57] text-[#111827] bg-white"/></td>
-                            <td className="px-4 py-4"><input type="number" placeholder="0.00" className="w-[120px] border border-[#e2e8f0] px-3 py-2 rounded-lg outline-none focus:border-[#07ac57] text-[#111827] bg-white"/></td>
-                            <td className="px-4 py-4"><input type="text" placeholder="A-12" className="w-[100px] border border-[#e2e8f0] px-3 py-2 rounded-lg outline-none focus:border-[#07ac57] text-[#111827] bg-white"/></td>
+                            <td className="px-4 py-4"><input type="number" placeholder="0" value={setupData[gp.id]?.initialStock || ''} onChange={e => handleSetupChange(gp.id, 'initialStock', e.target.value)} className="w-[100px] border border-[#e2e8f0] px-3 py-2 rounded-lg outline-none focus:border-[#07ac57] text-[#111827] bg-white"/></td>
+                            <td className="px-4 py-4"><input type="number" placeholder="0" value={setupData[gp.id]?.reorderLevel || ''} onChange={e => handleSetupChange(gp.id, 'reorderLevel', e.target.value)} className="w-[100px] border border-[#e2e8f0] px-3 py-2 rounded-lg outline-none focus:border-[#07ac57] text-[#111827] bg-white"/></td>
+                            <td className="px-4 py-4"><input type="number" value={setupData[gp.id]?.basePrice !== undefined ? setupData[gp.id].basePrice : (gp.basePrice || '')} onChange={e => handleSetupChange(gp.id, 'basePrice', e.target.value)} placeholder="0.00" className="w-[120px] border border-[#e2e8f0] px-3 py-2 rounded-lg outline-none focus:border-[#07ac57] text-[#111827] bg-white"/></td>
+                            <td className="px-4 py-4"><input type="text" placeholder="A-12" value={setupData[gp.id]?.location || ''} onChange={e => handleSetupChange(gp.id, 'location', e.target.value)} className="w-[100px] border border-[#e2e8f0] px-3 py-2 rounded-lg outline-none focus:border-[#07ac57] text-[#111827] bg-white"/></td>
                             <td className="px-4 py-4">
                               <div className="relative w-[110px]">
-                                <select className="w-full appearance-none border border-[#e2e8f0] px-3 py-2 rounded-lg outline-none focus:border-[#07ac57] text-[#111827] bg-white cursor-pointer font-medium">
+                                <select value={setupData[gp.id]?.status || 'Active'} onChange={e => handleSetupChange(gp.id, 'status', e.target.value)} className="w-full appearance-none border border-[#e2e8f0] px-3 py-2 rounded-lg outline-none focus:border-[#07ac57] text-[#111827] bg-white cursor-pointer font-medium">
                                   <option>Active</option>
                                   <option>Inactive</option>
                                 </select>
@@ -544,11 +668,11 @@ export default function WMSProductInventory() {
                   </button>
                 ) : (
                   <button 
-                    onClick={() => { setIsAddModalOpen(false); setSelectedGlobalProducts([]); setAddStep(1); }}
-                    disabled={selectedGlobalProducts.length === 0}
+                    onClick={handleAddInventory}
+                    disabled={selectedGlobalProducts.length === 0 || isSubmitting}
                     className="px-6 py-2.5 bg-[#07ac57] text-white rounded-lg text-sm font-semibold hover:opacity-90 transition-opacity disabled:opacity-50 disabled:cursor-not-allowed"
                   >
-                    Add {selectedGlobalProducts.length} Product(s) to Inventory
+                    {isSubmitting ? 'Adding...' : `Add ${selectedGlobalProducts.length} Product(s) to Inventory`}
                   </button>
                 )}
               </div>
@@ -764,6 +888,15 @@ function XCircleIcon(props: SVGProps<SVGSVGElement>) {
       <circle cx="12" cy="12" r="10"/>
       <line x1="15" y1="9" x2="9" y2="15"/>
       <line x1="9" y1="9" x2="15" y2="15"/>
+    </svg>
+  );
+}
+
+function EyeIcon(props: SVGProps<SVGSVGElement>) {
+  return (
+    <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" {...props}>
+      <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z" />
+      <circle cx="12" cy="12" r="3" />
     </svg>
   );
 }
