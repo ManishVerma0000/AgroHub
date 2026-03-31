@@ -1,47 +1,86 @@
 "use client";
 
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { SVGProps } from "react";
+import { useRouter } from "next/navigation";
+import { supplierService, Supplier } from "../../../../services/supplierService";
 
 export default function SuppliersPage() {
+  const router = useRouter();
   const [selectedStatus, setSelectedStatus] = useState("All Status");
   const [selectedLocation, setSelectedLocation] = useState("All Locations");
   const [showAddModal, setShowAddModal] = useState(false);
+  const [suppliers, setSuppliers] = useState<Supplier[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
 
-  const mockSuppliers = [
-    { 
-      id: "SUP-001", 
-      name: "Fresh Farms Ltd", 
-      contact: "Rajesh Kumar", 
-      phone: "+91 98765 43210", 
-      gst: "27AABCU9603R1ZM", 
-      location: "Pune,\nMaharashtra", 
-      products: 2,
-      poCount: 1,
-      totalAmount: "NaN",
-      pendingAmount: "NaN",
-      paidAmount: "NaN",
-      status: "Active",
-      initial: "F",
-      avatarColor: "from-[#0d9488] to-[#0284c7]" // Teal to Blue
-    },
-    { 
-      id: "SUP-002", 
-      name: "Green Valley Suppliers", 
-      contact: "Priya Sharma", 
-      phone: "+91 98234 56789", 
-      gst: "27AABCU9603R1ZN", 
-      location: "Mumbai,\nMaharashtra", 
-      products: 0,
-      poCount: 1,
-      totalAmount: "NaN",
-      pendingAmount: "NaN",
-      paidAmount: "NaN",
-      status: "Active",
-      initial: "G",
-      avatarColor: "from-[#10b981] to-[#0284c7]" // Green to Blue
+  // Form states
+  const [formData, setFormData] = useState({
+    name: "",
+    contactPerson: "",
+    phone: "",
+    email: "",
+    location: "",
+    gstNumber: "",
+    address: "",
+    status: "Active"
+  });
+
+  const fetchSuppliers = async () => {
+    try {
+      setIsLoading(true);
+      const data = await supplierService.getAllSuppliers();
+      setSuppliers(data);
+    } catch (error) {
+      console.error("Failed to fetch suppliers", error);
+    } finally {
+      setIsLoading(false);
     }
+  };
+
+  useEffect(() => {
+    fetchSuppliers();
+  }, []);
+
+  const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>) => {
+    const { name, value } = e.target;
+    setFormData(prev => ({ ...prev, [name]: value }));
+  };
+
+  const handleAddSupplier = async () => {
+    try {
+      await supplierService.createSupplier(formData);
+      setShowAddModal(false);
+      setFormData({
+        name: "",
+        contactPerson: "",
+        phone: "",
+        email: "",
+        location: "",
+        gstNumber: "",
+        address: "",
+        status: "Active"
+      });
+      fetchSuppliers(); // Refresh list
+    } catch (error) {
+      console.error("Failed to add supplier", error);
+      alert("Failed to add supplier. Please check the inputs.");
+    }
+  };
+
+  const avatarColors = [
+    "from-[#0d9488] to-[#0284c7]",
+    "from-[#10b981] to-[#0284c7]",
+    "from-[#f59e0b] to-[#ea580c]",
+    "from-[#8b5cf6] to-[#ec4899]",
+    "from-[#ec4899] to-[#f43f5e]"
   ];
+
+  const filteredSuppliers = suppliers.filter(s => {
+    if (selectedStatus !== "All Status" && s.status !== selectedStatus) return false;
+    const loc = s.location?.split(',')[0]?.trim() || "";
+    if (selectedLocation !== "All Locations" && loc !== selectedLocation) return false;
+    return true;
+  });
 
   return (
     <div className="flex flex-col gap-6 max-w-[1400px]">
@@ -51,7 +90,7 @@ export default function SuppliersPage() {
         <div className="flex items-center gap-3">
           <h1 className="text-[26px] font-bold text-[#1e293b]">Suppliers</h1>
           <div className="flex items-center gap-1 text-[#64748b]">
-            <span className="text-xl">2</span>
+            <span className="text-xl">{filteredSuppliers.length}</span>
             <ChevronDownIcon className="w-5 h-5 pointer-events-none" />
           </div>
         </div>
@@ -128,36 +167,47 @@ export default function SuppliersPage() {
               </tr>
             </thead>
             <tbody className="divide-y divide-[#e2e8f0]">
-              {mockSuppliers.map((supplier) => (
+              {isLoading ? (
+                <tr>
+                  <td colSpan={12} className="px-5 py-8 text-center text-[#64748b]">
+                    Loading...
+                  </td>
+                </tr>
+              ) : filteredSuppliers.length === 0 ? (
+                <tr>
+                  <td colSpan={12} className="px-5 py-8 text-center text-[#64748b]">
+                    No suppliers found.
+                  </td>
+                </tr>
+              ) : filteredSuppliers.map((supplier, index) => (
                 <tr key={supplier.id} className="hover:bg-[#f8fafc] transition-colors">
                   <td className="px-5 py-4">
                     <div className="flex items-center gap-4">
-                      <div className={`w-12 h-12 rounded-full flex items-center justify-center text-white font-bold text-lg shrink-0 bg-gradient-to-br ${supplier.avatarColor}`}>
-                        {supplier.initial}
+                      <div className={`w-12 h-12 rounded-full flex items-center justify-center text-white font-bold text-lg shrink-0 bg-gradient-to-br ${avatarColors[index % avatarColors.length]}`}>
+                        {supplier.name.charAt(0).toUpperCase()}
                       </div>
                       <div className="flex flex-col">
                         <span className="font-bold text-[#0f172a] text-[15px]">{supplier.name}</span>
-                        <span className="text-[#94a3b8] text-xs font-semibold">{supplier.id}</span>
+                        <span className="text-[#94a3b8] text-xs font-semibold">SUP-{supplier.id.slice(-6).toUpperCase()}</span>
                       </div>
                     </div>
                   </td>
                   <td className="px-5 py-4">
                     <div className="flex flex-col text-[#475569]">
-                      <span className="font-medium">{supplier.contact.split(' ')[0]}</span>
-                      <span>{supplier.contact.split(' ')[1]}</span>
+                      <span className="font-medium">{supplier.contactPerson.split(' ')[0]}</span>
+                      <span>{supplier.contactPerson.split(' ').slice(1).join(' ')}</span>
                     </div>
                   </td>
                   <td className="px-5 py-4">
                     <div className="flex flex-col text-[#475569]">
-                      <span>{supplier.phone.split(' ').slice(0,2).join(' ')}</span>
-                      <span>{supplier.phone.split(' ')[2]}</span>
+                      <span>{supplier.phone}</span>
                     </div>
                   </td>
-                  <td className="px-5 py-4 text-[#475569] font-medium">{supplier.gst}</td>
+                  <td className="px-5 py-4 text-[#475569] font-medium">{supplier.gstNumber || '-'}</td>
                   <td className="px-5 py-4">
                     <div className="flex flex-col text-[#475569]">
-                      <span>{supplier.location.split(',\n')[0]},</span>
-                      <span>{supplier.location.split(',\n')[1]}</span>
+                      <span>{supplier.location.split(',')[0]?.trim() || supplier.location}{supplier.location.includes(',') ? ',' : ''}</span>
+                      <span>{supplier.location.split(',')[1]?.trim() || ''}</span>
                     </div>
                   </td>
                   <td className="px-5 py-4 text-center">
@@ -187,7 +237,11 @@ export default function SuppliersPage() {
                   </td>
                   <td className="px-5 py-4 text-center">
                     <div className="flex items-center justify-center gap-3">
-                       <button className="text-[#3b82f6] hover:text-[#2563eb] transition-colors" title="View Details">
+                       <button 
+                         onClick={() => router.push(`/wms/procurement/suppliers/${supplier.id}`)}
+                         className="text-[#3b82f6] hover:text-[#2563eb] transition-colors" 
+                         title="View Details"
+                       >
                          <EyeIcon className="w-4 h-4" />
                        </button>
                        <button className="text-[#16a34a] hover:text-[#15803d] transition-colors" title="Edit Supplier">
@@ -222,35 +276,38 @@ export default function SuppliersPage() {
               <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
                 <div>
                   <label className="block text-sm font-medium text-[#1e293b] mb-1.5">Supplier Name <span className="text-red-500">*</span></label>
-                  <input type="text" className="w-full px-4 py-2 border border-[#cbd5e1] rounded-lg text-sm outline-none focus:border-[#15803d]" />
+                  <input type="text" name="name" value={formData.name} onChange={handleInputChange} className="w-full px-4 py-2 border border-[#cbd5e1] rounded-lg text-sm outline-none focus:border-[#15803d]" />
                 </div>
                 <div>
                   <label className="block text-sm font-medium text-[#1e293b] mb-1.5">Contact Person <span className="text-red-500">*</span></label>
-                  <input type="text" className="w-full px-4 py-2 border border-[#cbd5e1] rounded-lg text-sm outline-none focus:border-[#15803d]" />
+                  <input type="text" name="contactPerson" value={formData.contactPerson} onChange={handleInputChange} className="w-full px-4 py-2 border border-[#cbd5e1] rounded-lg text-sm outline-none focus:border-[#15803d]" />
                 </div>
                 
                 <div>
                   <label className="block text-sm font-medium text-[#1e293b] mb-1.5">Phone Number <span className="text-red-500">*</span></label>
-                  <input type="text" placeholder="9876543210" className="w-full px-4 py-2 border border-[#cbd5e1] rounded-lg text-sm text-[#64748b] outline-none focus:border-[#15803d]" />
+                  <input type="text" name="phone" value={formData.phone} onChange={handleInputChange} placeholder="9876543210" className="w-full px-4 py-2 border border-[#cbd5e1] rounded-lg text-sm text-[#64748b] outline-none focus:border-[#15803d]" />
                 </div>
                 <div>
                   <label className="block text-sm font-medium text-[#1e293b] mb-1.5">Email <span className="text-red-500">*</span></label>
-                  <input type="email" className="w-full px-4 py-2 border border-[#cbd5e1] rounded-lg text-sm outline-none focus:border-[#15803d]" />
+                  <input type="email" name="email" value={formData.email} onChange={handleInputChange} className="w-full px-4 py-2 border border-[#cbd5e1] rounded-lg text-sm outline-none focus:border-[#15803d]" />
                 </div>
 
                 <div>
                   <label className="block text-sm font-medium text-[#1e293b] mb-1.5">Location <span className="text-red-500">*</span></label>
-                  <input type="text" placeholder="City A" className="w-full px-4 py-2 border border-[#cbd5e1] rounded-lg text-sm text-[#64748b] outline-none focus:border-[#15803d]" />
+                  <input type="text" name="location" value={formData.location} onChange={handleInputChange} placeholder="City A" className="w-full px-4 py-2 border border-[#cbd5e1] rounded-lg text-sm text-[#64748b] outline-none focus:border-[#15803d]" />
                 </div>
                 <div>
                   <label className="block text-sm font-medium text-[#1e293b] mb-1.5">GST Number</label>
-                  <input type="text" placeholder="123456789012" className="w-full px-4 py-2 border border-[#cbd5e1] rounded-lg text-sm text-[#64748b] outline-none focus:border-[#15803d]" />
+                  <input type="text" name="gstNumber" value={formData.gstNumber} onChange={handleInputChange} placeholder="123456789012" className="w-full px-4 py-2 border border-[#cbd5e1] rounded-lg text-sm text-[#64748b] outline-none focus:border-[#15803d]" />
                 </div>
               </div>
 
               <div className="mb-6">
                 <label className="block text-sm font-medium text-[#1e293b] mb-1.5">Address <span className="text-red-500">*</span></label>
                 <textarea 
+                  name="address"
+                  value={formData.address}
+                  onChange={handleInputChange}
                   placeholder="Street address, City, State, Pincode"
                   rows={3}
                   className="w-full px-4 py-3 border border-[#cbd5e1] rounded-lg text-sm text-[#64748b] outline-none focus:border-[#15803d] resize-none"
@@ -260,7 +317,7 @@ export default function SuppliersPage() {
               <div>
                 <label className="block text-sm font-medium text-[#1e293b] mb-1.5">Status</label>
                 <div className="relative w-1/2">
-                  <select className="w-full appearance-none px-4 py-2 border border-[#cbd5e1] bg-white rounded-lg text-[#1e293b] text-sm outline-none focus:border-[#15803d] cursor-pointer">
+                  <select name="status" value={formData.status} onChange={handleInputChange} className="w-full appearance-none px-4 py-2 border border-[#cbd5e1] bg-white rounded-lg text-[#1e293b] text-sm outline-none focus:border-[#15803d] cursor-pointer">
                     <option value="Active">Active</option>
                     <option value="Inactive">Inactive</option>
                   </select>
@@ -278,7 +335,7 @@ export default function SuppliersPage() {
                 Cancel
               </button>
               <button 
-                onClick={() => setShowAddModal(false)}
+                onClick={handleAddSupplier}
                 className="px-6 py-2.5 bg-[#15803d] hover:bg-[#166534] text-white font-semibold rounded-lg transition-colors"
               >
                 Add Supplier

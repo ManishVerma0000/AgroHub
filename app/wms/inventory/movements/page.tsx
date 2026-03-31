@@ -1,7 +1,8 @@
 "use client";
 
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { SVGProps } from "react";
+import { getInventoryMovements } from "@/services/inventoryMovementService";
 
 export default function MovementHistory() {
   const [selectedMovementType, setSelectedMovementType] = useState("Movement Type");
@@ -9,22 +10,34 @@ export default function MovementHistory() {
 
   const [dateRange, setDateRange] = useState("Loading...");
 
+  const [movements, setMovements] = useState<any[]>([]);
+  const [loading, setLoading] = useState(true);
+
   React.useEffect(() => {
     const today = new Date();
     const nextYear = new Date();
     nextYear.setFullYear(today.getFullYear() + 1);
     const formatDate = (date: Date) => date.toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: '2-digit' }).replace(/ /g, ' '); 
     setDateRange(`${formatDate(today)} - ${formatDate(nextYear)}`);
+
+    const fetchMovements = async () => {
+      try {
+        const data = await getInventoryMovements();
+        setMovements(data);
+      } catch (error) {
+        console.error("Failed to fetch movements", error);
+      } finally {
+        setLoading(false);
+      }
+    };
+    fetchMovements();
   }, []);
 
-  const mockMovements = [
-    { id: 1, type: "Stock In", product: "Tomato", quantity: "+200 kg", prevStock: "250 kg", newStock: "450 kg", ref: "PO-2024-0123", user: "John Doe", date: "16 Mar 2024 10:30 AM" },
-    { id: 2, type: "Order Fulfillment", product: "Potato", quantity: "-80 kg", prevStock: "380 kg", newStock: "300 kg", ref: "ORD-2024-0456", user: "System", date: "16 Mar 2024 09:15 AM" },
-    { id: 3, type: "Stock Adjustment", product: "Onion", quantity: "+25 kg", prevStock: "85 kg", newStock: "110 kg", ref: "ADJ-2024-0089", user: "Jane Smith", date: "15 Mar 2024 04:20 PM" },
-    { id: 4, type: "Wastage", product: "Carrot", quantity: "-5 kg", prevStock: "225 kg", newStock: "220 kg", ref: "WST-2024-0012", user: "Mike Johnson", date: "15 Mar 2024 02:45 PM" },
-    { id: 5, type: "Stock In", product: "Cabbage", quantity: "+150 kg", prevStock: "100 kg", newStock: "250 kg", ref: "PO-2024-0122", user: "John Doe", date: "14 Mar 2024 11:30 AM" },
-    { id: 6, type: "Missing Stock", product: "Apple", quantity: "-2 kg", prevStock: "47 kg", newStock: "45 kg", ref: "MSS-2024-0003", user: "Sarah Lee", date: "14 Mar 2024 10:15 AM" }
-  ];
+  const filteredMovements = movements.filter(m => {
+    if (selectedMovementType !== "Movement Type" && m.type !== selectedMovementType) return false;
+    if (selectedProduct !== "Product" && m.productName !== selectedProduct) return false;
+    return true;
+  });
 
   const getTypeStyle = (type: string) => {
     switch(type) {
@@ -89,9 +102,9 @@ export default function MovementHistory() {
             className="appearance-none flex items-center justify-between min-w-[120px] px-3 py-1.5 border border-[#e2e8f0] bg-white rounded-lg hover:bg-[#f8fafc] text-[#111827] transition-colors outline-none focus:border-[#07ac57] cursor-pointer"
           >
             <option value="Product">Product</option>
-            <option value="Tomato">Tomato</option>
-            <option value="Potato">Potato</option>
-            <option value="Onion">Onion</option>
+            {Array.from(new Set(movements.map(m => m.productName).filter(Boolean))).map(productName => (
+              <option key={productName} value={productName}>{productName}</option>
+            ))}
           </select>
           <ChevronDownIcon className="w-4 h-4 text-[#64748b] absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none" />
         </div>
@@ -114,29 +127,47 @@ export default function MovementHistory() {
               </tr>
             </thead>
             <tbody className="divide-y divide-[#f1f5f9]">
-              {mockMovements.map((item) => (
-                <tr key={item.id} className="hover:bg-[#f8fafc] transition-colors">
-                  <td className="px-6 py-4">
-                    <span className={`inline-flex items-center px-2.5 py-1 rounded-full text-xs font-semibold ${getTypeStyle(item.type)}`}>
-                      {item.type}
-                    </span>
-                  </td>
-                  <td className="px-6 py-4 font-bold text-[#111827]">{item.product}</td>
-                  <td className={`px-6 py-4 ${getQuantityStyle(item.quantity)}`}>{item.quantity}</td>
-                  <td className="px-6 py-4 text-[#475569]">{item.prevStock}</td>
-                  <td className="px-6 py-4 font-bold text-[#111827]">{item.newStock}</td>
-                  <td className="px-6 py-4 text-[#2563eb] cursor-pointer hover:underline font-medium">{item.ref}</td>
-                  <td className="px-6 py-4 text-[#475569]">{item.user}</td>
-                  <td className="px-6 py-4 text-[#475569]">{item.date}</td>
+              {loading ? (
+                <tr>
+                  <td colSpan={8} className="px-6 py-4 text-center text-[#64748b]">Loading movements...</td>
                 </tr>
-              ))}
+              ) : filteredMovements.length === 0 ? (
+                <tr>
+                  <td colSpan={8} className="px-6 py-4 text-center text-[#64748b]">No movements found</td>
+                </tr>
+              ) : (
+                filteredMovements.map((item) => {
+                  const displayQty = `${item.quantity > 0 ? '+' : ''}${item.quantity} ${item.unit || ''}`;
+                  const dateFormatted = new Date(item.date).toLocaleString('en-GB', { 
+                    day: '2-digit', month: 'short', year: 'numeric', 
+                    hour: '2-digit', minute: '2-digit', hour12: true 
+                  });
+
+                  return (
+                    <tr key={item.id} className="hover:bg-[#f8fafc] transition-colors">
+                      <td className="px-6 py-4">
+                        <span className={`inline-flex items-center px-2.5 py-1 rounded-full text-xs font-semibold ${getTypeStyle(item.type)}`}>
+                          {item.type}
+                        </span>
+                      </td>
+                      <td className="px-6 py-4 font-bold text-[#111827]">{item.productName || 'Unknown'}</td>
+                      <td className={`px-6 py-4 ${getQuantityStyle(displayQty)}`}>{displayQty}</td>
+                      <td className="px-6 py-4 text-[#475569]">{item.prevStock} {item.unit || ''}</td>
+                      <td className="px-6 py-4 font-bold text-[#111827]">{item.newStock} {item.unit || ''}</td>
+                      <td className="px-6 py-4 text-[#2563eb] cursor-pointer hover:underline font-medium">{item.reference || '-'}</td>
+                      <td className="px-6 py-4 text-[#475569]">{item.user || '-'}</td>
+                      <td className="px-6 py-4 text-[#475569]">{dateFormatted}</td>
+                    </tr>
+                  );
+                })
+              )}
             </tbody>
           </table>
         </div>
 
         {/* Footer Pagination */}
         <div className="flex justify-between items-center px-6 py-4 border-t border-[#e2e8f0]">
-          <span className="text-sm text-[#64748b]">Showing 1 to 6 of 342 results</span>
+          <span className="text-sm text-[#64748b]">Showing {filteredMovements.length} results</span>
           <div className="flex gap-1">
             <button className="px-3 py-1.5 text-sm font-medium text-[#111827] border border-[#e2e8f0] rounded-md hover:bg-[#f8fafc] transition-colors">Previous</button>
             <button className="px-3 py-1.5 text-sm font-bold text-white bg-[#15803d] rounded-md">1</button>

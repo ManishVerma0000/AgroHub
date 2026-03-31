@@ -1,7 +1,11 @@
 "use client";
 
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { SVGProps } from "react";
+import { warehouseProductService } from "../../../../services/warehouseProductService";
+import { supplierService, Supplier } from "../../../../services/supplierService";
+import { supplierProductService, SupplierProduct } from "../../../../services/supplierProductService";
+import { purchaseOrderService } from "../../../../services/purchaseOrderService";
 
 export default function PurchasePlanning() {
   const [searchQuery, setSearchQuery] = useState("");
@@ -11,58 +15,94 @@ export default function PurchasePlanning() {
   const [selectedItems, setSelectedItems] = useState<string[]>([]);
   const [showGeneratePO, setShowGeneratePO] = useState(false);
   const [showSuccessModal, setShowSuccessModal] = useState(false);
+  
+  const [products, setProducts] = useState<any[]>([]);
+  const [categories, setCategories] = useState<string[]>([]);
+  const [subcategories, setSubcategories] = useState<string[]>([]);
+  const [suppliers, setSuppliers] = useState<Supplier[]>([]);
+  const [supplierProducts, setSupplierProducts] = useState<SupplierProduct[]>([]);
+  
+  // PO Generation States
+  const [selectedSupplierId, setSelectedSupplierId] = useState<string>("");
+  const [expectedDelivery, setExpectedDelivery] = useState<string>("");
+  const [orderNotes, setOrderNotes] = useState<string>("");
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  
+  const [isLoading, setIsLoading] = useState(true);
 
-  // Derived mock data to match Figma exactly
-  const mockPlanning = [
-    { 
-      id: "PP-001", 
-      product: "Tomato", 
-      subtext: "PP-001",
-      category: "Vegetables", 
-      subcategory: "Fresh Vegetables",
-      unit: "Kg", 
-      current: 150, 
-      reserved: 50, 
-      available: 100, 
-      ordered: 0,
-      reorder: 200, 
-      suggested: 100, 
-      status: "Low Stock" 
-    },
-    { 
-      id: "PP-002", 
-      product: "Potato", 
-      subtext: "PP-002",
-      category: "Vegetables", 
-      subcategory: "Root Vegetables",
-      unit: "Kg", 
-      current: 0, 
-      reserved: 0, 
-      available: 0, 
-      ordered: 0,
-      reorder: 150, 
-      suggested: 150, 
-      status: "Out of Stock" 
-    },
-    { 
-      id: "PP-003", 
-      product: "Onion", 
-      subtext: "PP-003",
-      category: "Vegetables", 
-      subcategory: "Fresh Vegetables",
-      unit: "Kg", 
-      current: 85, 
-      reserved: 20, 
-      available: 65, 
-      ordered: 50,
-      reorder: 150, 
-      suggested: 35, 
-      status: "Low Stock" 
-    }
-  ];
+  // Fetch actual products and compute derived statuses
+  useEffect(() => {
+    const fetchAllData = async () => {
+      try {
+        setIsLoading(true);
+        const [warehouseData, suppliersData, supplierProductsData] = await Promise.all([
+          warehouseProductService.getAll(),
+          supplierService.getAllSuppliers(),
+          supplierProductService.getAll()
+        ]);
+        
+        const planningItems = warehouseData.map((item: any) => {
+          let status = "In Stock";
+          let suggested = 0;
+          const reorderLvl = item.reorderLevel || 0;
+          const currentStock = item.currentStock || 0;
+          
+          if (currentStock <= 0) {
+            status = "Out of Stock";
+            suggested = reorderLvl > 0 ? reorderLvl : 50; // Default if reorderLevel is missing
+          } else if (currentStock > 0 && currentStock <= reorderLvl) {
+            status = "Low Stock";
+            suggested = reorderLvl - currentStock;
+          }
+          
+          return {
+            id: item.id,
+            globalProductId: item.productId, // CRITICAL: The global ID linked in SupplierProducts
+            product: item.productName || "Unknown",
+            subtext: item.productId?.slice(-6).toUpperCase() || "N/A",
+            category: item.category || "Uncategorized",
+            subcategory: item.subcategory || "N/A",
+            unit: item.baseUnit || "Qty",
+            current: currentStock,
+            reserved: item.reservedStock || 0,
+            available: item.availableStock || 0,
+            ordered: 0, 
+            reorder: reorderLvl,
+            suggested: suggested > 0 ? suggested : 0,
+            status: status
+          };
+        }).filter((item: any) => item.status === "Out of Stock" || item.status === "Low Stock");
+        
+        setProducts(planningItems);
+        setSuppliers(suppliersData);
+        setSupplierProducts(supplierProductsData);
+
+        // Populate dynamic category dropdowns
+        const uniqueCategories = Array.from(new Set(planningItems.map((p: any) => p.category))) as string[];
+        const uniqueSubcategories = Array.from(new Set(planningItems.map((p: any) => p.subcategory))) as string[];
+        setCategories(uniqueCategories);
+        setSubcategories(uniqueSubcategories);
+
+      } catch (err) {
+        console.error("Failed to load products", err);
+      } finally {
+        setIsLoading(false);
+      }
+    };
+    fetchAllData();
+  }, []);
+
+  // Filter the processed data base on user selection
+  const filteredProducts = products.filter(p => {
+    if (searchQuery && !p.product.toLowerCase().includes(searchQuery.toLowerCase())) return false;
+    if (selectedCategory !== "All Categories" && p.category !== selectedCategory) return false;
+    if (selectedSubcategory !== "All Subcategories" && p.subcategory !== selectedSubcategory) return false;
+    if (selectedStatus !== "All Status" && p.status !== selectedStatus) return false;
+    return true;
+  });
 
   const handleSelectAll = (e: React.ChangeEvent<HTMLInputElement>) => {
-    if (e.target.checked) setSelectedItems(mockPlanning.map(i => i.id));
+    if (e.target.checked) setSelectedItems(filteredProducts.map(i => i.id));
     else setSelectedItems([]);
   };
 
@@ -88,10 +128,75 @@ export default function PurchasePlanning() {
   };
 
   if (showGeneratePO) {
-    const selectedProducts = mockPlanning.filter(p => selectedItems.includes(p.id));
+    const selectedProducts = products.filter(p => selectedItems.includes(p.id));
+    const selectedGlobalIds = selectedProducts.map(p => p.globalProductId).filter(Boolean);
+    
+    // Strict match filtering: supplier must supply ALL selected global products.
+    const eligibleSuppliers = suppliers.filter(supplier => {
+      // Return true if every selected global product ID exists mapped to this supplier ID
+      return selectedGlobalIds.every(gid => 
+        supplierProducts.some(sp => sp.supplierId === supplier.id && sp.productId === gid)
+      );
+    });
+
+    // Default selection fallback if the current selectedSupplierId is not in the eligible list
+    let activeSupplierId = selectedSupplierId;
+    if (eligibleSuppliers.length > 0 && !eligibleSuppliers.find(s => s.id === activeSupplierId)) {
+      activeSupplierId = eligibleSuppliers[0].id; // Fallback to first eligible
+    } else if (eligibleSuppliers.length === 0) {
+      activeSupplierId = "";
+    }
+
+    // Prepare price map for actual render rendering
+    const productPriceMap: Record<string, number> = {};
+    if (activeSupplierId) {
+      supplierProducts.forEach(sp => {
+        if (sp.supplierId === activeSupplierId) {
+          productPriceMap[sp.productId] = sp.basePrice || 0;
+        }
+      });
+    }
+
     const totalQty = selectedProducts.reduce((sum, p) => sum + p.suggested, 0);
-    const mockBasePrice = 60; // From figma mock
-    const totalAmount = totalQty * mockBasePrice;
+    const totalAmount = selectedProducts.reduce((sum, p) => {
+      const price = productPriceMap[p.globalProductId] || 0;
+      return sum + (p.suggested * price);
+    }, 0);
+
+    const activeSupplier = suppliers.find(s => s.id === activeSupplierId);
+
+    const handleCreatePO = async () => {
+      if (!activeSupplierId || !expectedDelivery) return;
+      setIsSubmitting(true);
+      
+      try {
+          const poNumber = `PO-${Math.floor(1000 + Math.random() * 9000)}`;
+          
+          const items = selectedProducts.map(p => ({
+              productId: p.globalProductId,
+              productName: p.product,
+              quantity: p.suggested,
+              unitPrice: productPriceMap[p.globalProductId] || 0
+          }));
+
+          await purchaseOrderService.create({
+              poNumber,
+              supplierId: activeSupplierId,
+              supplierName: activeSupplier?.name || "Unknown",
+              orderDate: new Date().toISOString().split('T')[0],
+              expectedDelivery,
+              totalAmount,
+              status: "Pending",
+              items
+          });
+
+          setShowSuccessModal(true);
+      } catch (err) {
+          console.error("Failed to create PO:", err);
+      } finally {
+          setIsSubmitting(false);
+      }
+    };
 
     return (
       <div className="flex flex-col gap-6 max-w-[1400px]">
@@ -117,8 +222,19 @@ export default function PurchasePlanning() {
             <div className="bg-white border border-[#e2e8f0] rounded-xl p-5 shadow-sm">
               <h2 className="text-base font-bold text-[#111827] mb-4">Supplier Selection</h2>
               <div className="relative">
-                <select className="w-full appearance-none px-4 py-2.5 border border-[#e2e8f0] rounded-lg text-sm font-medium text-[#111827] outline-none focus:border-[#07ac57] cursor-pointer">
-                  <option>Fresh Harvest Suppliers (Primary)</option>
+                <select 
+                  value={activeSupplierId}
+                  onChange={(e) => setSelectedSupplierId(e.target.value)}
+                  disabled={eligibleSuppliers.length === 0}
+                  className="w-full appearance-none px-4 py-2.5 border border-[#e2e8f0] rounded-lg text-sm font-medium text-[#111827] outline-none focus:border-[#07ac57] cursor-pointer disabled:bg-[#f8fafc] disabled:text-[#94a3b8] disabled:cursor-not-allowed"
+                >
+                  {eligibleSuppliers.length === 0 ? (
+                    <option value="">No suppliers supply all selected products.</option>
+                  ) : (
+                    eligibleSuppliers.map(s => (
+                      <option key={s.id} value={s.id}>{s.name} {s.location ? `(${s.location})` : ''}</option>
+                    ))
+                  )}
                 </select>
                 <ChevronDownIcon className="absolute right-4 top-1/2 -translate-y-1/2 w-4 h-4 text-[#64748b] pointer-events-none" />
               </div>
@@ -128,7 +244,7 @@ export default function PurchasePlanning() {
             <div className="bg-white border border-[#e2e8f0] rounded-xl shadow-sm overflow-hidden flex flex-col">
               <div className="p-5 border-b border-[#e2e8f0]">
                 <h2 className="text-base font-bold text-[#111827]">Selected Products</h2>
-                <p className="text-sm text-[#64748b] mt-1">{selectedItems.length} products selected &middot; Quantity and price are editable</p>
+                <p className="text-sm text-[#64748b] mt-1">{selectedItems.length} products selected &middot; Prices auto-updated from supplier contract</p>
               </div>
               
               <div className="overflow-x-auto">
@@ -143,53 +259,57 @@ export default function PurchasePlanning() {
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-[#e2e8f0]">
-                    {selectedProducts.map(item => (
-                      <tr key={item.id} className="bg-white hover:bg-[#f8fafc] transition-colors">
-                        <td className="px-5 py-4">
-                          <div className="flex items-center gap-3">
-                            <div className="w-10 h-10 rounded-lg bg-[#dcfce7] flex items-center justify-center shrink-0">
-                              <BoxIcon className="w-5 h-5 text-[#16a34a]" />
+                    {selectedProducts.map(item => {
+                      const itemPrice = productPriceMap[item.globalProductId] || 0;
+                      return (
+                        <tr key={item.id} className="bg-white hover:bg-[#f8fafc] transition-colors">
+                          <td className="px-5 py-4">
+                            <div className="flex items-center gap-3">
+                              <div className="w-10 h-10 rounded-lg bg-[#dcfce7] flex items-center justify-center shrink-0">
+                                <BoxIcon className="w-5 h-5 text-[#16a34a]" />
+                              </div>
+                              <div className="flex flex-col">
+                                <span className="font-bold text-[#0f172a]">{item.product}</span>
+                                <span className="text-[#64748b] text-xs leading-none mt-1">{item.subtext}</span>
+                              </div>
                             </div>
-                            <div className="flex flex-col">
-                              <span className="font-bold text-[#0f172a]">{item.product}</span>
-                              <span className="text-[#64748b] text-xs leading-none mt-1">{item.id}</span>
-                            </div>
-                          </div>
-                        </td>
-                        <td className="px-5 py-4 text-center">
-                          <div className="flex justify-center">
-                            <input 
-                              type="number"
-                              defaultValue={item.suggested}
-                              className="w-[80px] h-[36px] border border-[#e2e8f0] text-[#111827] font-semibold text-center rounded-lg outline-none focus:border-[#15803d]"
-                            />
-                          </div>
-                        </td>
-                        <td className="px-5 py-4 text-center">
-                          <div className="flex justify-center">
-                            <div className="relative w-[100px]">
-                              <span className="absolute left-3 top-1/2 -translate-y-1/2 text-[#64748b] text-sm font-semibold">₹</span>
+                          </td>
+                          <td className="px-5 py-4 text-center">
+                            <div className="flex justify-center">
                               <input 
                                 type="number"
-                                defaultValue={mockBasePrice}
-                                className="w-full h-[36px] pl-7 pr-3 border border-[#e2e8f0] text-[#111827] font-semibold text-left rounded-lg outline-none focus:border-[#15803d]"
+                                defaultValue={item.suggested}
+                                className="w-[80px] h-[36px] border border-[#e2e8f0] text-[#111827] font-semibold text-center rounded-lg outline-none focus:border-[#15803d]"
                               />
                             </div>
-                          </div>
-                        </td>
-                        <td className="px-5 py-4 text-center font-bold text-[#111827]">
-                          ₹{(item.suggested * mockBasePrice).toLocaleString()}
-                        </td>
-                        <td className="px-5 py-4 text-center">
-                          <button 
-                            onClick={() => handleSelectItem(item.id)}
-                            className="p-2 text-[#ef4444] hover:bg-[#fef2f2] rounded transition-colors"
-                          >
-                            <TrashIcon className="w-4 h-4" />
-                          </button>
-                        </td>
-                      </tr>
-                    ))}
+                          </td>
+                          <td className="px-5 py-4 text-center">
+                            <div className="flex justify-center">
+                              <div className="relative w-[100px]">
+                                <span className="absolute left-3 top-1/2 -translate-y-1/2 text-[#64748b] text-sm font-semibold">₹</span>
+                                <input 
+                                  type="number"
+                                  value={itemPrice}
+                                  readOnly
+                                  className="w-full h-[36px] pl-7 pr-3 border border-[#e2e8f0] text-[#111827] font-semibold text-left rounded-lg outline-none bg-[#f8fafc] cursor-not-allowed"
+                                />
+                              </div>
+                            </div>
+                          </td>
+                          <td className="px-5 py-4 text-center font-bold text-[#111827]">
+                            ₹{(item.suggested * itemPrice).toLocaleString()}
+                          </td>
+                          <td className="px-5 py-4 text-center">
+                            <button 
+                              onClick={() => handleSelectItem(item.id)}
+                              className="p-2 text-[#ef4444] hover:bg-[#fef2f2] rounded transition-colors"
+                            >
+                              <TrashIcon className="w-4 h-4" />
+                            </button>
+                          </td>
+                        </tr>
+                      );
+                    })}
                     {selectedProducts.length === 0 && (
                       <tr>
                         <td colSpan={5} className="px-5 py-8 text-center text-[#64748b]">
@@ -212,6 +332,8 @@ export default function PurchasePlanning() {
                   <div className="relative">
                     <input 
                       type="date"
+                      value={expectedDelivery}
+                      onChange={e => setExpectedDelivery(e.target.value)}
                       className="w-full appearance-none px-4 py-2.5 border border-[#e2e8f0] rounded-lg text-sm text-[#111827] outline-none focus:border-[#07ac57] cursor-pointer"
                     />
                   </div>
@@ -221,6 +343,8 @@ export default function PurchasePlanning() {
                   <label className="block text-sm font-semibold text-[#475569] mb-2">Notes (Optional)</label>
                   <textarea 
                     placeholder="Add any special instructions or notes..."
+                    value={orderNotes}
+                    onChange={e => setOrderNotes(e.target.value)}
                     rows={3}
                     className="w-full px-4 py-3 border border-[#e2e8f0] rounded-lg text-sm text-[#111827] placeholder-[#94a3b8] outline-none focus:border-[#07ac57] resize-none"
                   ></textarea>
@@ -240,7 +364,7 @@ export default function PurchasePlanning() {
                 <div className="p-5 flex flex-col gap-5">
                   <div className="flex flex-col gap-1">
                     <span className="text-sm text-[#64748b]">Supplier</span>
-                    <span className="font-semibold text-[#111827]">Fresh Harvest Suppliers</span>
+                    <span className="font-semibold text-[#111827]">{activeSupplier ? activeSupplier.name : 'None Selected'}</span>
                   </div>
 
                   <div className="h-[1px] bg-[#e2e8f0]"></div>
@@ -266,11 +390,11 @@ export default function PurchasePlanning() {
 
                   <div className="flex flex-col gap-3 mt-4">
                     <button 
-                      onClick={() => setShowSuccessModal(true)}
-                      disabled={selectedProducts.length === 0}
+                      onClick={handleCreatePO}
+                      disabled={selectedProducts.length === 0 || !activeSupplierId || !expectedDelivery || isSubmitting}
                       className="w-full py-3 bg-[#15803d] hover:bg-[#166534] disabled:bg-[#86efac] text-white rounded-lg font-bold transition-colors shadow-sm"
                     >
-                      Confirm & Create PO
+                      {isSubmitting ? 'Creating...' : 'Confirm & Create PO'}
                     </button>
                     <button 
                       onClick={() => setShowGeneratePO(false)}
@@ -296,7 +420,7 @@ export default function PurchasePlanning() {
               
               <h2 className="text-xl font-bold text-[#111827] mb-2">Purchase Order Created!</h2>
               <p className="text-[#64748b] text-sm mb-6">
-                Your purchase order has been successfully created and sent to Fresh Harvest Suppliers.
+                Your purchase order has been successfully created and sent to <span className="font-bold">{activeSupplier?.name || "the supplier"}</span>.
               </p>
 
               <div className="bg-[#f8fafc] rounded-xl p-4 mb-6 flex flex-col gap-3 text-sm">
@@ -319,6 +443,8 @@ export default function PurchasePlanning() {
                   setShowSuccessModal(false);
                   setShowGeneratePO(false);
                   setSelectedItems([]);
+                  setExpectedDelivery("");
+                  setOrderNotes("");
                 }}
                 className="w-full py-3 bg-[#07ac57] hover:bg-[#06934a] text-white rounded-lg font-bold transition-colors shadow-sm"
               >
@@ -375,6 +501,7 @@ export default function PurchasePlanning() {
             className="appearance-none pl-9 pr-10 py-2 border border-[#e2e8f0] bg-white rounded-xl hover:bg-[#f8fafc] text-[#475569] text-sm transition-colors outline-none cursor-pointer shadow-sm w-[180px]"
           >
             <option value="All Categories">All Categories</option>
+            {categories.map((c, i) => <option key={i} value={c}>{c}</option>)}
           </select>
           <ChevronDownIcon className="w-4 h-4 text-[#64748b] absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none" />
         </div>
@@ -387,6 +514,7 @@ export default function PurchasePlanning() {
             className="appearance-none pl-9 pr-10 py-2 border border-[#e2e8f0] bg-white rounded-xl hover:bg-[#f8fafc] text-[#475569] text-sm transition-colors outline-none cursor-pointer shadow-sm w-[200px]"
           >
             <option value="All Subcategories">All Subcategories</option>
+            {subcategories.map((c, i) => <option key={i} value={c}>{c}</option>)}
           </select>
           <ChevronDownIcon className="w-4 h-4 text-[#64748b] absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none" />
         </div>
@@ -412,7 +540,7 @@ export default function PurchasePlanning() {
         <div className="bg-white border border-[#e2e8f0] rounded-2xl p-5 flex items-center justify-between shadow-sm">
           <div>
             <p className="text-sm text-[#64748b] font-medium mb-1">Total Products</p>
-            <h3 className="text-3xl font-bold text-[#0f172a]">6</h3>
+            <h3 className="text-3xl font-bold text-[#0f172a]">{products.length}</h3>
           </div>
           <div className="w-12 h-12 rounded-xl bg-[#e0e7ff] flex items-center justify-center">
             <BoxIcon className="w-6 h-6 text-[#4338ca]" />
@@ -423,7 +551,9 @@ export default function PurchasePlanning() {
         <div className="bg-white border border-[#fef08a] rounded-2xl p-5 flex items-center justify-between shadow-sm">
           <div>
             <p className="text-sm text-[#64748b] font-medium mb-1">Low Stock Items</p>
-            <h3 className="text-3xl font-bold text-[#ca8a04]">2</h3>
+            <h3 className="text-3xl font-bold text-[#ca8a04]">
+              {products.filter(p => p.status === 'Low Stock').length}
+            </h3>
           </div>
           <div className="w-12 h-12 rounded-xl bg-[#fef08a] flex items-center justify-center">
             <AlertTriangleIcon className="w-6 h-6 text-[#ca8a04]" />
@@ -434,7 +564,9 @@ export default function PurchasePlanning() {
         <div className="bg-white border border-[#fecaca] rounded-2xl p-5 flex items-center justify-between shadow-sm">
           <div>
             <p className="text-sm text-[#64748b] font-medium mb-1">Out of Stock Items</p>
-            <h3 className="text-3xl font-bold text-[#dc2626]">2</h3>
+            <h3 className="text-3xl font-bold text-[#dc2626]">
+              {products.filter(p => p.status === 'Out of Stock').length}
+            </h3>
           </div>
           <div className="w-12 h-12 rounded-xl bg-[#fee2e2] flex items-center justify-center">
             <XCircleIcon className="w-6 h-6 text-[#dc2626]" />
@@ -445,7 +577,9 @@ export default function PurchasePlanning() {
         <div className="bg-white border border-[#e2e8f0] rounded-2xl p-5 flex items-center justify-between shadow-[0_4px_20px_-4px_rgba(21,128,61,0.08)]">
           <div>
             <p className="text-sm text-[#64748b] font-medium mb-1">Total Suggested Qty</p>
-            <h3 className="text-3xl font-bold text-[#16a34a]">345</h3>
+            <h3 className="text-3xl font-bold text-[#16a34a]">
+              {products.reduce((sum, p) => sum + p.suggested, 0)}
+            </h3>
           </div>
           <div className="w-12 h-12 rounded-xl bg-[#dcfce7] flex items-center justify-center">
             <TrendingUpIcon className="w-6 h-6 text-[#16a34a]" />
@@ -463,7 +597,7 @@ export default function PurchasePlanning() {
                   <input 
                     type="checkbox" 
                     onChange={handleSelectAll}
-                    checked={selectedItems.length === mockPlanning.length && mockPlanning.length > 0}
+                    checked={selectedItems.length === filteredProducts.length && filteredProducts.length > 0}
                     className="w-4 h-4 rounded border-[#cbd5e1] text-[#15803d]" 
                   />
                 </th>
@@ -480,7 +614,15 @@ export default function PurchasePlanning() {
               </tr>
             </thead>
             <tbody className="divide-y divide-[#e2e8f0]">
-              {mockPlanning.map((item) => (
+              {isLoading ? (
+                <tr>
+                  <td colSpan={11} className="py-8 text-center text-[#64748b]">Loading items...</td>
+                </tr>
+              ) : filteredProducts.length === 0 ? (
+                <tr>
+                  <td colSpan={11} className="py-8 text-center text-[#64748b]">No planning items found matching criteria.</td>
+                </tr>
+              ) : filteredProducts.map((item) => (
                 <tr key={item.id} className={`${getRowStyle(item.status)}`}>
                   <td className="px-5 py-4 border-r border-[#e2e8f0]/30 w-12">
                     <input 
