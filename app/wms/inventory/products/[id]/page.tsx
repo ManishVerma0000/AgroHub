@@ -6,12 +6,17 @@ import { SVGProps } from "react";
 import { stockActionService } from "../../../../../services/stockActionService";
 import { productService } from "../../../../../services/productService";
 import { warehouseProductService } from "../../../../../services/warehouseProductService";
+import { StockActionModal, StockActionType } from "../../../../../components/Products/StockActionModal";
 
 export default function ProductDetailsPage({ params }: { params: Promise<{ id: string }> }) {
   const unwrappedParams = React.use(params);
   const [stockActions, setStockActions] = useState<any[]>([]);
   const [product, setProduct] = useState<any>(null);
   const [isLoading, setIsLoading] = useState(true);
+
+  // Modal state
+  const [isStockModalOpen, setIsStockModalOpen] = useState(false);
+  const [activeStockAction, setActiveStockAction] = useState<StockActionType | null>(null);
 
   useEffect(() => {
     fetchStockActions();
@@ -28,27 +33,27 @@ export default function ProductDetailsPage({ params }: { params: Promise<{ id: s
       setProduct({
         id: warehouseId,
         productId: wpResponse.productId,
-        name: baseProduct.name,
+        name: wpResponse.productName || baseProduct.name,
         inventoryId: wpResponse.id.substring(0, 8).toUpperCase(),
         basePrice: `₹${wpResponse.basePrice} / ${baseProduct.unit || 'Unit'}`,
         sellingPrice: `₹${baseProduct.price || wpResponse.basePrice} / ${baseProduct.unit || 'Unit'}`,
         status: wpResponse.status,
-        category: baseProduct.category || "N/A",
-        subcategory: baseProduct.subcategory || "N/A",
-        unit: baseProduct.unit || "N/A",
-        hsnCode: baseProduct.hsnCode || "N/A",
+        category: wpResponse.category || baseProduct.category || "N/A",
+        subcategory: wpResponse.subcategory || baseProduct.subcategory || "N/A",
+        unit: baseProduct.baseUnit || baseProduct.unit || "Units",
+        hsnCode: wpResponse.hsnCode || baseProduct.hsnCode || "N/A",
         gstRate: baseProduct.gstRate ? `${baseProduct.gstRate}%` : "5%",
         warehouseLocation: wpResponse.location,
         lastUpdated: new Date().toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' }),
-        currentStock: wpResponse.initialStock || 0,
-        available: wpResponse.initialStock || 0,
-        reserved: 0,
-        totalStockIn: wpResponse.initialStock || 0,
-        totalStockOut: 0,
-        missingStock: 0,
-        wastageStock: 0,
-        reorderLevel: wpResponse.reorderLevel || 0,
-        stockStatus: (wpResponse.initialStock || 0) <= (wpResponse.reorderLevel || 0) ? "Low Stock" : "Healthy" ,
+        currentStock: wpResponse.currentStock ?? wpResponse.initialStock ?? 0,
+        available: wpResponse.availableStock ?? wpResponse.initialStock ?? 0,
+        reserved: wpResponse.reservedStock ?? 0,
+        totalStockIn: wpResponse.stockIn ?? wpResponse.initialStock ?? 0,
+        totalStockOut: wpResponse.stockOut ?? 0,
+        missingStock: wpResponse.missingStock ?? 0,
+        wastageStock: wpResponse.wastageStock ?? 0,
+        reorderLevel: wpResponse.reorderLevel ?? 0,
+        stockStatus: (wpResponse.availableStock ?? wpResponse.initialStock ?? 0) <= (wpResponse.reorderLevel ?? 0) ? "Low Stock" : "Healthy" ,
         productStatus: wpResponse.status,
         updatedBy: "Admin",
       });
@@ -56,6 +61,22 @@ export default function ProductDetailsPage({ params }: { params: Promise<{ id: s
       console.error("Failed to fetch product details:", error);
     } finally {
       setIsLoading(false);
+    }
+  };
+
+  const handleStockActionSubmit = async (actionType: StockActionType, quantity: number, reason: string, notes: string) => {
+    if (!product) return;
+    try {
+      await warehouseProductService.stockAction(product.id, {
+        actionType,
+        quantity,
+        reason,
+        notes
+      });
+      await fetchProductDetails(); // refresh details
+    } catch (error) {
+      console.error("Failed to submit stock action", error);
+      throw error;
     }
   };
 
@@ -176,7 +197,13 @@ export default function ProductDetailsPage({ params }: { params: Promise<{ id: s
                 <p className="text-[#a855f7] text-xs font-semibold uppercase tracking-wider mb-1">Reorder Level (Threshold)</p>
                 <p className="text-[#7e22ce] text-xl font-bold">{product.reorderLevel} {product.unit}</p>
               </div>
-              <button className="bg-[#9333ea] text-white px-5 py-2 rounded-lg text-sm font-semibold hover:bg-[#7e22ce] transition-colors">
+              <button 
+                onClick={() => {
+                  setActiveStockAction('Update Reorder Level');
+                  setIsStockModalOpen(true);
+                }}
+                className="bg-[#9333ea] text-white px-5 py-2 rounded-lg text-sm font-semibold hover:bg-[#7e22ce] transition-colors"
+              >
                 Update
               </button>
             </div>
@@ -279,6 +306,10 @@ export default function ProductDetailsPage({ params }: { params: Promise<{ id: s
                   text={action.text} 
                   hover={action.hover} 
                   border={action.border} 
+                  onClick={() => {
+                    setActiveStockAction(action.label as StockActionType);
+                    setIsStockModalOpen(true);
+                  }}
                 />
               ))
             ) : (
@@ -300,6 +331,21 @@ export default function ProductDetailsPage({ params }: { params: Promise<{ id: s
           
         </div>
       </div>
+
+      {/* Stock Action Modal */}
+      {product && (
+        <StockActionModal 
+          isOpen={isStockModalOpen}
+          onClose={() => setIsStockModalOpen(false)}
+          actionType={activeStockAction}
+          product={{
+            name: product.name,
+            currentStock: product.currentStock,
+            unit: product.unit
+          }}
+          onSubmit={handleStockActionSubmit}
+        />
+      )}
     </div>
   );
 }
@@ -327,9 +373,9 @@ function StatCard({ title, value, unit, bg, textColor, size = "small" }: { title
   );
 }
 
-function ActionButton({ icon, label, bg, text, hover, border = "" }: { icon: React.ReactNode, label: string, bg: string, text: string, hover: string, border?: string }) {
+function ActionButton({ icon, label, bg, text, hover, border = "", onClick }: { icon: React.ReactNode, label: string, bg: string, text: string, hover: string, border?: string, onClick?: () => void }) {
   return (
-    <button className={`w-full flex items-center gap-3 px-5 py-3.5 rounded-xl font-semibold text-sm transition-colors ${bg} ${text} ${hover} ${border} justify-start shadow-sm`}>
+    <button onClick={onClick} className={`w-full flex items-center gap-3 px-5 py-3.5 rounded-xl font-semibold text-sm transition-colors ${bg} ${text} ${hover} ${border} justify-start shadow-sm`}>
       {icon}
       {label}
     </button>

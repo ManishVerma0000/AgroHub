@@ -7,6 +7,7 @@ import Link from "next/link";
 import { productService } from "../../../../services/productService";
 import { warehouseProductService } from "../../../../services/warehouseProductService";
 import { categoryService } from "../../../../services/categoryService";
+import { StockActionModal, StockActionType } from "../../../../components/Products/StockActionModal";
 
 export default function WMSProductInventory() {
   const [selectedItems, setSelectedItems] = useState<number[]>([]);
@@ -24,6 +25,11 @@ export default function WMSProductInventory() {
   const [isLoadingInventory, setIsLoadingInventory] = useState(false);
   const [setupData, setSetupData] = useState<Record<string, any>>({});
   const [isSubmitting, setIsSubmitting] = useState(false);
+  
+  // Stock action modal states
+  const [stockModalOpen, setStockModalOpen] = useState(false);
+  const [activeStockAction, setActiveStockAction] = useState<StockActionType | null>(null);
+  const [selectedProductForAction, setSelectedProductForAction] = useState<any>(null);
 
   React.useEffect(() => {
     fetchInitialData();
@@ -97,6 +103,21 @@ export default function WMSProductInventory() {
   const [showBulkActionMenu, setShowBulkActionMenu] = useState(false);
   const [showColumnsModal, setShowColumnsModal] = useState(false);
 
+  const handleStockActionSubmit = async (actionType: StockActionType, quantity: number, reason: string, notes: string) => {
+    if (!selectedProductForAction) return;
+    try {
+      await warehouseProductService.stockAction(selectedProductForAction.id, {
+        actionType,
+        quantity,
+        reason,
+        notes
+      });
+      await fetchInitialData(); // Refresh the full list after stock update
+    } catch (error) {
+      console.error("Failed to submit stock action", error);
+    }
+  };
+
   // Modal states for Action column
   const [deleteModalOpen, setDeleteModalOpen] = useState(false);
   const [itemToDelete, setItemToDelete] = useState<{ id: number; name: string } | null>(null);
@@ -117,6 +138,7 @@ export default function WMSProductInventory() {
   const initialColumns = [
     { id: 'product', label: 'Product', required: true, visible: true },
     { id: 'category', label: 'Category', required: false, visible: true },
+    { id: 'subcategory', label: 'Subcategory', required: false, visible: true },
     { id: 'currentStock', label: 'Current Stock', required: true, visible: true },
     { id: 'available', label: 'Available', required: false, visible: true },
     { id: 'reserved', label: 'Reserved', required: false, visible: true },
@@ -149,20 +171,22 @@ export default function WMSProductInventory() {
     return {
       id: invItem.id,
       productId: invItem.productId,
-      name: gp.name || "Unknown Product",
-      category: gp.category || "-",
-      stock: invItem.initialStock || 0,
-      available: invItem.initialStock || 0,
-      reserved: 0,
-      stockIn: invItem.initialStock || 0,
-      stockOut: 0,
-      missing: 0,
-      wastage: 0,
+      name: invItem.productName || gp.name || "Unknown Product",
+      category: invItem.category || gp.category || "-",
+      subcategory: invItem.subcategory || gp.subcategory || "-",
+      stock: invItem.currentStock ?? invItem.initialStock ?? 0,
+      available: invItem.availableStock ?? invItem.initialStock ?? 0,
+      reserved: invItem.reservedStock ?? 0,
+      stockIn: invItem.stockIn ?? invItem.initialStock ?? 0,
+      stockOut: invItem.stockOut ?? 0,
+      missing: invItem.missingStock ?? 0,
+      wastage: invItem.wastageStock ?? 0,
       reorder: invItem.reorderLevel || 0,
       basePrice: invItem.basePrice ? `$${Number(invItem.basePrice).toFixed(2)}` : "-",
       sellingPrice: gp.sellingPrice ? `$${Number(gp.sellingPrice).toFixed(2)}` : "-",
       location: invItem.location || "-",
       status: invItem.status || "In Stock",
+      unit: gp.baseUnit || gp.unit || "Units"
     };
   });
 
@@ -174,6 +198,14 @@ export default function WMSProductInventory() {
     if (selectedStatus !== "All Status" && itemStatus !== selectedStatus) return false;
     return true;
   });
+
+  const totalProducts = filteredInventory.length;
+  const currentStockTotal = filteredInventory.reduce((acc, curr) => acc + curr.stock, 0);
+  const stockInTotal = filteredInventory.reduce((acc, curr) => acc + curr.stockIn, 0);
+  const stockOutTotal = filteredInventory.reduce((acc, curr) => acc + curr.stockOut, 0);
+  const reservedTotal = filteredInventory.reduce((acc, curr) => acc + curr.reserved, 0);
+  const missingTotal = filteredInventory.reduce((acc, curr) => acc + curr.missing, 0);
+  const wastageTotal = filteredInventory.reduce((acc, curr) => acc + curr.wastage, 0);
 
   const filteredGlobalProducts = globalProducts.filter(gp => {
     if (modalSelectedCategory !== "All Categories" && gp.category !== modalSelectedCategory) return false;
@@ -339,13 +371,13 @@ export default function WMSProductInventory() {
 
       {/* THIRD ROW: Stats Cards */}
       <div className="grid grid-cols-2 md:grid-cols-4 lg:flex lg:flex-nowrap overflow-x-auto gap-4 pb-2">
-        <StatMini icon={<BoxIcon className="w-5 h-5" />} title="Total Inventory" value="5" unit="Products" color="text-[#3b82f6]" borderHighlight="border-l-[3px] border-l-[#3b82f6]" />
-        <StatMini icon={<CheckCircleIcon className="w-5 h-5" />} title="Current Stock" value="1,325" unit="Units" color="text-[#111827]" iconColor="text-[#07ac57]" />
-        <StatMini icon={<TrendingUpIcon className="w-5 h-5" />} title="Stock In" value="3,860" unit="Units" color="text-[#07ac57]" iconColor="text-[#07ac57]" />
-        <StatMini icon={<TrendingDownIcon className="w-5 h-5" />} title="Stock Out" value="2,535" unit="Units" color="text-[#ea580c]" iconColor="text-[#ea580c]" />
-        <StatMini icon={<InboxIcon className="w-5 h-5" />} title="Reserved" value="240" unit="Units" color="text-[#a855f7]" iconColor="text-[#a855f7]" />
-        <StatMini icon={<AlertCircleIcon className="w-5 h-5" />} title="Missing" value="33" unit="Units" color="text-[#d97706]" iconColor="text-[#d97706]" />
-        <StatMini icon={<XCircleIcon className="w-5 h-5" />} title="Wastage" value="57" unit="Units" color="text-[#dc2626]" iconColor="text-[#dc2626]" />
+        <StatMini icon={<BoxIcon className="w-5 h-5" />} title="Total Inventory" value={totalProducts.toString()} unit="Products" color="text-[#3b82f6]" borderHighlight="border-l-[3px] border-l-[#3b82f6]" />
+        <StatMini icon={<CheckCircleIcon className="w-5 h-5" />} title="Current Stock" value={currentStockTotal.toLocaleString()} unit="Units" color="text-[#111827]" iconColor="text-[#07ac57]" />
+        <StatMini icon={<TrendingUpIcon className="w-5 h-5" />} title="Stock In" value={stockInTotal.toLocaleString()} unit="Units" color="text-[#07ac57]" iconColor="text-[#07ac57]" />
+        <StatMini icon={<TrendingDownIcon className="w-5 h-5" />} title="Stock Out" value={stockOutTotal.toLocaleString()} unit="Units" color="text-[#ea580c]" iconColor="text-[#ea580c]" />
+        <StatMini icon={<InboxIcon className="w-5 h-5" />} title="Reserved" value={reservedTotal.toLocaleString()} unit="Units" color="text-[#a855f7]" iconColor="text-[#a855f7]" />
+        <StatMini icon={<AlertCircleIcon className="w-5 h-5" />} title="Missing" value={missingTotal.toLocaleString()} unit="Units" color="text-[#d97706]" iconColor="text-[#d97706]" />
+        <StatMini icon={<XCircleIcon className="w-5 h-5" />} title="Wastage" value={wastageTotal.toLocaleString()} unit="Units" color="text-[#dc2626]" iconColor="text-[#dc2626]" />
       </div>
       {/* Bulk Action Dynamic Bar */}
       {selectedItems.length > 0 && (
@@ -385,6 +417,7 @@ export default function WMSProductInventory() {
                 </th>
                 {columns.find(c => c.id === 'product')?.visible && <th className="px-6 py-4 font-semibold uppercase text-xs tracking-wider">Product</th>}
                 {columns.find(c => c.id === 'category')?.visible && <th className="px-6 py-4 font-semibold uppercase text-xs tracking-wider">Category</th>}
+                {columns.find(c => c.id === 'subcategory')?.visible && <th className="px-6 py-4 font-semibold uppercase text-xs tracking-wider">Subcategory</th>}
                 {columns.find(c => c.id === 'currentStock')?.visible && <th className="px-6 py-4 font-semibold uppercase text-xs tracking-wider">Current Stock</th>}
                 {columns.find(c => c.id === 'available')?.visible && <th className="px-6 py-4 font-semibold uppercase text-xs tracking-wider">Available</th>}
                 {columns.find(c => c.id === 'reserved')?.visible && <th className="px-6 py-4 font-semibold uppercase text-xs tracking-wider">Reserved</th>}
@@ -431,6 +464,7 @@ export default function WMSProductInventory() {
                       </td>
                     )}
                     {columns.find(c => c.id === 'category')?.visible && <td className="px-6 py-4 text-[#6b7280]">{item.category}</td>}
+                    {columns.find(c => c.id === 'subcategory')?.visible && <td className="px-6 py-4 text-[#6b7280]">{item.subcategory}</td>}
                     {columns.find(c => c.id === 'currentStock')?.visible && <td className="px-6 py-4 font-bold text-[#111827]">{item.stock}</td>}
                     {columns.find(c => c.id === 'available')?.visible && <td className="px-6 py-4 text-[#07ac57]">{item.available}</td>}
                     {columns.find(c => c.id === 'reserved')?.visible && <td className="px-6 py-4 text-[#a855f7]">{item.reserved}</td>}
@@ -438,7 +472,21 @@ export default function WMSProductInventory() {
                     {columns.find(c => c.id === 'stockOut')?.visible && <td className="px-6 py-4 text-[#ea580c]">{item.stockOut}</td>}
                     {columns.find(c => c.id === 'missing')?.visible && <td className="px-6 py-4 text-[#d97706]">{item.missing > 0 ? item.missing : '-'}</td>}
                     {columns.find(c => c.id === 'wastage')?.visible && <td className="px-6 py-4 text-[#ef4444]">{item.wastage > 0 ? item.wastage : '-'}</td>}
-                    {columns.find(c => c.id === 'reorder')?.visible && <td className="px-6 py-4 text-[#6b7280]">{item.reorder}</td>}
+                    {columns.find(c => c.id === 'reorder')?.visible && (
+                      <td className="px-6 py-4">
+                        <div 
+                          className="flex items-center gap-2 cursor-pointer text-[#3b82f6] hover:text-[#2563eb]"
+                          onClick={() => {
+                            setSelectedProductForAction(item);
+                            setActiveStockAction('Update Reorder Level');
+                            setStockModalOpen(true);
+                          }}
+                        >
+                          <span className="font-semibold underline decoration-dashed underline-offset-4">{item.reorder}</span>
+                          <EditIcon className="w-3.5 h-3.5" />
+                        </div>
+                      </td>
+                    )}
                     {columns.find(c => c.id === 'basePrice')?.visible && <td className="px-6 py-4 text-[#6b7280]">{item.basePrice}</td>}
                     {columns.find(c => c.id === 'sellingPrice')?.visible && <td className="px-6 py-4 text-[#6b7280]">{item.sellingPrice}</td>}
                     {columns.find(c => c.id === 'location')?.visible && <td className="px-6 py-4 text-[#6b7280]">{item.location}</td>}
@@ -695,7 +743,23 @@ export default function WMSProductInventory() {
         }}
         itemName={itemToDelete?.name}
       />
-
+      
+      {selectedProductForAction && (
+        <StockActionModal
+          isOpen={stockModalOpen}
+          onClose={() => {
+            setStockModalOpen(false);
+            setSelectedProductForAction(null);
+          }}
+          actionType={activeStockAction}
+          product={{
+            name: selectedProductForAction.name,
+            currentStock: selectedProductForAction.stock,
+            unit: selectedProductForAction.unit
+          }}
+          onSubmit={handleStockActionSubmit}
+        />
+      )}
     </div>
   );
 }

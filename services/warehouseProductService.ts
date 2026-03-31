@@ -21,5 +21,9 @@ export const warehouseProductService = {
   delete: async (id: string) => {
     const response = await api.delete(`/warehouse-products/${id}`);
     return response.data;
+  },
+  stockAction: async (id: string, actionData: any) => {
+    const response = await api.post(`/warehouse-products/${id}/stock-action`, actionData);
+    return response.data;
   }
 };
