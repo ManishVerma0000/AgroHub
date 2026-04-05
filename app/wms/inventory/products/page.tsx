@@ -73,6 +73,7 @@ export default function WMSProductInventory() {
         const gp = globalProducts.find(p => p.id === gid);
         const payload = {
           productId: gid,
+          warehouseId: "69b82ccf3709f6cca0ec8c41",
           initialStock: itemData.initialStock !== undefined ? Number(itemData.initialStock) : 0,
           reorderLevel: itemData.reorderLevel !== undefined ? Number(itemData.reorderLevel) : 0,
           basePrice: itemData.basePrice !== undefined ? Number(itemData.basePrice) : (gp?.basePrice ? Number(gp.basePrice) : 0),

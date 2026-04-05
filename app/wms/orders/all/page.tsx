@@ -1,31 +1,57 @@
 "use client";
 
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import Link from "next/link";
 import { SVGProps } from "react";
+import { mobileOrderService, MobileOrder } from "../../../../services/mobileOrderService";
 
-// Mock Data reproducing Figma "Image 2" metrics
-const mockOrders = [
-  { id: "ORD-001", customer: "ABC Restaurant", initial: "A", avatarBg: "bg-[#0ea5e9]", location: "Mumbai", items: "5 items", amount: "₹12,500", payment: "Credit", status: "New Order", date: "18 Mar 2024" },
-  { id: "ORD-002", customer: "XYZ Hotel", initial: "X", avatarBg: "bg-[#0d9488]", location: "Pune", items: "8 items", amount: "₹18,750", payment: "UPI", status: "Picking", date: "18 Mar 2024" },
-  { id: "ORD-003", customer: "Fresh Mart", initial: "F", avatarBg: "bg-[#38bdf8]", location: "Delhi", items: "12 items", amount: "₹25,300", payment: "Cash", status: "Packing", date: "17 Mar 2024" },
-  { id: "ORD-004", customer: "Green Grocers", initial: "G", avatarBg: "bg-[#0284c7]", location: "Bangalore", items: "6 items", amount: "₹15,200", payment: "Credit", status: "Ready for Dispatch", date: "17 Mar 2024" },
-  { id: "ORD-005", customer: "Food Palace", initial: "F", avatarBg: "bg-[#10b981]", location: "Chennai", items: "10 items", amount: "₹22,800", payment: "UPI", status: "Out for Delivery", date: "16 Mar 2024" },
-  { id: "ORD-006", customer: "Healthy Living", initial: "H", avatarBg: "bg-[#14b8a6]", location: "Hyderabad", items: "4 items", amount: "₹9,500", payment: "Cash", status: "Delivered", date: "15 Mar 2024" },
-];
+// Helper for deterministic avatar color
+const avatarColors = ["bg-[#0ea5e9]", "bg-[#0d9488]", "bg-[#38bdf8]", "bg-[#0284c7]", "bg-[#10b981]", "bg-[#14b8a6]", "bg-[#8b5cf6]", "bg-[#db2777]"];
+const getAvatarBg = (name: string) => {
+  if (!name) return avatarColors[0];
+  const charCode = name.charCodeAt(0);
+  return avatarColors[charCode % avatarColors.length];
+};
+
+const formatDate = (dateString: string) => {
+  if (!dateString) return "";
+  const date = new Date(dateString);
+  return date.toLocaleDateString("en-GB", { day: "numeric", month: "short", year: "numeric" });
+};
 
 export default function AllOrdersPage() {
+  const [orders, setOrders] = useState<MobileOrder[]>([]);
+  const [loading, setLoading] = useState<boolean>(true);
   const [selectedOrders, setSelectedOrders] = useState<Set<string>>(new Set());
 
-  // Function to determine Tailwind classes based on status string matching Figma dropdown bubbles
+  // Hardcoding the active warehouse based on prior backend flows 
+  const activeWarehouseId = "69b82ccf3709f6cca0ec8c41"; 
+
+  useEffect(() => {
+    const fetchOrders = async () => {
+      setLoading(true);
+      try {
+        const data = await mobileOrderService.getByWarehouse(activeWarehouseId);
+        setOrders(data);
+      } catch (error) {
+        console.error("Error fetching warehouse orders:", error);
+      } finally {
+        setLoading(false);
+      }
+    };
+    
+    fetchOrders();
+  }, []);
+
+  // Function to determine Tailwind classes based on status string dynamically matching Figma dropdown bubbles
   const getStatusStyles = (status: string) => {
     switch(status) {
-      case "New Order": return "bg-[#f1f5f9] border-[#e2e8f0] text-[#475569]";
+      case "New Order": case "Pending": return "bg-[#f1f5f9] border-[#e2e8f0] text-[#475569]";
       case "Picking": return "bg-[#f3e8ff] border-[#e9d5ff] text-[#9333ea]";
       case "Packing": return "bg-[#ffedd5] border-[#fed7aa] text-[#c2410c]";
       case "Ready for Dispatch": return "bg-[#ccfbf1] border-[#99f6e4] text-[#0d9488]";
       case "Out for Delivery": return "bg-[#e0e7ff] border-[#c7d2fe] text-[#4338ca]";
-      case "Delivered": return "bg-[#dcfce7] border-[#bbf7d0] text-[#15803d]";
+      case "Delivered": case "Placed": case "Completed": return "bg-[#dcfce7] border-[#bbf7d0] text-[#15803d]";
       default: return "bg-[#f1f5f9] border-[#e2e8f0] text-[#475569]";
     }
   };
@@ -44,7 +70,7 @@ export default function AllOrdersPage() {
       <div className="flex justify-between items-center">
         <div className="flex items-center gap-3">
           <h1 className="text-[26px] font-bold text-[#1e293b]">All Orders</h1>
-          <span className="text-[#64748b] text-[20px] font-medium">6</span>
+          {!loading && <span className="text-[#64748b] text-[20px] font-medium">{orders.length}</span>}
           <ChevronDownIcon className="w-5 h-5 text-[#64748b]" />
         </div>
         
@@ -89,102 +115,108 @@ export default function AllOrdersPage() {
       </div>
 
       {/* Main Table Payload */}
-      <div className="bg-white border border-[#e2e8f0] rounded-xl shadow-sm flex flex-col overflow-hidden">
-        <div className="overflow-x-auto w-full">
-          <table className="w-full text-left text-sm whitespace-nowrap">
-            <thead className="bg-[#f8fafc] text-[#64748b] font-bold text-[11px] uppercase tracking-wider border-b border-[#e2e8f0]">
-              <tr>
-                <th className="px-6 py-4 w-[40px]">
-                  <input type="checkbox" className="w-4 h-4 rounded border-[#cbd5e1] text-[#2563eb] focus:ring-[#2563eb] cursor-pointer" />
-                </th>
-                <th className="px-6 py-4">ORDER ID</th>
-                <th className="px-6 py-4">CUSTOMER</th>
-                <th className="px-6 py-4">LOCATION</th>
-                <th className="px-6 py-4">ITEMS</th>
-                <th className="px-6 py-4">AMOUNT</th>
-                <th className="px-6 py-4">PAYMENT</th>
-                <th className="px-6 py-4">STATUS</th>
-                <th className="px-6 py-4">DATE</th>
-                <th className="px-6 py-4 text-center">ACTIONS</th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-[#e2e8f0]">
-              {mockOrders.map((order) => (
-                <tr key={order.id} className="hover:bg-[#f8fafc] transition-colors group">
-                  <td className="px-6 py-4">
-                    <input 
-                      type="checkbox" 
-                      checked={selectedOrders.has(order.id)}
-                      onChange={() => toggleOrder(order.id)}
-                      className="w-4 h-4 rounded border-[#cbd5e1] text-[#2563eb] focus:ring-[#2563eb] cursor-pointer outline-none" 
-                    />
-                  </td>
-                  <td className="px-6 py-4">
-                    <Link href={`/wms/orders/${order.id}`} className="text-[#2563eb] font-semibold hover:underline">
-                      {order.id}
-                    </Link>
-                  </td>
-                  <td className="px-6 py-4">
-                    <div className="flex items-center gap-3">
-                      <div className={`w-8 h-8 rounded-full flex items-center justify-center text-white font-bold text-[13px] ${order.avatarBg} shadow-sm`}>
-                        {order.initial}
-                      </div>
-                      <span className="text-[#0f172a] font-semibold">{order.customer}</span>
-                    </div>
-                  </td>
-                  <td className="px-6 py-4 text-[#475569]">{order.location}</td>
-                  <td className="px-6 py-4 text-[#475569]">{order.items}</td>
-                  <td className="px-6 py-4 text-[#0f172a] font-bold">{order.amount}</td>
-                  <td className="px-6 py-4 text-[#475569]">{order.payment}</td>
-                  <td className="px-6 py-4">
-                    <div className="relative w-[150px]">
-                      <select 
-                        defaultValue={order.status}
-                        className={`w-full appearance-none pl-4 pr-8 py-1.5 border rounded-full text-xs font-bold shrink-0 cursor-pointer outline-none shadow-[0_1px_2px_rgba(0,0,0,0.02)] ${getStatusStyles(order.status)}`}
-                      >
-                        <option value="New Order">New Order</option>
-                        <option value="Picking">Picking</option>
-                        <option value="Packing">Packing</option>
-                        <option value="Ready for Dispatch">Ready for Dispatch</option>
-                        <option value="Out for Delivery">Out for Delivery</option>
-                        <option value="Delivered">Delivered</option>
-                      </select>
-                      <ChevronDownIcon className="w-3.5 h-3.5 absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none opacity-60" />
-                    </div>
-                  </td>
-                  <td className="px-6 py-4 text-[#64748b] text-[13px]">{order.date}</td>
-                  <td className="px-6 py-4">
-                    <div className="flex items-center justify-center gap-3">
-                      <Link href={`/wms/orders/${order.id}`} className="text-[#64748b] hover:text-[#0f172a] transition-colors" title="View details">
-                        <EyeIcon className="w-[18px] h-[18px]" />
-                      </Link>
-                      <button className="text-[#64748b] hover:text-[#0f172a] transition-colors" title="Delivery Status">
-                        <TruckIcon className="w-[18px] h-[18px]" />
-                      </button>
-                    </div>
-                  </td>
+      {loading ? (
+        <div className="py-24 flex justify-center items-center">
+            <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-[#16a34a]"></div>
+        </div>
+      ) : orders.length === 0 ? (
+        <div className="bg-[#f8fafc] border border-dashed border-[#cbd5e1] rounded-xl p-10 text-center text-[#64748b]">
+            No mobile orders found for this warehouse.
+        </div>
+      ) : (
+        <div className="bg-white border border-[#e2e8f0] rounded-xl shadow-sm flex flex-col overflow-hidden">
+            <div className="overflow-x-auto w-full">
+            <table className="w-full text-left text-sm whitespace-nowrap">
+                <thead className="bg-[#f8fafc] text-[#64748b] font-bold text-[11px] uppercase tracking-wider border-b border-[#e2e8f0]">
+                <tr>
+                    <th className="px-6 py-4 w-[40px]">
+                    <input type="checkbox" className="w-4 h-4 rounded border-[#cbd5e1] text-[#2563eb] focus:ring-[#2563eb] cursor-pointer" />
+                    </th>
+                    <th className="px-6 py-4">ORDER ID</th>
+                    <th className="px-6 py-4">CUSTOMER</th>
+                    <th className="px-6 py-4">LOCATION</th>
+                    <th className="px-6 py-4">ITEMS</th>
+                    <th className="px-6 py-4">AMOUNT</th>
+                    <th className="px-6 py-4">PAYMENT</th>
+                    <th className="px-6 py-4">STATUS</th>
+                    <th className="px-6 py-4">DATE</th>
+                    <th className="px-6 py-4 text-center">ACTIONS</th>
                 </tr>
-              ))}
-            </tbody>
-          </table>
+                </thead>
+                <tbody className="divide-y divide-[#e2e8f0]">
+                {orders.map((order) => {
+                    const cName = order.customerName || "Unknown Customer";
+                    const initial = cName.charAt(0).toUpperCase();
+
+                    return (
+                        <tr key={order.id} className="hover:bg-[#f8fafc] transition-colors group">
+                            <td className="px-6 py-4">
+                                <input 
+                                type="checkbox" 
+                                checked={selectedOrders.has(order.id)}
+                                onChange={() => toggleOrder(order.id)}
+                                className="w-4 h-4 rounded border-[#cbd5e1] text-[#2563eb] focus:ring-[#2563eb] cursor-pointer outline-none" 
+                                />
+                            </td>
+                            <td className="px-6 py-4">
+                                <Link href={`/wms/orders/${order.id}`} className="text-[#2563eb] font-semibold hover:underline">
+                                {/* Slice ID strictly for visually clean order identifiers */}
+                                {order.id.slice(-6).toUpperCase()}
+                                </Link>
+                            </td>
+                            <td className="px-6 py-4">
+                                <div className="flex items-center gap-3">
+                                <div className={`w-8 h-8 rounded-full flex items-center justify-center text-white font-bold text-[13px] ${getAvatarBg(cName)} shadow-sm`}>
+                                    {initial}
+                                </div>
+                                <span className="text-[#0f172a] font-semibold truncate max-w-[180px]">{cName}</span>
+                                </div>
+                            </td>
+                            <td className="px-6 py-4 text-[#475569] truncate max-w-[150px]">{order.location || "N/A"}</td>
+                            <td className="px-6 py-4 text-[#475569]">{order.items?.length || 0} items</td>
+                            <td className="px-6 py-4 text-[#0f172a] font-bold">₹{order.grandTotal?.toLocaleString('en-IN') || 0}</td>
+                            <td className="px-6 py-4 text-[#475569]">{order.paymentMethod || "N/A"}</td>
+                            <td className="px-6 py-4">
+                                {/* Completely locked Graphical Badge Instead of interactive select */}
+                                <span className={`inline-flex items-center justify-center px-4 py-1.5 border rounded-full text-[11px] font-bold shadow-[0_1px_2px_rgba(0,0,0,0.02)] ${getStatusStyles(order.status)}`}>
+                                    {order.status}
+                                </span>
+                            </td>
+                            <td className="px-6 py-4 text-[#64748b] text-[13px]">{formatDate(order.createdAt)}</td>
+                            <td className="px-6 py-4">
+                                <div className="flex items-center justify-center gap-3">
+                                <Link href={`/wms/orders/${order.id}`} className="text-[#64748b] hover:text-[#0f172a] transition-colors" title="View details">
+                                    <EyeIcon className="w-[18px] h-[18px]" />
+                                </Link>
+                                <button className="text-[#64748b] hover:text-[#0f172a] transition-colors" title="Delivery Status">
+                                    <TruckIcon className="w-[18px] h-[18px]" />
+                                </button>
+                                </div>
+                            </td>
+                        </tr>
+                    );
+                })}
+                </tbody>
+            </table>
+            </div>
+            
+            {/* Pagination Footer */}
+            <div className="px-6 py-4 border-t border-[#e2e8f0] flex items-center justify-between bg-white mt-auto">
+            <span className="text-sm text-[#64748b]">Showing 1 to {orders.length} of {orders.length} results</span>
+            <div className="flex items-center gap-2">
+                <button className="px-4 py-2 border border-[#e2e8f0] text-[#64748b] text-sm font-medium rounded-md hover:bg-[#f8fafc] disabled:opacity-50 transition-colors shadow-sm">
+                Previous
+                </button>
+                <button className="w-9 h-9 flex items-center justify-center bg-[#16a34a] text-white text-sm font-bold rounded-md shadow-sm">
+                1
+                </button>
+                <button className="px-4 py-2 border border-[#e2e8f0] text-[#64748b] text-sm font-medium rounded-md hover:bg-[#f8fafc] disabled:opacity-50 transition-colors shadow-sm">
+                Next
+                </button>
+            </div>
+            </div>
         </div>
-        
-        {/* Pagination Footer */}
-        <div className="px-6 py-4 border-t border-[#e2e8f0] flex items-center justify-between bg-white">
-          <span className="text-sm text-[#64748b]">Showing 1 to 6 of 6 results</span>
-          <div className="flex items-center gap-2">
-            <button className="px-4 py-2 border border-[#e2e8f0] text-[#64748b] text-sm font-medium rounded-md hover:bg-[#f8fafc] disabled:opacity-50 transition-colors shadow-sm">
-              Previous
-            </button>
-            <button className="w-9 h-9 flex items-center justify-center bg-[#16a34a] text-white text-sm font-bold rounded-md shadow-sm">
-              1
-            </button>
-            <button className="px-4 py-2 border border-[#e2e8f0] text-[#64748b] text-sm font-medium rounded-md hover:bg-[#f8fafc] disabled:opacity-50 transition-colors shadow-sm">
-              Next
-            </button>
-          </div>
-        </div>
-      </div>
+      )}
     </div>
   );
 }

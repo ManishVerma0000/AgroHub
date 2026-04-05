@@ -1,27 +1,103 @@
 "use client";
 
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import Link from "next/link";
 import { SVGProps } from "react";
+import { mobileOrderService, MobileOrder } from "../../../../services/mobileOrderService";
 
-// Mock Data reproducing Order Details from Figma
-const mockItems = [
-  { id: "INV-001", name: "Tomato", qty: "50 Kg", price: "₹75.00", total: "₹3750.00" },
-  { id: "INV-002", name: "Potato", qty: "30 Kg", price: "₹65.00", total: "₹1950.00" },
-  { id: "INV-003", name: "Onion", qty: "40 Kg", price: "₹70.00", total: "₹2800.00" },
-  { id: "INV-004", name: "Carrot", qty: "25 Kg", price: "₹60.00", total: "₹1500.00" },
-  { id: "INV-005", name: "Cabbage", qty: "20 Kg", price: "₹55.00", total: "₹1100.00" },
-];
+const avatarColors = ["bg-[#0ea5e9]", "bg-[#0d9488]", "bg-[#38bdf8]", "bg-[#0284c7]", "bg-[#10b981]", "bg-[#14b8a6]", "bg-[#8b5cf6]", "bg-[#db2777]"];
+const getAvatarBg = (name: string) => {
+  if (!name) return avatarColors[0];
+  const charCode = name.charCodeAt(0);
+  return avatarColors[charCode % avatarColors.length];
+};
+
+const formatDate = (dateString: string) => {
+  if (!dateString) return "";
+  const date = new Date(dateString);
+  return date.toLocaleDateString("en-GB", { day: "numeric", month: "short", year: "numeric", hour: "2-digit", minute: "2-digit" });
+};
+
+const formatShortDate = (dateString: string) => {
+  if (!dateString) return "";
+  const date = new Date(dateString);
+  return date.toLocaleDateString("en-GB", { day: "numeric", month: "short", year: "numeric" });
+};
 
 export default function OrderDetailsPage({ params }: { params: Promise<{ id: string }> }) {
   const resolvedParams = React.use(params);
-  const orderId = resolvedParams.id || "ORD-001";
+  const orderId = resolvedParams.id;
   
-  const [orderStatus, setOrderStatus] = useState("New Order");
+  const [order, setOrder] = useState<MobileOrder | null>(null);
+  const [loading, setLoading] = useState(true);
   const [showTrackModal, setShowTrackModal] = useState(false);
+  const [confirming, setConfirming] = useState(false);
 
-  // Helper flags
-  const isConfirmed = orderStatus === "Confirmed Order";
+  useEffect(() => {
+    const fetchOrder = async () => {
+      setLoading(true);
+      try {
+        const data = await mobileOrderService.getById(orderId);
+        setOrder(data);
+      } catch (error) {
+        console.error("Error fetching order details:", error);
+      } finally {
+        setLoading(false);
+      }
+    };
+    
+    if (orderId) {
+      fetchOrder();
+    }
+  }, [orderId]);
+
+  const handleConfirmOrder = async () => {
+    if (!orderId || confirming) return;
+    setConfirming(true);
+    try {
+      const updated = await mobileOrderService.confirmOrder(orderId);
+      setOrder(updated);
+    } catch (error) {
+      console.error("Error confirming order:", error);
+    } finally {
+      setConfirming(false);
+    }
+  };
+
+  if (loading) {
+    return (
+      <div className="py-24 flex justify-center items-center">
+        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-[#2563eb]"></div>
+      </div>
+    );
+  }
+
+  if (!order) {
+    return (
+      <div className="py-24 text-center flex flex-col gap-4">
+        <h2 className="text-xl font-bold text-[#0f172a]">Order not found</h2>
+        <Link href="/wms/orders/all" className="text-[#2563eb] hover:underline">Return to all orders</Link>
+      </div>
+    );
+  }
+
+  const orderStatus = order.status || "Placed";
+
+  // Tracker Logic Nodes
+  const statusHierarchy = ["Placed", "Confirmed", "Processing", "Picking", "Packing", "Ready for Dispatch", "Out for Delivery", "Delivered", "Completed"];
+  const currentIndex = statusHierarchy.indexOf(orderStatus);
+  
+  const isPastOrCurrent = (status: string) => {
+    const index = statusHierarchy.indexOf(status);
+    return index <= currentIndex;
+  };
+  
+  const isCurrent = (status: string) => {
+    return statusHierarchy.indexOf(status) === currentIndex;
+  };
+
+  const customerName = order.customerName || "Unknown Customer";
+  const initial = customerName.charAt(0).toUpperCase();
 
   return (
     <div className="flex flex-col gap-6 max-w-[1400px]">
@@ -36,9 +112,9 @@ export default function OrderDetailsPage({ params }: { params: Promise<{ id: str
         <div className="flex justify-between items-center">
           <div className="flex flex-col gap-1.5">
             <h1 className="text-[28px] font-bold text-[#0f172a]">Order Details</h1>
-            <span className="text-[#64748b] text-[15px]">Order ID: {orderId} • Placed on 18 Mar 2024</span>
+            <span className="text-[#64748b] text-[15px]">Order ID: {orderId} • Placed on {formatShortDate(order.createdAt)}</span>
           </div>
-          <span className="inline-flex items-center px-4 py-1.5 rounded-full bg-[#f1f5f9] text-[#475569] text-sm font-bold shadow-sm">
+          <span className="inline-flex items-center px-4 py-1.5 rounded-full bg-[#f1f5f9] text-[#475569] text-sm font-bold shadow-sm uppercase tracking-wide">
             {orderStatus}
           </span>
         </div>
@@ -66,24 +142,26 @@ export default function OrderDetailsPage({ params }: { params: Promise<{ id: str
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-[#f1f5f9]">
-                  {mockItems.map((item) => (
-                    <tr key={item.id} className="bg-white hover:bg-[#f8fafc] transition-colors">
+                  {order.items?.map((item, i) => (
+                    <tr key={i} className="bg-white hover:bg-[#f8fafc] transition-colors">
                       <td className="px-6 py-4">
                         <div className="flex items-center gap-4">
-                          <div className="w-10 h-10 rounded-lg bg-[#dcfce7] text-[#16a34a] flex items-center justify-center shrink-0 shadow-sm border border-[#bbf7d0]">
+                          <div className="w-10 h-10 rounded-lg bg-[#eff6ff] text-[#2563eb] flex items-center justify-center shrink-0 shadow-sm border border-[#bfdbfe]">
                             <CubeIcon className="w-5 h-5" />
                           </div>
                           <div className="flex flex-col">
-                            <span className="text-[#0f172a] font-bold text-[15px]">{item.name}</span>
-                            <span className="text-[#64748b] text-[13px]">{item.id}</span>
+                            <span className="text-[#0f172a] font-bold text-[15px]">{item.productName}</span>
+                            <span className="text-[#64748b] text-[13px]">{item.productId?.slice(-6).toUpperCase() || 'SYS-N/A'}</span>
                           </div>
                         </div>
                       </td>
-                      <td className="px-6 py-4 text-[#475569]">{item.qty}</td>
-                      <td className="px-6 py-4 text-[#0f172a] font-medium">{item.price}</td>
-                      <td className="px-6 py-4 text-[#0f172a] font-bold">{item.total}</td>
+                      <td className="px-6 py-4 text-[#475569]">{item.quantity}</td>
+                      <td className="px-6 py-4 text-[#0f172a] font-medium">₹{item.unitPrice?.toLocaleString('en-IN') || 0}</td>
+                      <td className="px-6 py-4 text-[#0f172a] font-bold">₹{((item.quantity || 0) * (item.unitPrice || 0)).toLocaleString('en-IN')}</td>
                     </tr>
-                  ))}
+                  )) || (
+                    <tr><td colSpan={4} className="text-center py-6 text-[#64748b]">No items recorded</td></tr>
+                  )}
                 </tbody>
               </table>
             </div>
@@ -93,15 +171,15 @@ export default function OrderDetailsPage({ params }: { params: Promise<{ id: str
               <div className="w-full max-w-[300px] flex flex-col gap-4">
                 <div className="flex justify-between items-center text-[#475569] text-sm">
                   <span>Subtotal</span>
-                  <span className="font-bold text-[#0f172a]">₹11100.00</span>
+                  <span className="font-bold text-[#0f172a]">₹{order.subtotal?.toLocaleString('en-IN') || 0}</span>
                 </div>
                 <div className="flex justify-between items-center text-[#475569] text-sm">
-                  <span>GST (5%)</span>
-                  <span className="font-bold text-[#0f172a]">₹555.00</span>
+                  <span>Delivery Fee</span>
+                  <span className="font-bold text-[#0f172a]">₹{order.deliveryFee?.toLocaleString('en-IN') || 0}</span>
                 </div>
                 <div className="flex justify-between items-center pt-4 border-t border-[#cbd5e1] mt-1">
                   <span className="font-bold text-[#0f172a] text-[15px]">Total Amount</span>
-                  <span className="font-bold text-[#16a34a] text-[20px]">₹11655.00</span>
+                  <span className="font-bold text-[#16a34a] text-[20px]">₹{order.grandTotal?.toLocaleString('en-IN') || 0}</span>
                 </div>
               </div>
             </div>
@@ -112,7 +190,6 @@ export default function OrderDetailsPage({ params }: { params: Promise<{ id: str
             <h2 className="text-[18px] font-bold text-[#0f172a]">Order Timeline</h2>
             
             <div className="flex flex-col relative pt-2">
-              {/* Native Generic CSS Timeline Border mapped absolutely spanning left gap */}
               <div className="absolute top-[18px] bottom-6 left-[15px] w-0.5 bg-[#e2e8f0] -z-10"></div>
               
               {/* Node: Order Placed */}
@@ -122,92 +199,27 @@ export default function OrderDetailsPage({ params }: { params: Promise<{ id: str
                 </div>
                 <div className="flex flex-col pt-1.5">
                   <span className="text-[#0f172a] font-bold text-[15px] leading-none">Order Placed</span>
-                  <span className="text-[#64748b] text-[13px] mt-1">18 Mar 2024 • 09:30 AM</span>
+                  <span className="text-[#64748b] text-[13px] mt-1">{formatDate(order.createdAt)}</span>
                 </div>
               </div>
 
-              {/* Node: New Order */}
-              <div className="flex gap-4 mb-6 relative">
-                <div className="w-8 h-8 rounded-full bg-[#dcfce7] flex items-center justify-center shrink-0 shadow-sm border border-[#bbf7d0]">
-                  <div className="w-2.5 h-2.5 bg-[#16a34a] rounded-full"></div>
-                </div>
-                <div className="flex items-center gap-2 pt-1.5 leading-none">
-                  <span className="text-[#0f172a] font-bold text-[15px]">New Order</span>
-                  {!isConfirmed && <span className="text-[#16a34a] text-xs font-bold">(Current)</span>}
-                </div>
-              </div>
-
-              {/* Node: Confirmed Order */}
-              <div className={`flex gap-4 mb-6 relative ${isConfirmed ? '' : 'opacity-60'}`}>
-                <div className={`w-8 h-8 rounded-full flex items-center justify-center shrink-0 border ${isConfirmed ? 'bg-[#dcfce7] border-[#bbf7d0] shadow-sm' : 'bg-[#f1f5f9] border-[#e2e8f0]/50'}`}>
-                  <div className={`w-2.5 h-2.5 rounded-full ${isConfirmed ? 'bg-[#16a34a]' : 'bg-[#cbd5e1]'}`}></div>
-                </div>
-                <div className="flex items-center gap-2 pt-1.5 leading-none">
-                  <span className={`${isConfirmed ? 'text-[#0f172a] font-bold' : 'text-[#64748b] font-semibold'} text-[15px]`}>Confirmed Order</span>
-                  {isConfirmed && <span className="text-[#16a34a] text-xs font-bold">(Current)</span>}
-                </div>
-              </div>
-
-               {/* Node: Processing */}
-              <div className="flex gap-4 mb-6 relative opacity-60">
-                <div className="w-8 h-8 rounded-full bg-[#f1f5f9] flex items-center justify-center shrink-0 border border-[#e2e8f0]/50">
-                  <div className="w-2.5 h-2.5 bg-[#cbd5e1] rounded-full"></div>
-                </div>
-                <div className="flex flex-col pt-1.5 leading-none">
-                  <span className="text-[#64748b] font-semibold text-[15px]">Processing</span>
-                </div>
-              </div>
-
-              {/* Node: Picking */}
-              <div className="flex gap-4 mb-6 relative opacity-60">
-                <div className="w-8 h-8 rounded-full bg-[#f1f5f9] flex items-center justify-center shrink-0 border border-[#e2e8f0]/50">
-                  <div className="w-2.5 h-2.5 bg-[#cbd5e1] rounded-full"></div>
-                </div>
-                <div className="flex flex-col pt-1.5 leading-none">
-                  <span className="text-[#64748b] font-semibold text-[15px]">Picking</span>
-                </div>
-              </div>
-
-              {/* Node: Packing */}
-              <div className="flex gap-4 mb-6 relative opacity-60">
-                <div className="w-8 h-8 rounded-full bg-[#f1f5f9] flex items-center justify-center shrink-0 border border-[#e2e8f0]/50">
-                  <div className="w-2.5 h-2.5 bg-[#cbd5e1] rounded-full"></div>
-                </div>
-                <div className="flex flex-col pt-1.5 leading-none">
-                  <span className="text-[#64748b] font-semibold text-[15px]">Packing</span>
-                </div>
-              </div>
-
-              {/* Node: Ready for Dispatch */}
-              <div className="flex gap-4 mb-6 relative opacity-60">
-                <div className="w-8 h-8 rounded-full bg-[#f1f5f9] flex items-center justify-center shrink-0 border border-[#e2e8f0]/50">
-                  <div className="w-2.5 h-2.5 bg-[#cbd5e1] rounded-full"></div>
-                </div>
-                <div className="flex flex-col pt-1.5 leading-none">
-                  <span className="text-[#64748b] font-semibold text-[15px]">Ready for Dispatch</span>
-                </div>
-              </div>
-
-              {/* Node: Out for Delivery */}
-              <div className="flex gap-4 mb-6 relative opacity-60">
-                <div className="w-8 h-8 rounded-full bg-[#f1f5f9] flex items-center justify-center shrink-0 border border-[#e2e8f0]/50">
-                  <div className="w-2.5 h-2.5 bg-[#cbd5e1] rounded-full"></div>
-                </div>
-                <div className="flex flex-col pt-1.5 leading-none">
-                  <span className="text-[#64748b] font-semibold text-[15px]">Out for Delivery</span>
-                </div>
-              </div>
-
-              {/* Node: Delivered */}
-              <div className="flex gap-4 relative opacity-60">
-                <div className="w-8 h-8 rounded-full bg-[#f1f5f9] flex items-center justify-center shrink-0 border border-[#e2e8f0]/50">
-                  <div className="w-2.5 h-2.5 bg-[#cbd5e1] rounded-full"></div>
-                </div>
-                <div className="flex flex-col pt-1.5 leading-none">
-                  <span className="text-[#64748b] font-semibold text-[15px]">Delivered</span>
-                </div>
-              </div>
-
+               {/* Array of dynamic trailing nodes */}
+               {statusHierarchy.slice(1).map((statusName, idx) => {
+                 const pastOrCurrent = isPastOrCurrent(statusName);
+                 const current = isCurrent(statusName);
+                 
+                 return (
+                    <div key={statusName} className={`flex gap-4 mb-${idx === statusHierarchy.length-2 ? '0' : '6'} relative ${pastOrCurrent ? '' : 'opacity-60'}`}>
+                        <div className={`w-8 h-8 rounded-full flex items-center justify-center shrink-0 border ${pastOrCurrent ? 'bg-[#dcfce7] border-[#bbf7d0] shadow-sm' : 'bg-[#f1f5f9] border-[#e2e8f0]/50'}`}>
+                        <div className={`w-2.5 h-2.5 rounded-full ${pastOrCurrent ? 'bg-[#16a34a]' : 'bg-[#cbd5e1]'}`}></div>
+                        </div>
+                        <div className="flex items-center gap-2 pt-1.5 leading-none">
+                        <span className={`${pastOrCurrent ? 'text-[#0f172a] font-bold' : 'text-[#64748b] font-semibold'} text-[15px]`}>{statusName}</span>
+                        {current && <span className="text-[#16a34a] text-xs font-bold">(Current)</span>}
+                        </div>
+                    </div>
+                 )
+               })}
             </div>
           </div>
 
@@ -220,11 +232,11 @@ export default function OrderDetailsPage({ params }: { params: Promise<{ id: str
           <div className="bg-white border border-[#e2e8f0] rounded-xl p-6 shadow-sm flex flex-col gap-6">
             <h3 className="text-[17px] font-bold text-[#0f172a]">Customer Information</h3>
             <div className="flex items-center gap-4">
-              <div className="w-12 h-12 rounded-full bg-[#0ea5e9] text-white flex items-center justify-center font-bold text-lg shadow-sm">
-                A
+              <div className={`w-12 h-12 rounded-full ${getAvatarBg(customerName)} text-white flex items-center justify-center font-bold text-lg shadow-sm`}>
+                {initial}
               </div>
               <div className="flex flex-col">
-                <span className="font-bold text-[#0f172a] text-[15px]">ABC Restaurant</span>
+                <span className="font-bold text-[#0f172a] text-[15px]">{customerName}</span>
                 <span className="text-[#64748b] text-[13px]">Customer</span>
               </div>
             </div>
@@ -234,21 +246,21 @@ export default function OrderDetailsPage({ params }: { params: Promise<{ id: str
                 <MailIcon className="w-4 h-4 text-[#94a3b8] mt-0.5 shrink-0" />
                 <div className="flex flex-col leading-tight gap-0.5">
                   <span className="text-[#64748b] text-[13px]">Email</span>
-                  <span className="text-[#0f172a] text-sm">customer@example.com</span>
+                  <span className="text-[#0f172a] text-sm">{order.customerEmail || "N/A"}</span>
                 </div>
               </div>
               <div className="flex gap-3 items-start">
                 <PhoneIcon className="w-4 h-4 text-[#94a3b8] mt-0.5 shrink-0" />
                 <div className="flex flex-col leading-tight gap-0.5">
                   <span className="text-[#64748b] text-[13px]">Phone</span>
-                  <span className="text-[#0f172a] text-sm">+91 98765 43210</span>
+                  <span className="text-[#0f172a] text-sm">{order.customerPhone || "N/A"}</span>
                 </div>
               </div>
               <div className="flex gap-3 items-start">
                 <MapPinIcon className="w-4 h-4 text-[#94a3b8] mt-0.5 shrink-0" />
-                <div className="flex flex-col leading-tight gap-0.5">
+                <div className="flex flex-col leading-tight gap-0.5 max-w-[200px]">
                   <span className="text-[#64748b] text-[13px]">Delivery Location</span>
-                  <span className="text-[#0f172a] text-sm">Mumbai, India</span>
+                  <span className="text-[#0f172a] text-sm">{order.location || "N/A"}</span>
                 </div>
               </div>
             </div>
@@ -262,7 +274,7 @@ export default function OrderDetailsPage({ params }: { params: Promise<{ id: str
               <span className="text-[#475569] text-sm">Payment Method</span>
               <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-md bg-[#f8fafc] border border-[#e2e8f0] text-[#0f172a] text-[13px] font-bold">
                 <CreditCardIcon className="w-3.5 h-3.5 text-[#64748b]" />
-                Credit
+                {order.paymentMethod || "N/A"}
               </span>
             </div>
             
@@ -278,40 +290,19 @@ export default function OrderDetailsPage({ params }: { params: Promise<{ id: str
           {/* Order Summary Formats */}
           <div className="bg-white border border-[#e2e8f0] rounded-xl p-6 shadow-sm flex flex-col gap-4">
             <div className="flex justify-between items-center">
-              <span className="text-[#64748b] text-[13px]">Pending Amount</span>
-              <span className="text-[#ca8a04] font-bold">₹0.00</span>
+              <span className="text-[#64748b] text-[13px]">Amount Due</span>
+              <span className="text-[#ca8a04] font-bold">₹{order.grandTotal?.toLocaleString('en-IN') || 0}</span>
             </div>
             <div className="flex justify-between items-center">
               <span className="text-[#64748b] text-[13px]">Order Date</span>
               <span className="flex items-center gap-1.5 text-[#0f172a] font-medium text-[13px]">
                 <CalendarIcon className="w-3.5 h-3.5 text-[#94a3b8]" />
-                18 Mar 2024
+                {formatShortDate(order.createdAt)}
               </span>
             </div>
             <div className="flex justify-between items-center">
               <span className="text-[#64748b] text-[13px]">Total Items</span>
-              <span className="text-[#0f172a] font-bold">5 items</span>
-            </div>
-          </div>
-
-           {/* Offer Applied Target Block */}
-          <div className="bg-white border border-[#e2e8f0] rounded-xl p-6 shadow-sm flex flex-col gap-4">
-            <h3 className="text-[17px] font-bold text-[#0f172a]">Offer Applied</h3>
-            <div className="bg-[#f0fdf4] border border-[#bbf7d0] rounded-lg p-4 flex items-start gap-4">
-               <div className="w-8 h-8 rounded-full bg-[#dcfce7] flex items-center justify-center shrink-0">
-                  <TagIcon className="w-4 h-4 text-[#16a34a]" />
-               </div>
-               <div className="flex flex-col w-full">
-                  <span className="text-[#0f172a] font-bold text-[13px] mb-1.5">Bulk Order Discount - 20% Off</span>
-                  <div className="flex items-center gap-2 mb-3">
-                    <span className="inline-flex px-2 py-0.5 rounded bg-[#16a34a] text-white text-[10px] font-bold uppercase">BULK20</span>
-                    <span className="text-[#64748b] text-[12px]">20% discount</span>
-                  </div>
-                  <div className="flex justify-between items-center pt-3 border-t border-[#bbf7d0]/60">
-                    <span className="text-[#64748b] text-[12px]">You saved</span>
-                    <span className="text-[#16a34a] font-bold">₹2220.00</span>
-                  </div>
-               </div>
+              <span className="text-[#0f172a] font-bold">{order.items?.length || 0} items</span>
             </div>
           </div>
 
@@ -319,13 +310,26 @@ export default function OrderDetailsPage({ params }: { params: Promise<{ id: str
           <div className="bg-white border border-[#e2e8f0] rounded-xl p-6 shadow-sm flex flex-col gap-5">
             <h3 className="text-[17px] font-bold text-[#0f172a]">Actions</h3>
             <div className="flex flex-col gap-3">
-              <button 
-                onClick={() => setOrderStatus("Confirmed Order")}
-                className="flex items-center justify-center gap-2 w-full py-2.5 bg-[#ea580c] hover:bg-[#c2410c] text-white font-bold rounded-lg transition-colors text-sm shadow-sm"
-              >
-                <CheckCircleIcon className="w-4 h-4" />
-                Confirm Order
-              </button>
+              {orderStatus === "Placed" && (
+                <button
+                  id="confirm-order-btn"
+                  onClick={handleConfirmOrder}
+                  disabled={confirming}
+                  className="flex items-center justify-center gap-2 w-full py-2.5 bg-[#ea580c] hover:bg-[#c2410c] disabled:opacity-60 disabled:cursor-not-allowed text-white font-bold rounded-lg transition-colors text-sm shadow-sm"
+                >
+                  {confirming ? (
+                    <>
+                      <span className="animate-spin inline-block w-4 h-4 border-2 border-white/30 border-t-white rounded-full" />
+                      Confirming...
+                    </>
+                  ) : (
+                    <>
+                      <CheckCircleIcon className="w-4 h-4" />
+                      Confirm Order
+                    </>
+                  )}
+                </button>
+              )}
               <button 
                 onClick={() => setShowTrackModal(true)}
                 className="flex items-center justify-center gap-2 w-full py-2.5 bg-[#16a34a] hover:bg-[#15803d] text-white font-bold rounded-lg transition-colors text-sm shadow-sm"
@@ -364,127 +368,48 @@ export default function OrderDetailsPage({ params }: { params: Promise<{ id: str
               {/* Order Context Banner */}
               <div className="bg-[#eff6ff] border border-[#bfdbfe] rounded-xl p-4 flex flex-col mb-6">
                 <div className="flex justify-between items-center mb-2">
-                  <span className="text-[#1e40af] font-bold text-[15px]">Order ID: {orderId}</span>
+                  <span className="text-[#1e40af] font-bold text-[15px]">Order ID: {orderId.slice(-8).toUpperCase()}</span>
                   <span className="inline-flex items-center px-3 py-1 rounded-full bg-[#dbeafe] text-[#1e40af] text-xs font-bold">
                     {orderStatus}
                   </span>
-                </div>
-                <div className="flex items-center gap-2 text-[#2563eb] text-sm font-medium">
-                  <MapPinIcon className="w-4 h-4" />
-                  Delivery to: Mumbai
                 </div>
               </div>
 
               {/* Advanced Tracking Stepper */}
               <div className="flex flex-col relative pl-[42px] gap-2">
-                {/* Native Generic CSS line spanning down from node to node */}
                 <div className="absolute top-[32px] bottom-[32px] left-[27px] w-0.5 bg-[#e2e8f0] -z-10"></div>
-                <div className="absolute top-[32px] bottom-[280px] left-[27px] w-0.5 bg-[#16a34a] -z-10"></div>
+                
+                {/* Visual progression track height mapped roughly to index. */}
+                <div className="absolute top-[32px] left-[27px] w-0.5 bg-[#16a34a] -z-10 transition-all duration-500" style={{ height: `calc(${currentIndex * 32}px + ${currentIndex * 42}px)` }}></div>
 
-                {/* Tracking Node: Order Placed (Green) */}
-                <div className="bg-[#f0fdf4] border border-[#bbf7d0] rounded-xl p-4 flex gap-4 w-full relative group">
-                  <div className="w-10 h-10 rounded-full bg-[#16a34a] flex items-center justify-center text-white shrink-0 absolute -left-[35px] top-1/2 -translate-y-1/2 shadow-sm border-[4px] border-[#fafafa]">
-                    <CubeIcon className="w-[18px] h-[18px]" />
-                  </div>
-                  <div className="flex flex-col ml-3">
-                    <span className="font-bold text-[#0f172a] text-[15px]">Order Placed</span>
-                    <span className="text-[#475569] text-[13px] mb-1">Your order has been placed successfully</span>
-                    <span className="text-[#16a34a] text-[13px]">18 Mar 2024, 09:30 AM</span>
-                  </div>
-                </div>
+                {statusHierarchy.map((statusName, idx) => {
+                    const past = idx < currentIndex;
+                    const current = idx === currentIndex;
+                    const future = idx > currentIndex;
+                    
+                    let bgClasses = "bg-[#f1f5f9] border border-[#e2e8f0] opacity-80 text-[#64748b] iconBg-[#cbd5e1] iconBgWrap-[#fafafa]";
+                    
+                    if (current) {
+                        bgClasses = "bg-[#eff6ff] border border-[#bfdbfe] text-[#0f172a] iconBg-[#2563eb] iconBgWrap-[#fafafa]";
+                    } else if (past) {
+                        bgClasses = "bg-[#f0fdf4] border border-[#bbf7d0] text-[#0f172a] iconBg-[#16a34a] iconBgWrap-[#fafafa]";
+                    }
 
-                {/* Tracking Node: Order Confirmed (Green) */}
-                <div className="bg-[#f0fdf4] border border-[#bbf7d0] rounded-xl p-4 flex gap-4 w-full relative">
-                  <div className="w-10 h-10 rounded-full bg-[#16a34a] flex items-center justify-center text-white shrink-0 absolute -left-[35px] top-1/2 -translate-y-1/2 shadow-sm border-[4px] border-[#fafafa]">
-                    <CheckCircleIcon className="w-[18px] h-[18px]" />
-                  </div>
-                  <div className="flex flex-col ml-3">
-                    <span className="font-bold text-[#0f172a] text-[15px]">Order Confirmed</span>
-                    <span className="text-[#475569] text-[13px] mb-1">Order has been confirmed and is ready for processing</span>
-                    <span className="text-[#16a34a] text-[13px]">18 Mar 2024, 09:45 AM</span>
-                  </div>
-                </div>
-
-                {/* Tracking Node: Processing (Blue / Current) */}
-                <div className="bg-[#eff6ff] border border-[#bfdbfe] rounded-xl p-4 flex gap-4 w-full relative">
-                  <div className="w-10 h-10 rounded-full bg-[#2563eb] flex items-center justify-center text-white shrink-0 absolute -left-[35px] top-1/2 -translate-y-1/2 shadow-sm border-[4px] border-[#fafafa]">
-                    <CubeIcon className="w-[18px] h-[18px]" />
-                  </div>
-                  <div className="flex justify-between items-start w-full ml-3">
-                    <div className="flex flex-col">
-                      <span className="font-bold text-[#0f172a] text-[15px]">Processing</span>
-                      <span className="text-[#475569] text-[13px]">Order is being processed</span>
-                    </div>
-                    <div className="flex items-center gap-1.5 text-[#2563eb] text-[13px] font-bold">
-                       <ClockIcon className="w-3.5 h-3.5" />
-                       In Progress
-                    </div>
-                  </div>
-                </div>
-
-                {/* Tracking Node: Picking (Grey) */}
-                <div className="bg-[#f1f5f9] border border-[#e2e8f0] rounded-xl p-4 flex gap-4 w-full relative opacity-80">
-                  <div className="w-10 h-10 rounded-full bg-[#cbd5e1] flex items-center justify-center text-white shrink-0 absolute -left-[35px] top-1/2 -translate-y-1/2 shadow-sm border-[4px] border-[#fafafa]">
-                    <CubeIcon className="w-[18px] h-[18px]" />
-                  </div>
-                  <div className="flex flex-col ml-3">
-                    <span className="font-bold text-[#475569] text-[15px]">Picking</span>
-                    <span className="text-[#64748b] text-[13px]">Items are being picked from warehouse</span>
-                  </div>
-                </div>
-
-                {/* Tracking Node: Packing (Grey) */}
-                <div className="bg-[#f1f5f9] border border-[#e2e8f0] rounded-xl p-4 flex gap-4 w-full relative opacity-80">
-                  <div className="w-10 h-10 rounded-full bg-[#cbd5e1] flex items-center justify-center text-white shrink-0 absolute -left-[35px] top-1/2 -translate-y-1/2 shadow-sm border-[4px] border-[#fafafa]">
-                    <CubeIcon className="w-[18px] h-[18px]" />
-                  </div>
-                  <div className="flex flex-col ml-3">
-                    <span className="font-bold text-[#475569] text-[15px]">Packing</span>
-                    <span className="text-[#64748b] text-[13px]">Items are being packed</span>
-                  </div>
-                </div>
-
-                {/* Tracking Node: Ready for Dispatch (Grey) */}
-                <div className="bg-[#f1f5f9] border border-[#e2e8f0] rounded-xl p-4 flex gap-4 w-full relative opacity-80">
-                  <div className="w-10 h-10 rounded-full bg-[#cbd5e1] flex items-center justify-center text-white shrink-0 absolute -left-[35px] top-1/2 -translate-y-1/2 shadow-sm border-[4px] border-[#fafafa]">
-                    <CheckCircleIcon className="w-[18px] h-[18px]" />
-                  </div>
-                  <div className="flex flex-col ml-3">
-                    <span className="font-bold text-[#475569] text-[15px]">Ready for Dispatch</span>
-                    <span className="text-[#64748b] text-[13px]">Package is ready for dispatch</span>
-                  </div>
-                </div>
-
-                {/* Tracking Node: Out for Delivery (Grey) */}
-                <div className="bg-[#f1f5f9] border border-[#e2e8f0] rounded-xl p-4 flex gap-4 w-full relative opacity-80">
-                  <div className="w-10 h-10 rounded-full bg-[#cbd5e1] flex items-center justify-center text-white shrink-0 absolute -left-[35px] top-1/2 -translate-y-1/2 shadow-sm border-[4px] border-[#fafafa]">
-                    <TruckIcon className="w-[18px] h-[18px]" />
-                  </div>
-                  <div className="flex flex-col ml-3">
-                    <span className="font-bold text-[#475569] text-[15px]">Out for Delivery</span>
-                    <span className="text-[#64748b] text-[13px]">On the way to Mumbai</span>
-                  </div>
-                </div>
-
-                {/* Tracking Node: Delivered (Grey) */}
-                <div className="bg-[#f1f5f9] border border-[#e2e8f0] rounded-xl p-4 flex gap-4 w-full relative opacity-80">
-                  <div className="w-10 h-10 rounded-full bg-[#cbd5e1] flex items-center justify-center text-white shrink-0 absolute -left-[35px] top-1/2 -translate-y-1/2 shadow-sm border-[4px] border-[#fafafa]">
-                    <CheckCircleIcon className="w-[18px] h-[18px]" />
-                  </div>
-                  <div className="flex flex-col ml-3">
-                    <span className="font-bold text-[#475569] text-[15px]">Delivered</span>
-                    <span className="text-[#64748b] text-[13px]">Package will be delivered soon</span>
-                  </div>
-                </div>
-              </div>
-
-               {/* Estimated Delivery Block */}
-              <div className="bg-[#fefce8] border border-[#fef08a] rounded-xl p-5 flex items-start gap-3 mt-8">
-                <ClockIcon className="w-5 h-5 text-[#ca8a04] shrink-0 mt-0.5" />
-                <div className="flex flex-col">
-                  <span className="text-[#713f12] font-bold text-[15px] mb-1">Estimated Delivery</span>
-                  <span className="text-[#a16207] text-[13px]">Your order is expected to be delivered by 18 Mar 2024, 05:00 PM</span>
-                </div>
+                    return (
+                        <div key={statusName} className={`${bgClasses.split(' ')[0]} ${bgClasses.split(' ')[1]} ${bgClasses.split(' ')[2]} rounded-xl p-4 flex gap-4 w-full relative ${future ? 'opacity-70' : ''}`}>
+                            <div className={`w-10 h-10 rounded-full ${past || current ? (current ? 'bg-[#2563eb]' : 'bg-[#16a34a]') : 'bg-[#cbd5e1]'} flex items-center justify-center text-white shrink-0 absolute -left-[35px] top-1/2 -translate-y-1/2 shadow-sm border-[4px] border-[#fafafa]`}>
+                                {past ? <CheckCircleIcon className="w-[18px] h-[18px]" /> : (current ? <ClockIcon className="w-[18px] h-[18px]" /> : <CubeIcon className="w-[18px] h-[18px]" />)}
+                            </div>
+                            <div className="flex flex-col ml-3 w-full">
+                                <div className="flex justify-between items-start w-full">
+                                    <span className={`font-bold ${future ? 'text-[#475569]' : 'text-[#0f172a]'} text-[15px]`}>{statusName}</span>
+                                    {current && <span className="text-[#2563eb] text-[13px] font-bold">In Progress</span>}
+                                </div>
+                                {!future && idx === 0 && <span className="text-[#16a34a] text-[13px] mt-1">{formatDate(order.createdAt)}</span>}
+                            </div>
+                        </div>
+                    )
+                })}
               </div>
             </div>
 
@@ -580,24 +505,6 @@ function CalendarIcon(props: SVGProps<SVGSVGElement>) {
   );
 }
 
-function TagIcon(props: SVGProps<SVGSVGElement>) {
-  return (
-    <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" {...props}>
-      <path d="M20.59 13.41l-7.17 7.17a2 2 0 0 1-2.83 0L2 12V2h10l8.59 8.59a2 2 0 0 1 0 2.82z"></path>
-      <line x1="7" y1="7" x2="7.01" y2="7"></line>
-    </svg>
-  );
-}
-
-function CheckCircleIcon(props: SVGProps<SVGSVGElement>) {
-  return (
-    <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" {...props}>
-      <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"></path>
-      <polyline points="22 4 12 14.01 9 11.01"></polyline>
-    </svg>
-  );
-}
-
 function TruckIcon(props: SVGProps<SVGSVGElement>) {
   return (
     <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" {...props}>
@@ -633,6 +540,15 @@ function CloseIcon(props: SVGProps<SVGSVGElement>) {
     <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" {...props}>
       <line x1="18" y1="6" x2="6" y2="18"></line>
       <line x1="6" y1="6" x2="18" y2="18"></line>
+    </svg>
+  );
+}
+
+function CheckCircleIcon(props: SVGProps<SVGSVGElement>) {
+  return (
+    <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" {...props}>
+      <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"></path>
+      <polyline points="22 4 12 14.01 9 11.01"></polyline>
     </svg>
   );
 }
