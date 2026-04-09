@@ -4,6 +4,7 @@ import React, { useState, useEffect } from "react";
 import { SVGProps } from "react";
 import Link from "next/link";
 import { purchaseOrderService, PurchaseOrder, PurchaseOrderItem } from "../../../../services/purchaseOrderService";
+import { warehouseProductService } from "../../../../services/warehouseProductService";
 
 // Helper to format dates cleanly
 const formatDate = (dateString: string) => {
@@ -89,6 +90,27 @@ export default function POReceivingPage() {
         status: "Completed",
         items: updatedItems
       });
+      
+      // 3. Update Warehouse Product Base Prices
+      // Use the default WMS warehouse ID
+      const targetWarehouseId = "69b82ccf3709f6cca0ec8c41"; 
+      try {
+        const warehouseProducts = await warehouseProductService.getAll(targetWarehouseId);
+        
+        for (const item of updatedItems || []) {
+          if (item.actualUnitPrice && item.productId) {
+            const wp = warehouseProducts.find((p: any) => p.productId === item.productId);
+            if (wp) {
+              await warehouseProductService.update(wp.id, {
+                basePrice: item.actualUnitPrice
+              });
+            }
+          }
+        }
+      } catch (wpError) {
+        console.error("Failed to update inventory prices:", wpError);
+        // We don't block the UI if inventory price update fails, but we log it
+      }
 
       // 3. Close modal & Refetch
       setShowReceiveModal(false);

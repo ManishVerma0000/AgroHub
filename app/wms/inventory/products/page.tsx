@@ -8,6 +8,7 @@ import { productService } from "../../../../services/productService";
 import { warehouseProductService } from "../../../../services/warehouseProductService";
 import { categoryService } from "../../../../services/categoryService";
 import { StockActionModal, StockActionType } from "../../../../components/Products/StockActionModal";
+import { warehouseService } from "../../../../services/warehouseService";
 
 export default function WMSProductInventory() {
   const [selectedItems, setSelectedItems] = useState<number[]>([]);
@@ -25,6 +26,7 @@ export default function WMSProductInventory() {
   const [isLoadingInventory, setIsLoadingInventory] = useState(false);
   const [setupData, setSetupData] = useState<Record<string, any>>({});
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [warehouseCosts, setWarehouseCosts] = useState({ overhead: 0, logistic: 0 });
   
   // Stock action modal states
   const [stockModalOpen, setStockModalOpen] = useState(false);
@@ -39,14 +41,19 @@ export default function WMSProductInventory() {
     setIsLoadingProducts(true);
     setIsLoadingInventory(true);
     try {
-      const [productsData, inventoryData, categoriesData] = await Promise.all([
+      const [productsData, inventoryData, categoriesData, warehouseData] = await Promise.all([
         productService.getAll(),
         warehouseProductService.getAll(),
-        categoryService.getAll()
+        categoryService.getAll(),
+        warehouseService.getById("69b82ccf3709f6cca0ec8c41")
       ]);
       setGlobalProducts(productsData);
       setInventoryItems(inventoryData);
       setCategories(categoriesData);
+      setWarehouseCosts({
+        overhead: warehouseData.overheadCost || 0,
+        logistic: warehouseData.logisticCost || 0
+      });
     } catch (error) {
       console.error("Failed to fetch initial data:", error);
     } finally {
@@ -183,8 +190,8 @@ export default function WMSProductInventory() {
       missing: invItem.missingStock ?? 0,
       wastage: invItem.wastageStock ?? 0,
       reorder: invItem.reorderLevel || 0,
-      basePrice: invItem.basePrice ? `$${Number(invItem.basePrice).toFixed(2)}` : "-",
-      sellingPrice: gp.sellingPrice ? `$${Number(gp.sellingPrice).toFixed(2)}` : "-",
+      basePrice: invItem.basePrice ? `₹${Number(invItem.basePrice).toFixed(2)}` : "-",
+      sellingPrice: invItem.sellingPrice ? `₹${Number(invItem.sellingPrice).toFixed(2)}` : "-",
       location: invItem.location || "-",
       status: invItem.status || "In Stock",
       unit: gp.baseUnit || gp.unit || "Units"

@@ -24,6 +24,8 @@ export interface WarehouseData {
   latitudeLink?: string;
   status: 'Active' | 'Inactive';
   createdDate: string;
+  overheadCost?: number;
+  logisticCost?: number;
 }
 
 interface WarehouseListProps {
@@ -80,6 +82,14 @@ export function WarehouseList({ data, onEdit, onDelete }: WarehouseListProps) {
           {item.status}
         </Badge>
       )
+    },
+    {
+      header: 'Overhead Cost',
+      cell: (item) => `₹${item.overheadCost || 0}/Kg`,
+    },
+    {
+      header: 'Logistic Cost',
+      cell: (item) => `₹${item.logisticCost || 0}/Kg`,
     },
     {
       header: 'Created Date',

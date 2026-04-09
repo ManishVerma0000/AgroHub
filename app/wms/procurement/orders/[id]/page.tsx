@@ -1,46 +1,78 @@
 "use client";
 
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import Link from "next/link";
 import { SVGProps } from "react";
+import { purchaseOrderService, PurchaseOrder } from "../../../../../services/purchaseOrderService";
 
-// In a real app, you'd fetch this using the params.id
+// Helper to format dates cleanly
+const formatDate = (dateString: string) => {
+  if (!dateString) return "";
+  const date = new Date(dateString);
+  return date.toLocaleDateString("en-GB", { day: "numeric", month: "short", year: "numeric" });
+};
+
 export default function PurchaseOrderDetails({ params }: { params: Promise<{ id: string }> }) {
   const resolvedParams = React.use(params);
-  const pId = resolvedParams.id || "PO-001";
+  const pId = resolvedParams.id;
   
+  const [order, setOrder] = useState<PurchaseOrder | null>(null);
+  const [loading, setLoading] = useState(true);
   const [showEditModal, setShowEditModal] = useState(false);
 
-  // If PO-002, use the "Pending" mock data from Figma Screenshot
-  const isPending = pId === "PO-002";
+  useEffect(() => {
+    if (pId) {
+      fetchOrder();
+    }
+  }, [pId]);
 
-  const mockItems = isPending ? [
-    {
-      id: 1,
-      name: "Onion",
-      unit: "Kg",
-      planned: { qty: 150, price: 55, amount: 8250 },
-      actual: { received: "-", price: "-", amount: "-" },
-      variance: { priceDiff: "-", priceColor: "text-[#94a3b8]", amountDiff: "-₹8,250", amountColor: "text-[#16a34a]" }
+  const fetchOrder = async () => {
+    setLoading(true);
+    try {
+      const data = await purchaseOrderService.getById(pId);
+      setOrder(data);
+    } catch (error) {
+      console.error("Error fetching purchase order details", error);
+    } finally {
+      setLoading(false);
     }
-  ] : [
-    {
-      id: 1,
-      name: "Tomato",
-      unit: "Kg",
-      planned: { qty: 200, price: 50, amount: 10000 },
-      actual: { received: 200, price: 52, amount: 10400 },
-      variance: { priceDiff: "+₹2", priceColor: "text-[#ef4444]", amountDiff: "+₹400", amountColor: "text-[#ef4444]" }
-    },
-    {
-      id: 2,
-      name: "Potato",
-      unit: "Kg",
-      planned: { qty: 100, price: 50, amount: 5000 },
-      actual: { received: 100, price: 48, amount: 4800 },
-      variance: { priceDiff: "-₹2", priceColor: "text-[#16a34a]", amountDiff: "-₹200", amountColor: "text-[#16a34a]" }
-    }
-  ];
+  };
+
+  if (loading) {
+    return (
+      <div className="py-20 flex justify-center items-center">
+          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-[#16a34a]"></div>
+      </div>
+    );
+  }
+
+  if (!order) {
+    return (
+      <div className="py-20 flex flex-col items-center justify-center gap-4">
+          <p className="text-[#64748b]">Purchase Order not found.</p>
+          <Link href="/wms/procurement/orders" className="text-[#2563eb] hover:underline font-medium">Back to Orders</Link>
+      </div>
+    );
+  }
+
+  const isPending = order.status === "Pending";
+  
+  // Calculate Totals
+  const computeActualAmount = () => {
+    let actual = 0;
+    order.items?.forEach((i: any) => {
+      if (i.receivedQuantity !== undefined && i.actualUnitPrice !== undefined) {
+        actual += Number(i.receivedQuantity) * Number(i.actualUnitPrice);
+      } else {
+        actual += (Number(i.quantity) || 0) * (Number(i.unitPrice) || 0);
+      }
+    });
+    return actual;
+  };
+
+  const actualTotal = order.status === "Pending" ? 0 : computeActualAmount();
+  const plannedTotal = order.totalAmount || 0;
+  const totalVariance = actualTotal - plannedTotal;
 
   return (
     <div className="flex flex-col gap-6 max-w-[1400px]">
@@ -79,42 +111,42 @@ export default function PurchaseOrderDetails({ params }: { params: Promise<{ id:
         <div className="grid grid-cols-4 gap-8">
           <div className="flex flex-col gap-1.5">
             <span className="text-[13px] text-[#64748b]">PO ID</span>
-            <span className="font-bold text-[#2563eb] text-[15px]">{pId}</span>
+            <span className="font-bold text-[#2563eb] text-[15px]">{order.poNumber}</span>
           </div>
           <div className="flex flex-col gap-1.5">
             <span className="text-[13px] text-[#64748b]">Supplier</span>
-            <span className="font-semibold text-[#0f172a] text-[15px]">{isPending ? "Green Valley Suppliers" : "Fresh Farms Ltd"}</span>
+            <span className="font-semibold text-[#0f172a] text-[15px]">{order.supplierName}</span>
           </div>
           <div className="flex flex-col gap-1.5">
             <span className="text-[13px] text-[#64748b]">Order Date</span>
-            <span className="font-semibold text-[#0f172a] text-[15px]">{isPending ? "12 Mar 2024" : "10 Mar 2024"}</span>
+            <span className="font-semibold text-[#0f172a] text-[15px]">{formatDate(order.orderDate)}</span>
           </div>
           <div className="flex flex-col gap-1.5">
             <span className="text-[13px] text-[#64748b]">Expected Delivery</span>
-            <span className="font-semibold text-[#0f172a] text-[15px]">{isPending ? "15 Mar 2024" : "12 Mar 2024"}</span>
+            <span className="font-semibold text-[#0f172a] text-[15px]">{formatDate(order.expectedDelivery)}</span>
           </div>
 
           <div className="flex flex-col gap-1.5 pt-6 mt-2 border-t border-[#f1f5f9]">
             <span className="text-[13px] text-[#64748b]">Status</span>
             <div>
               <span className={`inline-flex items-center px-3 py-1 rounded-full text-xs font-bold ${isPending ? 'bg-[#fefce8] text-[#ca8a04]' : 'bg-[#dcfce7] text-[#16a34a]'}`}>
-                {isPending ? "Pending" : "Completed"}
+                {order.status}
               </span>
             </div>
           </div>
           <div className="flex flex-col gap-1.5 pt-6 mt-2 border-t border-[#f1f5f9]">
             <span className="text-[13px] text-[#64748b]">PO Amount (Planned)</span>
-            <span className="font-bold text-[#0f172a] text-[15px]">{isPending ? "₹8,250" : "₹15,000"}</span>
+            <span className="font-bold text-[#0f172a] text-[15px]">₹{plannedTotal.toLocaleString('en-IN')}</span>
           </div>
           <div className="flex flex-col gap-1.5 pt-6 mt-2 border-t border-[#f1f5f9]">
             <span className="text-[13px] text-[#64748b]">Actual PO Amount</span>
-            <span className="font-bold text-[#16a34a] text-[15px]">{isPending ? "₹0" : "₹15,200"}</span>
+            <span className="font-bold text-[#16a34a] text-[15px]">₹{actualTotal.toLocaleString('en-IN')}</span>
           </div>
           <div className="flex flex-col gap-1.5 pt-6 mt-2 border-t border-[#f1f5f9]">
             <span className="text-[13px] text-[#64748b]">Total Difference</span>
-            <div className={`flex items-center gap-1.5 font-bold text-[15px] ${isPending ? 'text-[#16a34a]' : 'text-[#ef4444]'}`}>
-              <span>{isPending ? "₹8,250" : "₹200"}</span>
-              {isPending ? <TrendingDownIcon className="w-4 h-4" /> : <TrendingUpIcon className="w-4 h-4" />}
+            <div className={`flex items-center gap-1.5 font-bold text-[15px] ${totalVariance <= 0 ? 'text-[#16a34a]' : 'text-[#ef4444]'}`}>
+              <span>₹{Math.abs(totalVariance).toLocaleString('en-IN')}</span>
+              {totalVariance <= 0 ? <TrendingDownIcon className="w-4 h-4" /> : <TrendingUpIcon className="w-4 h-4" />}
             </div>
           </div>
         </div>
@@ -129,7 +161,6 @@ export default function PurchaseOrderDetails({ params }: { params: Promise<{ id:
         <div className="overflow-x-auto">
           <table className="w-full text-left text-sm whitespace-nowrap">
             <thead className="text-[#64748b] font-semibold text-[11px] uppercase tracking-wider">
-              {/* Top Header Grops */}
               <tr className="bg-[#f8fafc]">
                 <th rowSpan={2} className="px-6 py-4 align-bottom border-b border-[#e2e8f0]">Product Name</th>
                 <th rowSpan={2} className="px-6 py-4 align-bottom border-b border-[#e2e8f0]">Unit</th>
@@ -140,7 +171,6 @@ export default function PurchaseOrderDetails({ params }: { params: Promise<{ id:
                 
                 <th colSpan={2} className="px-6 py-3 text-center border-b border-l border-[#e2e8f0]">Variance</th>
               </tr>
-              {/* Sub Headers */}
               <tr className="bg-[#fcfcfc]">
                 <th className="px-6 py-3 border-b border-l border-[#e2e8f0] text-center">Qty</th>
                 <th className="px-6 py-3 border-b border-[#e2e8f0] text-center">Price</th>
@@ -155,41 +185,62 @@ export default function PurchaseOrderDetails({ params }: { params: Promise<{ id:
               </tr>
             </thead>
             <tbody className="divide-y divide-[#e2e8f0]">
-              {mockItems.map((item) => (
-                <tr key={item.id} className="hover:bg-[#f8fafc] transition-colors group">
-                  <td className="px-6 py-4 font-bold text-[#0f172a]">{item.name}</td>
-                  <td className="px-6 py-4 text-[#64748b]">{item.unit}</td>
-                  
-                  <td className="px-6 py-4 text-center text-[#475569] border-l border-[#f1f5f9] group-hover:border-[#e2e8f0] transition-colors">{item.planned.qty}</td>
-                  <td className="px-6 py-4 text-center text-[#475569]">₹{item.planned.price}</td>
-                  <td className="px-6 py-4 text-center font-bold text-[#0f172a]">₹{item.planned.amount.toLocaleString()}</td>
-                  
-                  <td className={`px-6 py-4 text-center text-[#475569] border-l border-[#f1f5f9] group-hover:border-[#e2e8f0] transition-colors ${item.actual.received === '-' ? 'text-[#94a3b8]' : ''}`}>{item.actual.received}</td>
-                  <td className={`px-6 py-4 text-center text-[#475569] ${item.actual.price === '-' ? 'text-[#94a3b8]' : ''}`}>{item.actual.price !== '-' && '₹'}{item.actual.price}</td>
-                  <td className={`px-6 py-4 text-center font-bold ${item.actual.amount === '-' ? 'text-[#16a34a]' : 'text-[#16a34a]'}`}>{item.actual.amount !== '-' && '₹'}{item.actual.amount.toLocaleString()}</td>
-                  
-                  <td className={`px-6 py-4 text-center font-bold ${item.variance.priceColor} border-l border-[#f1f5f9] group-hover:border-[#e2e8f0] transition-colors`}>
-                    {item.variance.priceDiff}
-                  </td>
-                  <td className={`px-6 py-4 text-center font-bold ${item.variance.amountColor}`}>
-                    {item.variance.amountDiff}
-                  </td>
-                </tr>
-              ))}
+              {order.items?.map((item: any, idx: number) => {
+                const pQty = Number(item.quantity || 0);
+                const pPrice = Number(item.unitPrice || 0);
+                const pAmt = pQty * pPrice;
+
+                const aQty = order.status === "Pending" ? 0 : Number(item.receivedQuantity ?? 0);
+                const aPrice = order.status === "Pending" ? 0 : Number(item.actualUnitPrice ?? 0);
+                const aAmt = aQty * aPrice;
+
+                const priceVar = aPrice - pPrice;
+                const amtVar = aAmt - pAmt;
+
+                return (
+                  <tr key={idx} className="hover:bg-[#f8fafc] transition-colors group">
+                    <td className="px-6 py-4 font-bold text-[#0f172a]">{item.productName}</td>
+                    <td className="px-6 py-4 text-[#64748b]">{item.unit || "Kg"}</td>
+                    
+                    <td className="px-6 py-4 text-center text-[#475569] border-l border-[#f1f5f9] group-hover:border-[#e2e8f0] transition-colors">{pQty}</td>
+                    <td className="px-6 py-4 text-center text-[#475569]">₹{pPrice.toLocaleString()}</td>
+                    <td className="px-6 py-4 text-center font-bold text-[#0f172a]">₹{pAmt.toLocaleString()}</td>
+                    
+                    <td className={`px-6 py-4 text-center text-[#475569] border-l border-[#f1f5f9] group-hover:border-[#e2e8f0] transition-colors ${order.status === 'Pending' ? 'text-[#94a3b8]' : ''}`}>
+                      {order.status === 'Pending' ? '-' : aQty}
+                    </td>
+                    <td className={`px-6 py-4 text-center text-[#475569] ${order.status === 'Pending' ? 'text-[#94a3b8]' : ''}`}>
+                      {order.status === 'Pending' ? '-' : `₹${aPrice.toLocaleString()}`}
+                    </td>
+                    <td className={`px-6 py-4 text-center font-bold ${order.status === 'Pending' ? 'text-[#94a3b8]' : 'text-[#16a34a]'}`}>
+                      {order.status === 'Pending' ? '-' : `₹${aAmt.toLocaleString()}`}
+                    </td>
+                    
+                    <td className={`px-6 py-4 text-center font-bold border-l border-[#f1f5f9] group-hover:border-[#e2e8f0] transition-colors ${priceVar > 0 ? 'text-[#ef4444]' : priceVar < 0 ? 'text-[#16a34a]' : 'text-[#64748b]'}`}>
+                      {order.status === 'Pending' ? '-' : `${priceVar > 0 ? '+' : ''}₹${priceVar.toLocaleString()}`}
+                    </td>
+                    <td className={`px-6 py-4 text-center font-bold ${amtVar > 0 ? 'text-[#ef4444]' : amtVar < 0 ? 'text-[#16a34a]' : 'text-[#64748b]'}`}>
+                      {order.status === 'Pending' ? '-' : `${amtVar > 0 ? '+' : ''}₹${amtVar.toLocaleString()}`}
+                    </td>
+                  </tr>
+                );
+              })}
               
               {/* Footer Total Row */}
               <tr className="bg-[#fcfcfc]">
                 <td colSpan={2}></td>
                 <td className="px-6 py-5 text-right border-l border-[#e2e8f0]"></td>
                 <td className="px-6 py-5 text-right font-bold text-[#0f172a]">Total:</td>
-                <td className="px-6 py-5 text-center font-bold text-[#0f172a] text-[15px]">{isPending ? "₹8,250" : "₹15,000"}</td>
+                <td className="px-6 py-5 text-center font-bold text-[#0f172a] text-[15px]">₹{plannedTotal.toLocaleString()}</td>
                 
                 <td className="px-6 py-5 border-l border-[#e2e8f0]"></td>
                 <td className="px-6 py-5"></td>
-                <td className="px-6 py-5 text-center font-bold text-[#16a34a] text-[15px]">{isPending ? "₹0" : "₹15,200"}</td>
+                <td className="px-6 py-5 text-center font-bold text-[#16a34a] text-[15px]">₹{actualTotal.toLocaleString()}</td>
                 
                 <td className="px-6 py-5 border-l border-[#e2e8f0]"></td>
-                <td className={`px-6 py-5 text-center font-bold text-[15px] ${isPending ? 'text-[#16a34a]' : 'text-[#ef4444]'}`}>{isPending ? "-₹8,250" : "+₹200"}</td>
+                <td className={`px-6 py-5 text-center font-bold text-[15px] ${totalVariance > 0 ? 'text-[#ef4444]' : 'text-[#16a34a]'}`}>
+                  {totalVariance > 0 ? '+' : ''}₹{totalVariance.toLocaleString()}
+                </td>
               </tr>
             </tbody>
           </table>

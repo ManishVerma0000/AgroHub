@@ -83,7 +83,7 @@ export function ProductList({ data, categories, onEdit, onDelete }: ProductListP
       accessorKey: 'hsn',
     },
     {
-      header: 'Base Price',
+      header: 'Base Price (Kg)',
       accessorKey: 'basePrice',
     },
     {

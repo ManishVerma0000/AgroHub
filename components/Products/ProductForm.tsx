@@ -33,10 +33,12 @@ export function ProductForm({ initialData, onSave, onCancel }: ProductFormProps)
     origin: '',
     shelfLife: '',
     storage: '',
-    b2bEnabled: false
+    b2bEnabled: false,
+    procurementUnit: '',
+    conversionRate: '1',
+    baseMargin: ''
   });
 
-  const [variations, setVariations] = useState([{ quantity: '', price: '', sellingPrice: '' }]);
   const [b2bSlabs, setB2bSlabs] = useState([{ minQty: '', maxQty: '', rate: '' }]);
   const [image, setImage] = useState<File | null>(null);
   const existingImageUrl = initialData?.imageUrl || null;
@@ -79,6 +81,32 @@ export function ProductForm({ initialData, onSave, onCancel }: ProductFormProps)
   }, [formData.categoryId, categories, subcategories]);
 
   useEffect(() => {
+    if (formData.baseUnit && formData.procurementUnit) {
+      if (formData.baseUnit === formData.procurementUnit) {
+        setFormData(prev => ({ ...prev, conversionRate: '1' }));
+      }
+    }
+  }, [formData.baseUnit, formData.procurementUnit]);
+
+  useEffect(() => {
+    if (formData.basePrice && formData.baseMargin) {
+      const bPrice = parseFloat(formData.basePrice);
+      const bMargin = parseFloat(formData.baseMargin);
+      
+      if (!isNaN(bPrice) && !isNaN(bMargin)) {
+        setB2bSlabs(prev => prev.map((slab, index) => {
+          const effectiveMargin = bMargin - (index * 2);
+          const calculatedRate = bPrice * (1 + effectiveMargin / 100);
+          return {
+            ...slab,
+            rate: `₹${calculatedRate.toFixed(2)}`
+          };
+        }));
+      }
+    }
+  }, [formData.basePrice, formData.baseMargin, b2bSlabs.length]);
+
+  useEffect(() => {
     if (initialData) {
       setFormData({
         title: initialData.name || '',
@@ -97,32 +125,18 @@ export function ProductForm({ initialData, onSave, onCancel }: ProductFormProps)
         origin: initialData.origin || '',
         shelfLife: initialData.shelfLife || '',
         storage: initialData.storage || '',
-        b2bEnabled: initialData.b2b === 'Enabled'
+        b2bEnabled: initialData.b2b === 'Enabled',
+        procurementUnit: initialData.procurementUnit || '',
+        conversionRate: initialData.conversionRate?.toString() || '1',
+        baseMargin: initialData.baseMargin || ''
       });
 
-      if (initialData.variations && initialData.variations.length > 0) {
-        setVariations(initialData.variations);
-      }
       if (initialData.b2bBulkSlabs && initialData.b2bBulkSlabs.length > 0) {
         setB2bSlabs(initialData.b2bBulkSlabs);
       }
     }
   }, [initialData]);
 
-  const handleAddVarRow = () => {
-    setVariations([...variations, { quantity: '', price: '', sellingPrice: '' }]);
-  };
-
-  const handleRemoveVarRow = (index: number) => {
-    const newVars = variations.filter((_, i) => i !== index);
-    setVariations(newVars);
-  };
-
-  const updateVarRow = (index: number, field: 'quantity' | 'price' | 'sellingPrice', value: string) => {
-    const newVars = [...variations];
-    newVars[index][field] = value;
-    setVariations(newVars);
-  };
 
   const handleAddB2bRow = () => {
     setB2bSlabs([...b2bSlabs, { minQty: '', maxQty: '', rate: '' }]);
@@ -152,7 +166,7 @@ export function ProductForm({ initialData, onSave, onCancel }: ProductFormProps)
       gstRate: formData.gstRate,
       mrp: formData.mrp,
       baseUnit: formData.baseUnit,
-      basePrice: `₹${formData.basePrice}/${formData.baseUnit==='g' ? 'g' : formData.baseUnit==='pc' ? 'pc' : formData.baseUnit==='l' ? 'L' : 'Kg'}`,
+      basePrice: `₹${formData.basePrice}/Kg`,
       description: formData.description,
       benefits: formData.benefits,
       organic: formData.organic,
@@ -161,7 +175,9 @@ export function ProductForm({ initialData, onSave, onCancel }: ProductFormProps)
       storage: formData.storage,
       b2b: formData.b2bEnabled ? 'Enabled' : 'Off',
       status: formData.status ? 'Active' : 'Inactive',
-      variations: variations,
+      procurementUnit: formData.procurementUnit,
+      conversionRate: parseFloat(formData.conversionRate) || 1,
+      baseMargin: formData.baseMargin,
       b2bBulkSlabs: formData.b2bEnabled ? b2bSlabs : []
     }, image);
   };
@@ -240,7 +256,7 @@ export function ProductForm({ initialData, onSave, onCancel }: ProductFormProps)
               onChange={(e) => setFormData({...formData, mrp: e.target.value})}
             />
             <Input 
-              label="Base Price" 
+              label="Base Price (per Kg)" 
               type="number"
               placeholder="₹ 0.00" 
               required
@@ -260,6 +276,36 @@ export function ProductForm({ initialData, onSave, onCancel }: ProductFormProps)
               onChange={(e) => setFormData({...formData, baseUnit: e.target.value})}
               required
             />
+            <Select
+              label="Procurement Unit"
+              options={[
+                { label: 'Kg', value: 'kg' },
+                { label: 'g', value: 'g' },
+                { label: 'L', value: 'l' },
+                { label: 'pc', value: 'pc' },
+              ]}
+              value={formData.procurementUnit}
+              onChange={(e) => setFormData({...formData, procurementUnit: e.target.value})}
+              required
+            />
+
+            <Input 
+              label={`Define Conversion Unit to (${formData.baseUnit || 'Base Unit'})`}
+              type="number"
+              placeholder="1" 
+              required
+              value={formData.conversionRate}
+              onChange={(e) => setFormData({...formData, conversionRate: e.target.value})}
+              disabled={formData.baseUnit === formData.procurementUnit && formData.baseUnit !== ''}
+            />
+            <Input 
+              label="Base Margin %/Unit" 
+              type="number"
+              placeholder="10" 
+              value={formData.baseMargin}
+              onChange={(e) => setFormData({...formData, baseMargin: e.target.value})}
+            />
+
             <Select
               label="Status"
               options={[
@@ -344,75 +390,10 @@ export function ProductForm({ initialData, onSave, onCancel }: ProductFormProps)
 
       {/* Pricing Section */}
       <div className="bg-white rounded-xl border border-[#f3f4f6] p-8 shadow-sm">
-        <div className="flex flex-col md:flex-row gap-8">
+        <div className="flex flex-col gap-8">
           
-          {/* B2C Pricing Variations */}
-          <div className="flex-1">
-            <h2 className="text-lg font-bold text-[#111827] mb-1">B2C Pricing Variations</h2>
-            <p className="text-sm text-[#6b7280] mb-6">Define different pricing tiers based on quantity sold directly to consumers.</p>
-            
-            <div className="flex flex-col gap-3">
-              {variations.map((v, index) => (
-                <div key={index} className="flex flex-col sm:flex-row items-end sm:items-start gap-4 p-4 border border-[#f3f4f6] rounded-lg bg-[#f9fafb]">
-                  <div className="flex-1 w-full">
-                    <Input 
-                      placeholder="Qty (e.g. 500g)" 
-                      value={v.quantity}
-                      onChange={(e) => updateVarRow(index, 'quantity', e.target.value)}
-                      required
-                    />
-                  </div>
-                  <div className="flex-1 w-full">
-                    <Input 
-                      placeholder="Price (₹)" 
-                      type="number"
-                      value={v.price}
-                      onChange={(e) => updateVarRow(index, 'price', e.target.value)}
-                      required
-                    />
-                  </div>
-                  <div className="flex-1 w-full">
-                    <Input 
-                      placeholder="Selling Price (₹)" 
-                      type="number"
-                      value={v.sellingPrice}
-                      onChange={(e) => updateVarRow(index, 'sellingPrice', e.target.value)}
-                      required
-                    />
-                  </div>
-                  {variations.length > 1 && (
-                    <button 
-                      type="button" 
-                      onClick={() => handleRemoveVarRow(index)}
-                      className="p-2 text-red-500 hover:text-red-700 hover:bg-red-50 rounded mb-[2px] mt-0.5 sm:mt-[2px] transition-colors"
-                    >
-                      <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                        <path d="M3 6h18"/><path d="M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6"/><path d="M8 6V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2"/>
-                      </svg>
-                    </button>
-                  )}
-                </div>
-              ))}
-            </div>
-            <Button 
-              type="button" 
-              variant="ghost" 
-              className="mt-4 text-[#07ac57] hover:text-[#069a4e] hover:bg-[#e6f7ef]"
-              onClick={handleAddVarRow}
-              icon={
-                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                  <line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/>
-                </svg>
-              }
-            >
-              Add Variation
-            </Button>
-          </div>
-
-          <div className="hidden md:block w-px bg-[#e5e7eb]"></div>
-
           {/* B2B Bluk Pricing Toggle */}
-          <div className="md:w-1/3">
+          <div className="w-full">
             <h2 className="text-lg font-bold text-[#111827] mb-1">B2B Bulk Pricing</h2>
             <p className="text-sm text-[#6b7280] mb-6">Enable special pricing for wholesale businesses.</p>
             
@@ -444,31 +425,31 @@ export function ProductForm({ initialData, onSave, onCancel }: ProductFormProps)
                          <div className="flex items-center gap-2 w-full">
                            <div className="flex-1">
                              <Input 
-                               label="Min Qty"
-                               placeholder="e.g. 50kg" 
-                               value={slab.minQty}
-                               onChange={(e) => updateB2bRow(index, 'minQty', e.target.value)}
-                               required
+                                label="Min Qty"
+                                placeholder="e.g. 50kg" 
+                                value={slab.minQty}
+                                onChange={(e) => updateB2bRow(index, 'minQty', e.target.value)}
+                                required
                              />
                            </div>
                            <div className="flex-1">
                              <Input 
-                               label="Max Qty"
-                               placeholder="e.g. 100kg" 
-                               value={slab.maxQty}
-                               onChange={(e) => updateB2bRow(index, 'maxQty', e.target.value)}
-                               required
+                                label="Max Qty"
+                                placeholder="e.g. 100kg" 
+                                value={slab.maxQty}
+                                onChange={(e) => updateB2bRow(index, 'maxQty', e.target.value)}
+                                required
                              />
                            </div>
                          </div>
                          <div className="flex items-end gap-2 w-full mt-1">
                            <div className="flex-1">
                              <Input 
-                               label="Rate (₹/kg)"
-                               placeholder="₹38/kg" 
-                               value={slab.rate}
-                               onChange={(e) => updateB2bRow(index, 'rate', e.target.value)}
-                               required
+                                label={`Rate (₹) - [Margin: ${parseFloat(formData.baseMargin || '0') - (index * 2)}%]`}
+                                placeholder="Auto-calculated" 
+                                value={slab.rate}
+                                readOnly
+                                required
                              />
                            </div>
                            {b2bSlabs.length > 1 && (

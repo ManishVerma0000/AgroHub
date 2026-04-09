@@ -34,6 +34,18 @@ export default function PurchaseOrdersPage() {
     return true;
   });
 
+  const computeActualAmount = (order: PurchaseOrder) => {
+    let actual = 0;
+    order.items?.forEach((i: any) => {
+      if (i.receivedQuantity !== undefined && i.actualUnitPrice !== undefined) {
+        actual += Number(i.receivedQuantity) * Number(i.actualUnitPrice);
+      } else {
+        actual += (Number(i.quantity) || 0) * (Number(i.unitPrice) || 0);
+      }
+    });
+    return actual;
+  };
+
   const formatDate = (dateString: string) => {
     if (!dateString) return ["-", ""];
     try {
@@ -169,10 +181,12 @@ export default function PurchaseOrdersPage() {
                     </div>
                   </td>
                   <td className="px-5 py-4 font-bold text-[#1e293b]">
-                    ₹{(order.totalAmount || 0).toLocaleString()}
+                    ₹{(order.totalAmount || 0).toLocaleString('en-IN')}
                   </td>
-                  <td className={`px-5 py-4 font-bold ${order.status !== 'Completed' ? 'text-[#16a34a]' : 'text-[#16a34a]'}`}>
-                    {order.status !== 'Completed' ? '-' : `₹${(order.totalAmount || 0).toLocaleString()}`}
+                  <td className={`px-5 py-4 font-bold ${order.status === 'Completed' || order.status === 'Received' ? 'text-[#16a34a]' : 'text-[#64748b]'}`}>
+                    {order.status === 'Completed' || order.status === 'Received' 
+                      ? `₹${computeActualAmount(order).toLocaleString('en-IN')}` 
+                      : '-'}
                   </td>
                   <td className="px-5 py-4 text-center">
                      <span className={`inline-flex items-center justify-center px-3 py-1 rounded-full text-xs font-bold ${
