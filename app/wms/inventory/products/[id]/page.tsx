@@ -35,8 +35,9 @@ export default function ProductDetailsPage({ params }: { params: Promise<{ id: s
         productId: wpResponse.productId,
         name: wpResponse.productName || baseProduct.name,
         inventoryId: wpResponse.id.substring(0, 8).toUpperCase(),
-        basePrice: `₹${wpResponse.basePrice} / ${baseProduct.unit || 'Unit'}`,
-        sellingPrice: `₹${baseProduct.price || wpResponse.basePrice} / ${baseProduct.unit || 'Unit'}`,
+        basePriceFormatted: `₹${wpResponse.basePrice} / ${baseProduct.unit || 'Unit'}`,
+        basePrice: wpResponse.basePrice || 0,
+        sellingPrice: wpResponse.sellingPrice || wpResponse.basePrice || 0,
         status: wpResponse.status,
         category: wpResponse.category || baseProduct.category || "N/A",
         subcategory: wpResponse.subcategory || baseProduct.subcategory || "N/A",
@@ -56,6 +57,7 @@ export default function ProductDetailsPage({ params }: { params: Promise<{ id: s
         stockStatus: (wpResponse.availableStock ?? wpResponse.initialStock ?? 0) <= (wpResponse.reorderLevel ?? 0) ? "Low Stock" : "Healthy" ,
         productStatus: wpResponse.status,
         updatedBy: "Admin",
+        b2bSlabs: baseProduct.b2bBulkSlabs || [],
       });
     } catch (error) {
       console.error("Failed to fetch product details:", error);
@@ -105,12 +107,6 @@ export default function ProductDetailsPage({ params }: { params: Promise<{ id: s
     );
   }
 
-  const b2bSlabs = [
-    { range: "1 - 100 Kg", price: "₹75" },
-    { range: "101 - 500 Kg", price: "₹70" },
-    { range: "501 - 1000 Kg", price: "₹65" },
-  ];
-
   const consumptionData = [
     { month: "Jan", value: 330 },
     { month: "Feb", value: 380 },
@@ -134,7 +130,7 @@ export default function ProductDetailsPage({ params }: { params: Promise<{ id: s
           <div>
             <h1 className="text-3xl font-bold text-[#111827]">{product.name}</h1>
             <p className="text-sm text-[#6b7280] mt-1 font-medium">
-              Inventory ID: {product.inventoryId} &bull; Base Price: {product.basePrice}
+              Inventory ID: {product.inventoryId} &bull; Base Price: {product.basePriceFormatted}
             </p>
           </div>
           <span className="px-5 py-2 rounded-lg bg-[#dcfce7] text-[#059669] font-bold text-sm">
@@ -216,12 +212,12 @@ export default function ProductDetailsPage({ params }: { params: Promise<{ id: s
             <div className="grid grid-cols-2 gap-4">
               <div className="bg-[#eff6ff] rounded-xl p-4 flex flex-col gap-1">
                 <span className="text-[#3b82f6] text-xs font-semibold">Base Price</span>
-                <span className="text-[#1e3a8a] text-2xl font-bold">₹{parseInt(product.basePrice.replace(/\D/g,''))}</span>
+                <span className="text-[#1e3a8a] text-2xl font-bold">₹{Number(product.basePrice).toFixed(2)}</span>
                 <span className="text-[#3b82f6] text-xs font-medium">per {product.unit}</span>
               </div>
               <div className="bg-[#f0fdf4] rounded-xl p-4 flex flex-col gap-1">
                 <span className="text-[#10b981] text-xs font-semibold">Selling Price</span>
-                <span className="text-[#065f46] text-2xl font-bold">₹{parseInt(product.sellingPrice.replace(/\D/g,''))}</span>
+                <span className="text-[#065f46] text-2xl font-bold">₹{Number(product.sellingPrice).toFixed(2)}</span>
                 <span className="text-[#10b981] text-xs font-medium">per {product.unit}</span>
               </div>
             </div>
@@ -229,23 +225,27 @@ export default function ProductDetailsPage({ params }: { params: Promise<{ id: s
             <div>
               <h3 className="text-sm font-bold text-[#111827] mb-3">B2B Pricing Slabs</h3>
               <div className="flex flex-col gap-3">
-                {b2bSlabs.map((slab, idx) => (
-                  <div key={idx} className="flex items-center justify-between border border-[#f3f4f6] rounded-xl p-4 hover:border-[#e2e8f0] transition-colors">
-                    <div className="flex items-center gap-4">
-                      <div className="w-8 h-8 rounded-full bg-[#f0fdf4] text-[#10b981] flex items-center justify-center font-bold text-sm">
-                        {idx + 1}
+                {product.b2bSlabs && product.b2bSlabs.length > 0 ? (
+                  product.b2bSlabs.map((slab: any, idx: number) => (
+                    <div key={idx} className="flex items-center justify-between border border-[#f3f4f6] rounded-xl p-4 hover:border-[#e2e8f0] transition-colors">
+                      <div className="flex items-center gap-4">
+                        <div className="w-8 h-8 rounded-full bg-[#f0fdf4] text-[#10b981] flex items-center justify-center font-bold text-sm">
+                          {idx + 1}
+                        </div>
+                        <div className="flex flex-col">
+                          <span className="font-bold text-[#111827] text-sm">{slab.minQty} - {slab.maxQty}</span>
+                          <span className="text-xs text-[#94a3b8] font-medium">Quantity Range</span>
+                        </div>
                       </div>
-                      <div className="flex flex-col">
-                        <span className="font-bold text-[#111827] text-sm">{slab.range}</span>
-                        <span className="text-xs text-[#94a3b8] font-medium">Quantity Range</span>
+                      <div className="text-right flex flex-col">
+                        <span className="font-bold text-[#111827] text-lg">{slab.rate}</span>
+                        <span className="text-xs text-[#94a3b8] font-medium">per {product.unit}</span>
                       </div>
                     </div>
-                    <div className="text-right flex flex-col">
-                      <span className="font-bold text-[#111827] text-lg">{slab.price}</span>
-                      <span className="text-xs text-[#94a3b8] font-medium">per {product.unit}</span>
-                    </div>
-                  </div>
-                ))}
+                  ))
+                ) : (
+                  <div className="text-sm text-[#6b7280] italic">No B2B slabs defined for this product.</div>
+                )}
               </div>
               
               <div className="mt-4 bg-[#eff6ff] text-[#1e40af] text-sm font-medium p-3 rounded-lg border border-[#bfdbfe]">

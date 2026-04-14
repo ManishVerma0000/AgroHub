@@ -182,6 +182,9 @@ export function ProductForm({ initialData, onSave, onCancel }: ProductFormProps)
     }, image);
   };
 
+  const selectedSubcat = subcategories.find(sc => sc.id === formData.subcategoryId);
+  const hsnOptions = selectedSubcat?.hsnCodes || [];
+
   return (
     <form onSubmit={handleSubmit} className="flex flex-col gap-8">
       
@@ -229,16 +232,27 @@ export function ProductForm({ initialData, onSave, onCancel }: ProductFormProps)
                 ...filteredSubcategories.map(sc => ({ label: sc.name, value: sc.id }))
               ]}
               value={formData.subcategoryId}
-              onChange={(e) => setFormData({...formData, subcategoryId: e.target.value})}
+              onChange={(e) => setFormData({...formData, subcategoryId: e.target.value, hsn: '', gstRate: ''})}
               required
             />
 
-            <Input 
-              label="HSN Code" 
-              placeholder="Type or Select" 
-              required
+            <Select
+              label="HSN Code"
+              options={[
+                { label: 'Select HSN Code', value: '' },
+                ...hsnOptions.map((h: any) => ({ label: `${h.code} (${h.gst} GST)`, value: h.code }))
+              ]}
               value={formData.hsn}
-              onChange={(e) => setFormData({...formData, hsn: e.target.value})}
+              onChange={(e) => {
+                const selectedCode = e.target.value;
+                const match = hsnOptions.find((h: any) => h.code === selectedCode);
+                setFormData({
+                  ...formData,
+                  hsn: selectedCode,
+                  gstRate: match ? match.gst : formData.gstRate
+                });
+              }}
+              required
             />
             <Input 
               label="GST Rate" 

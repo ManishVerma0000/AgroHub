@@ -22,6 +22,7 @@ export default function WMSProductInventory() {
   const [inventoryItems, setInventoryItems] = useState<any[]>([]);
   const [modalSearchValue, setModalSearchValue] = useState("");
   const [modalSelectedCategory, setModalSelectedCategory] = useState("All Categories");
+  const [modalCurrentPage, setModalCurrentPage] = useState(1);
   const [isLoadingProducts, setIsLoadingProducts] = useState(false);
   const [isLoadingInventory, setIsLoadingInventory] = useState(false);
   const [setupData, setSetupData] = useState<Record<string, any>>({});
@@ -219,7 +220,21 @@ export default function WMSProductInventory() {
     if (modalSelectedCategory !== "All Categories" && gp.category !== modalSelectedCategory) return false;
     if (modalSearchValue && !gp.name.toLowerCase().includes(modalSearchValue.toLowerCase())) return false;
     return true;
+  }).sort((a, b) => {
+    const aExists = inventoryItems.some(inv => inv.productId === a.id);
+    const bExists = inventoryItems.some(inv => inv.productId === b.id);
+    if (aExists === bExists) return 0;
+    return aExists ? 1 : -1;
   });
+
+  const modalItemsPerPage = 5;
+  const modalTotalPages = Math.max(1, Math.ceil(filteredGlobalProducts.length / modalItemsPerPage));
+
+  React.useEffect(() => {
+    setModalCurrentPage(1);
+  }, [modalSearchValue, modalSelectedCategory, isAddModalOpen]);
+
+  const paginatedGlobalProducts = filteredGlobalProducts.slice((modalCurrentPage - 1) * modalItemsPerPage, modalCurrentPage * modalItemsPerPage);
 
   const handleSelectAll = (e: React.ChangeEvent<HTMLInputElement>) => {
     if (e.target.checked) setSelectedItems(filteredInventory.map(item => item.id));
@@ -597,34 +612,68 @@ export default function WMSProductInventory() {
                             Loading products...
                           </td>
                         </tr>
-                      ) : filteredGlobalProducts.length === 0 ? (
+                      ) : paginatedGlobalProducts.length === 0 ? (
                         <tr>
                           <td colSpan={6} className="px-4 py-8 text-center text-[#6b7280]">
                             No products found matching the criteria.
                           </td>
                         </tr>
-                      ) : filteredGlobalProducts.map(gp => (
-                        <tr key={gp.id} className="hover:bg-[#fcfcfc] cursor-pointer" onClick={() => {
-                          if (selectedGlobalProducts.includes(gp.id)) setSelectedGlobalProducts(selectedGlobalProducts.filter(id => id !== gp.id));
-                          else setSelectedGlobalProducts([...selectedGlobalProducts, gp.id]);
-                        }}>
-                          <td className="px-4 py-3">
-                            <input 
-                              type="checkbox" 
-                              checked={selectedGlobalProducts.includes(gp.id)}
-                              readOnly
-                              className="rounded text-[#07ac57] pointer-events-none" 
-                            />
-                          </td>
-                          <td className="px-4 py-3 font-medium text-[#111827]">{gp.name}</td>
-                          <td className="px-4 py-3 text-[#6b7280]">{gp.category || '-'}</td>
-                          <td className="px-4 py-3 text-[#6b7280]">{gp.baseUnit || '-'}</td>
-                          <td className="px-4 py-3 text-[#6b7280]">{gp.hsn || '-'}</td>
-                          <td className="px-4 py-3 text-[#6b7280]">{gp.gstRate ? `${gp.gstRate}%` : '-'}</td>
-                        </tr>
-                      ))}
+                      ) : paginatedGlobalProducts.map(gp => {
+                        const isExisting = inventoryItems.some(inv => inv.productId === gp.id);
+                        return (
+                          <tr key={gp.id} className={isExisting ? "opacity-50 bg-[#f9fafb] cursor-not-allowed" : "hover:bg-[#fcfcfc] cursor-pointer"} onClick={() => {
+                            if (isExisting) return;
+                            if (selectedGlobalProducts.includes(gp.id)) setSelectedGlobalProducts(selectedGlobalProducts.filter(id => id !== gp.id));
+                            else setSelectedGlobalProducts([...selectedGlobalProducts, gp.id]);
+                          }}>
+                            <td className="px-4 py-3">
+                              <input 
+                                type="checkbox" 
+                                checked={isExisting || selectedGlobalProducts.includes(gp.id)}
+                                disabled={isExisting}
+                                readOnly
+                                className="rounded text-[#07ac57] pointer-events-none" 
+                              />
+                            </td>
+                            <td className="px-4 py-3 font-medium text-[#111827]">
+                              {gp.name}
+                              {isExisting && <span className="text-xs text-[#ef4444] ml-2 font-normal rounded-md border border-[#fca5a5] px-1.5 py-0.5 bg-[#fef2f2]">Added</span>}
+                            </td>
+                            <td className="px-4 py-3 text-[#6b7280]">{gp.category || '-'}</td>
+                            <td className="px-4 py-3 text-[#6b7280]">{gp.baseUnit || '-'}</td>
+                            <td className="px-4 py-3 text-[#6b7280]">{gp.hsn || '-'}</td>
+                            <td className="px-4 py-3 text-[#6b7280]">{gp.gstRate ? `${gp.gstRate}%` : '-'}</td>
+                          </tr>
+                        );
+                      })}
                     </tbody>
                   </table>
+                  
+                  {/* Pagination Controls */}
+                  {modalTotalPages > 1 && (
+                    <div className="flex items-center justify-between px-4 py-3 border-t border-[#f3f4f6] bg-[#fcfcfc]">
+                      <span className="text-sm text-[#6b7280]">
+                        Showing <span className="font-semibold text-[#111827]">{(modalCurrentPage - 1) * modalItemsPerPage + 1}</span> to <span className="font-semibold text-[#111827]">{Math.min(modalCurrentPage * modalItemsPerPage, filteredGlobalProducts.length)}</span> of <span className="font-semibold text-[#111827]">{filteredGlobalProducts.length}</span> products
+                      </span>
+                      <div className="flex items-center gap-2">
+                        <button 
+                          onClick={() => setModalCurrentPage(p => Math.max(p - 1, 1))}
+                          disabled={modalCurrentPage === 1}
+                          className="px-3 py-1.5 border border-[#e2e8f0] rounded-lg text-sm font-medium hover:bg-[#f9fafb] disabled:opacity-50 disabled:cursor-not-allowed"
+                        >
+                          Previous
+                        </button>
+                        <span className="text-sm text-[#374151] font-medium px-2">Page {modalCurrentPage} of {modalTotalPages}</span>
+                        <button 
+                          onClick={() => setModalCurrentPage(p => Math.min(p + 1, modalTotalPages))}
+                          disabled={modalCurrentPage === modalTotalPages}
+                          className="px-3 py-1.5 border border-[#e2e8f0] rounded-lg text-sm font-medium hover:bg-[#f9fafb] disabled:opacity-50 disabled:cursor-not-allowed"
+                        >
+                          Next
+                        </button>
+                      </div>
+                    </div>
+                  )}
                 </div>
               </div>
             )}
