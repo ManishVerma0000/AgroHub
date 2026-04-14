@@ -40,6 +40,9 @@ export function ProductList({ data, categories, onEdit, onDelete }: ProductListP
   const [statusFilter, setStatusFilter] = useState('');
   const [dateFilter, setDateFilter] = useState('');
 
+  const [currentPage, setCurrentPage] = useState(1);
+  const itemsPerPage = 5;
+
   const columns: Column<ProductData>[] = [
     {
       header: 'Product',
@@ -143,11 +146,18 @@ export function ProductList({ data, categories, onEdit, onDelete }: ProductListP
     return matchesSearch && matchesCategory && matchesStatus && matchesDate;
   });
 
+  React.useEffect(() => {
+    setCurrentPage(1);
+  }, [searchTerm, categoryFilter, statusFilter, dateFilter]);
+
+  const totalPages = Math.max(1, Math.ceil(filteredData.length / itemsPerPage));
+  const paginatedData = filteredData.slice((currentPage - 1) * itemsPerPage, currentPage * itemsPerPage);
+
   return (
     <>
       <DataTable
         columns={columns}
-        data={filteredData}
+        data={paginatedData}
         searchPlaceholder="Search products..."
         onSearch={setSearchTerm}
         filters={
@@ -180,11 +190,11 @@ export function ProductList({ data, categories, onEdit, onDelete }: ProductListP
           </>
         }
         pagination={{
-          currentPage: 1,
-          totalPages: 1,
+          currentPage,
+          totalPages,
           totalItems: filteredData.length,
-          onNext: () => {},
-          onPrev: () => {}
+          onNext: () => setCurrentPage(p => Math.min(p + 1, totalPages)),
+          onPrev: () => setCurrentPage(p => Math.max(p - 1, 1))
         }}
       />
 
