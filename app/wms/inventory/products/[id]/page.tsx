@@ -85,7 +85,18 @@ export default function ProductDetailsPage({ params }: { params: Promise<{ id: s
   const fetchStockActions = async () => {
     try {
       const data = await stockActionService.getAll();
-      setStockActions(data);
+      setStockActions([
+        ...data,
+        {
+          id: 'update-base-price',
+          iconName: 'SettingsIcon',
+          label: 'Update Base Price',
+          bg: 'bg-[#eff6ff]',
+          text: 'text-[#1d4ed8]',
+          hover: 'hover:bg-[#dbeafe]',
+          border: 'border border-[#bfdbfe]'
+        }
+      ]);
     } catch (error) {
       console.error("Failed to fetch stock actions:", error);
     }

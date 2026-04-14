@@ -3,7 +3,7 @@
 import React, { useState } from 'react';
 import { Modal } from '../ui/Modal';
 
-export type StockActionType = 'Add Stock' | 'Reduce Stock' | 'Update Missing Stock' | 'Update Wastage Stock' | 'Update Reorder Level';
+export type StockActionType = 'Add Stock' | 'Reduce Stock' | 'Update Missing Stock' | 'Update Wastage Stock' | 'Update Reorder Level' | 'Update Base Price';
 
 interface StockActionModalProps {
   isOpen: boolean;
@@ -26,6 +26,7 @@ export function StockActionModal({ isOpen, onClose, actionType, product, onSubmi
   if (!actionType) return null;
 
   const isReorder = actionType === 'Update Reorder Level';
+  const isBasePrice = actionType === 'Update Base Price';
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -76,6 +77,16 @@ export function StockActionModal({ isOpen, onClose, actionType, product, onSubmi
         </div>
       );
     }
+    if (actionType === 'Update Base Price') {
+      return (
+        <div className="bg-[#eff6ff] text-[#3b82f6] p-3 rounded-md text-sm mt-4 flex gap-2 items-start">
+          <span>💰</span>
+          <p>
+            Updating the base price will automatically recalculate the selling price based on logistics and overhead costs.
+          </p>
+        </div>
+      );
+    }
     return null;
   };
 
@@ -94,28 +105,28 @@ export function StockActionModal({ isOpen, onClose, actionType, product, onSubmi
           )}
         </div>
 
-        {/* Quantity / Reorder Level Field */}
+        {/* Quantity / Reorder Level / Base Price Field */}
         <div className="flex flex-col gap-1.5">
           <label className="text-sm font-semibold text-[#374151]">
-            {isReorder ? 'New Reorder Level' : 'Quantity'} <span className="text-red-500">*</span>
+            {isReorder ? 'New Reorder Level' : isBasePrice ? 'New Base Price' : 'Quantity'} <span className="text-red-500">*</span>
           </label>
           <div className="relative">
             <input
               type="number"
               value={quantity}
               onChange={(e) => setQuantity(e.target.value)}
-              placeholder={isReorder ? 'Enter reorder threshold' : 'Enter quantity'}
+              placeholder={isReorder ? 'Enter reorder threshold' : isBasePrice ? 'Enter new base price' : 'Enter quantity'}
               className="w-full px-4 py-2.5 border border-[#d1d5db] rounded-lg focus:outline-none focus:ring-2 focus:ring-[#10b981] focus:border-transparent text-sm pr-12"
               required
             />
             <div className="absolute inset-y-0 right-0 pr-4 flex items-center pointer-events-none">
-              <span className="text-[#6b7280] text-sm">{product.unit === 'N/A' || !product.unit ? 'Units' : product.unit}</span>
+              <span className="text-[#6b7280] text-sm">{isBasePrice ? '₹' : (product.unit === 'N/A' || !product.unit ? 'Units' : product.unit)}</span>
             </div>
           </div>
         </div>
 
         {/* Reason Field */}
-        {!isReorder && (
+        {!isReorder && !isBasePrice && (
           <div className="flex flex-col gap-1.5">
             <label className="text-sm font-semibold text-[#374151]">
               Reason {(actionType === 'Update Missing Stock' || actionType === 'Update Wastage Stock') && <span className="text-red-500">*</span>}
@@ -164,7 +175,7 @@ export function StockActionModal({ isOpen, onClose, actionType, product, onSubmi
             disabled={isSubmitting}
             className="px-5 py-2.5 bg-[#86efac] text-white font-semibold rounded-lg text-sm hover:bg-[#4ade80] transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
           >
-            {isSubmitting ? 'Saving...' : (isReorder ? 'Update' : 'Confirm')}
+            {isSubmitting ? 'Saving...' : (isReorder || isBasePrice ? 'Update' : 'Confirm')}
           </button>
         </div>
       </form>
