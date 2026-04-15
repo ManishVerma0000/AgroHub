@@ -7,11 +7,7 @@ import { supplierService, Supplier } from "../../../../../services/supplierServi
 import { supplierProductService, SupplierProduct } from "../../../../../services/supplierProductService";
 import { productService } from "../../../../../services/productService";
 import { categoryService } from "../../../../../services/categoryService";
-
-// Mock data strictly for PO history right now until that backend is ready
-const mockPOHistory = [
-  { id: "PO-001", orderDate: "10 Mar 2024", expectedDelivery: "12 Mar 2024", items: "2 items", plannedAmount: 15000, actualAmount: 15200, status: "Completed" },
-];
+import { purchaseOrderService } from "../../../../../services/purchaseOrderService";
 
 export default function SupplierProfilePage() {
   const router = useRouter();
@@ -20,6 +16,7 @@ export default function SupplierProfilePage() {
   
   const [supplier, setSupplier] = useState<Supplier | null>(null);
   const [suppliedProducts, setSuppliedProducts] = useState<SupplierProduct[]>([]);
+  const [poHistory, setPoHistory] = useState<any[]>([]);
   const [isLoading, setIsLoading] = useState(true);
 
   // Modal states
@@ -38,16 +35,18 @@ export default function SupplierProfilePage() {
     if (!id) return;
     try {
       setIsLoading(true);
-      const [supplierData, productsData, globalProds, globalCats] = await Promise.all([
+      const [supplierData, productsData, globalProds, globalCats, allPOs] = await Promise.all([
         supplierService.getSupplierById(id),
         supplierProductService.getBySupplierId(id),
         productService.getAll(),
         categoryService.getAll(),
+        purchaseOrderService.getAll()
       ]);
       setSupplier(supplierData);
       setSuppliedProducts(productsData);
       setGlobalProducts(globalProds);
       setCategories(globalCats);
+      setPoHistory(allPOs.filter(po => po.supplierId === id));
     } catch (err) {
       console.error("Failed to fetch supplier details:", err);
     } finally {
@@ -329,14 +328,20 @@ export default function SupplierProfilePage() {
               </tr>
             </thead>
             <tbody className="divide-y divide-[#e2e8f0]">
-              {mockPOHistory.map(po => (
+              {poHistory.length === 0 ? (
+                <tr>
+                  <td colSpan={8} className="px-5 py-8 text-center text-[#64748b]">
+                    No purchase order history found.
+                  </td>
+                </tr>
+              ) : poHistory.map(po => (
                 <tr key={po.id} className="hover:bg-[#f8fafc] transition-colors">
-                  <td className="px-5 py-4 font-bold text-[#3b82f6]">{po.id}</td>
+                  <td className="px-5 py-4 font-bold text-[#3b82f6]">{po.poNumber || po.id}</td>
                   <td className="px-5 py-4 text-[#475569]">{po.orderDate}</td>
                   <td className="px-5 py-4 text-[#475569]">{po.expectedDelivery}</td>
-                  <td className="px-5 py-4 text-[#475569]">{po.items}</td>
-                  <td className="px-5 py-4 font-bold text-[#1e293b]">₹{po.plannedAmount.toLocaleString()}</td>
-                  <td className="px-5 py-4 font-bold text-[#16a34a]">₹{po.actualAmount.toLocaleString()}</td>
+                  <td className="px-5 py-4 text-[#475569]">{po.items ? po.items.length : 0} items</td>
+                  <td className="px-5 py-4 font-bold text-[#1e293b]">₹{(po.totalAmount || 0).toLocaleString()}</td>
+                  <td className="px-5 py-4 font-bold text-[#16a34a]">₹{(po.actualAmount || po.totalAmount || 0).toLocaleString()}</td>
                   <td className="px-5 py-4 text-center">
                     <span className="inline-flex items-center px-3 py-1.5 rounded-full bg-[#dcfce7] text-[#16a34a] text-xs font-bold w-fit mx-auto border border-[#bbf7d0]">
                       {po.status}

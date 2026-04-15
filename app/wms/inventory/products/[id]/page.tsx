@@ -30,6 +30,25 @@ export default function ProductDetailsPage({ params }: { params: Promise<{ id: s
       const wpResponse = await warehouseProductService.getById(warehouseId);
       const baseProduct = await productService.getById(wpResponse.productId);
       
+        const bMargin = parseFloat(baseProduct.baseMargin || "0");
+        const bPrice = parseFloat(wpResponse.basePrice || "0");
+        const sellingPrice = parseFloat(wpResponse.sellingPrice || wpResponse.basePrice || "0");
+        
+        const b2bSlabs = (baseProduct.b2bBulkSlabs || []).map((slab: any, idx: number) => {
+          if (idx === 0) {
+            return {
+              ...slab,
+              rate: `₹${sellingPrice.toFixed(2)}`
+            };
+          }
+          const effectiveMargin = bMargin - ((idx - 1) * 2);
+          const calculatedRate = bPrice * (1 + effectiveMargin / 100);
+          return {
+            ...slab,
+            rate: `₹${calculatedRate.toFixed(2)}`
+          };
+        });
+
       setProduct({
         id: warehouseId,
         productId: wpResponse.productId,
@@ -57,7 +76,7 @@ export default function ProductDetailsPage({ params }: { params: Promise<{ id: s
         stockStatus: (wpResponse.availableStock ?? wpResponse.initialStock ?? 0) <= (wpResponse.reorderLevel ?? 0) ? "Low Stock" : "Healthy" ,
         productStatus: wpResponse.status,
         updatedBy: "Admin",
-        b2bSlabs: baseProduct.b2bBulkSlabs || [],
+        b2bSlabs: b2bSlabs,
       });
     } catch (error) {
       console.error("Failed to fetch product details:", error);
