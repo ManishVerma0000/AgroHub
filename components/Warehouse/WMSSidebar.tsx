@@ -1,11 +1,17 @@
 "use client";
 
 import Link from "next/link";
-import { usePathname } from "next/navigation";
+import { usePathname, useRouter } from "next/navigation";
 import { SVGProps } from "react";
 
 export default function WMSSidebar() {
   const pathname = usePathname();
+  const router = useRouter();
+
+  const handleLogout = () => {
+    localStorage.removeItem('wmsToken');
+    router.push('/wms');
+  };
 
   const navGroups = [
     {
@@ -85,11 +91,25 @@ export default function WMSSidebar() {
         ))}
       </div>
 
-      <div className="py-5 px-6 border-t border-[#f3f4f6]">
-        <div className="flex items-center gap-3 text-[#111827] text-sm font-medium">
-          <ProfileIcon className="w-6 h-6 text-[#94a3b8]" />
+      <div className="py-4 px-4 border-t border-[#f3f4f6] flex flex-col gap-1">
+        <Link
+          href="/wms/profile"
+          className={`flex items-center gap-3 py-2.5 px-3 rounded-lg text-sm transition-all ${
+            pathname === '/wms/profile'
+              ? 'bg-[#f2fcf6] text-[#07ac57] font-semibold'
+              : 'text-[#6b7280] font-medium hover:bg-[#f9fafb] hover:text-[#111827]'
+          }`}
+        >
+          <ProfileIcon className="w-5 h-5" />
           <span>Warehouse Profile</span>
-        </div>
+        </Link>
+        <button
+          onClick={handleLogout}
+          className="flex items-center gap-3 py-2.5 px-3 rounded-lg text-sm text-red-500 font-medium hover:bg-red-50 transition-all w-full text-left"
+        >
+          <LogoutIcon className="w-5 h-5" />
+          <span>Logout</span>
+        </button>
       </div>
     </aside>
   );
@@ -236,3 +256,14 @@ function BarChartIcon(props: SVGProps<SVGSVGElement>) {
     </svg>
   );
 }
+
+function LogoutIcon(props: SVGProps<SVGSVGElement>) {
+  return (
+    <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" {...props}>
+      <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/>
+      <polyline points="16 17 21 12 16 7"/>
+      <line x1="21" y1="12" x2="9" y2="12"/>
+    </svg>
+  );
+}
+

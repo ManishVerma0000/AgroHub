@@ -1,6 +1,11 @@
+'use client';
+
 import { SVGProps } from "react";
+import { useRouter } from "next/navigation";
 
 export default function WMSTopbar() {
+  const router = useRouter();
+
   return (
     <header className="flex items-center justify-between py-4 px-8 bg-white border-b border-[#f3f4f6]">
       <div className="flex items-center bg-[#f9fafb] border border-[#f3f4f6] rounded-lg py-2 px-4 w-[320px]">
@@ -19,9 +24,13 @@ export default function WMSTopbar() {
           <span className="absolute -top-0.5 right-0 w-2 h-2 bg-red-500 rounded-full border-2 border-white"></span>
         </div>
         
-        <div className="w-9 h-9 bg-[#07ac57] text-white rounded-full flex items-center justify-center font-semibold text-base cursor-pointer">
-          <span className="">W</span>
-        </div>
+        <button
+          onClick={() => router.push('/wms/profile')}
+          title="Warehouse Profile"
+          className="w-9 h-9 bg-[#07ac57] text-white rounded-full flex items-center justify-center font-semibold text-base cursor-pointer hover:bg-[#069a4e] transition-colors"
+        >
+          <span>W</span>
+        </button>
       </div>
     </header>
   );
