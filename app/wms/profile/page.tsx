@@ -2,30 +2,7 @@
 
 import React, { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
-
-interface WarehouseProfile {
-  id: string;
-  name: string;
-  manager: string;
-  contact: string;
-  location: string;
-  email: string;
-  state: string;
-  city: string;
-  pinCode: string;
-  gstNo: string;
-  fssaiNo: string;
-  openTime: string;
-  closeTime: string;
-  gstOwner: string;
-  latitudeLink: string;
-  images: string[];
-  documents: string[];
-  status: string;
-  createdDate: string;
-  overheadCost: number;
-  logisticCost: number;
-}
+import { wmsAuthService, WarehouseProfile } from '@/services/wmsAuthService';
 
 export default function WarehouseProfilePage() {
   const router = useRouter();
@@ -41,19 +18,10 @@ export default function WarehouseProfilePage() {
         return;
       }
       try {
-        const response = await fetch('http://localhost:8000/api/v1/users/warehouse/profile/me', {
-          headers: {
-            'Authorization': `Bearer ${token}`,
-            'Content-Type': 'application/json'
-          }
-        });
-        if (!response.ok) {
-          throw new Error('Failed to fetch warehouse profile');
-        }
-        const data = await response.json();
+        const data = await wmsAuthService.getProfile(token);
         setWarehouse(data);
       } catch (err: any) {
-        setError(err.message || 'Something went wrong');
+        setError(err?.response?.data?.detail || err.message || 'Something went wrong');
       } finally {
         setIsLoading(false);
       }

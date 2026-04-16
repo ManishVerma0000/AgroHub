@@ -6,6 +6,7 @@ import { Input } from '@/components/ui/Input';
 import { Button } from '@/components/ui/Button';
 import { Toggle } from '@/components/ui/Toggle';
 import toast from 'react-hot-toast';
+import { authService } from '@/services/authService';
 
 export default function AdminLoginPage() {
   const router = useRouter();
@@ -17,23 +18,18 @@ export default function AdminLoginPage() {
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
     setIsLoading(true);
-    
+
     try {
-      const response = await fetch('http://localhost:8000/api/v1/auth/login', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ username, password })
-      });
-      const data = await response.json();
-      if (response.ok && data.token) {
+      const data = await authService.login({ username, password });
+      if (data.token) {
         localStorage.setItem('adminToken', data.token);
         toast.success(data.message || 'Logged in successfully');
         router.push('/dashboard');
       } else {
-        toast.error(data.message || 'Login failed');
+        toast.error('Login failed');
       }
-    } catch (error) {
-      toast.error('Network error. Please try again.');
+    } catch (error: any) {
+      toast.error(error?.response?.data?.message || 'Network error. Please try again.');
     } finally {
       setIsLoading(false);
     }

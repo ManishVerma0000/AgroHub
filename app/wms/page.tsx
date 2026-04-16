@@ -5,6 +5,7 @@ import { useRouter } from 'next/navigation';
 import { Input } from '@/components/ui/Input';
 import { Button } from '@/components/ui/Button';
 import toast from 'react-hot-toast';
+import { wmsAuthService } from '@/services/wmsAuthService';
 
 export default function WMSLoginPage() {
   const router = useRouter();
@@ -16,22 +17,13 @@ export default function WMSLoginPage() {
   const handleSendOtp = async (e: React.FormEvent) => {
     e.preventDefault();
     setIsLoading(true);
-    
+
     try {
-      const response = await fetch('http://localhost:8000/api/v1/users/send-warehouse-otp', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ email })
-      });
-      const data = await response.json();
-      if (response.ok) {
-        toast.success(data.message || 'OTP Sent Successfully (Static 1234)');
-        setStep(2);
-      } else {
-        toast.error(data.detail?.message || data.detail || 'Failed to send OTP');
-      }
-    } catch (error) {
-      toast.error('Network error. Please try again.');
+      const data = await wmsAuthService.sendOtp({ email });
+      toast.success(data.message || 'OTP Sent Successfully (Static 1234)');
+      setStep(2);
+    } catch (error: any) {
+      toast.error(error?.response?.data?.detail?.message || error?.response?.data?.detail || 'Failed to send OTP');
     } finally {
       setIsLoading(false);
     }
@@ -40,23 +32,18 @@ export default function WMSLoginPage() {
   const handleVerifyOtp = async (e: React.FormEvent) => {
     e.preventDefault();
     setIsLoading(true);
-    
+
     try {
-      const response = await fetch('http://localhost:8000/api/v1/users/login-warehouse-user', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ email, otp: parseInt(otp) })
-      });
-      const data = await response.json();
-      if (response.ok && data.userdetails?.token) {
+      const data = await wmsAuthService.verifyOtp({ email, otp: parseInt(otp) });
+      if (data.userdetails?.token) {
         localStorage.setItem('wmsToken', data.userdetails.token);
         toast.success(data.message || 'Logged in successfully');
         router.push('/wms/dashboard');
       } else {
-        toast.error(data.detail || 'Login failed! Invalid OTP.');
+        toast.error('Login failed! Invalid OTP.');
       }
-    } catch (error) {
-      toast.error('Network error. Please try again.');
+    } catch (error: any) {
+      toast.error(error?.response?.data?.detail || 'Login failed! Invalid OTP.');
     } finally {
       setIsLoading(false);
     }
