@@ -44,12 +44,12 @@ export interface AdminCustomerCreate {
 
 export const customerService = {
   getAll: async (): Promise<Customer[]> => {
-    const response = await api.get('/customers');
+    const response = await api.get('/customers/');
     return response.data;
   },
 
   create: async (data: AdminCustomerCreate): Promise<Customer> => {
-    const response = await api.post('/customers', data);
+    const response = await api.post('/customers/', data);
     return response.data;
   },
 
