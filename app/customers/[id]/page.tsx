@@ -38,7 +38,7 @@ export default function CustomerProfilePage() {
     return (
       <div className="flex flex-col items-center justify-center min-h-[400px] gap-4">
         <h2 className="text-xl font-bold text-[#0f172a]">Customer not found</h2>
-        <Link href="/wms/customers" className="text-[#16a34a] font-semibold hover:underline">Back to Customers</Link>
+        <Link href="/customers" className="text-[#16a34a] font-semibold hover:underline">Back to Customers</Link>
       </div>
     );
   }
@@ -50,7 +50,7 @@ export default function CustomerProfilePage() {
       
       {/* Top Header Row / Back Button */}
       <div className="flex flex-col gap-5">
-        <Link href="/wms/customers" className="inline-flex items-center gap-1.5 text-[#475569] hover:text-[#0f172a] text-[14px] font-semibold transition-colors w-max">
+        <Link href="/customers" className="inline-flex items-center gap-1.5 text-[#475569] hover:text-[#0f172a] text-[14px] font-semibold transition-colors w-max">
            <ArrowLeftIcon className="w-4 h-4" />
            Back to Customers
         </Link>
@@ -102,12 +102,17 @@ export default function CustomerProfilePage() {
         </div>
       </div>
 
+      {/* Layout Grid: 70/30 */}
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-8">
+        
+        {/* LEFT COMPONENT COLUMN */}
         <div className="lg:col-span-8 flex flex-col gap-6">
+          
+          {/* Order History Table - Placeholder for now as we don't have separate orders API for one customer yet in this component */}
           <div className="bg-white border border-[#e2e8f0] rounded-xl shadow-sm flex flex-col overflow-hidden w-full">
             <div className="px-6 py-5 border-b border-[#e2e8f0] flex justify-between items-center">
-              <h2 className="text-[18px] font-bold text-[#0f172a]">Recent Orders</h2>
-              <span className="text-xs text-[#64748b] bg-[#f8fafc] px-2 py-1 rounded">Past 30 days</span>
+              <h2 className="text-[18px] font-bold text-[#0f172a]">Order History</h2>
+              <span className="text-xs text-[#64748b] bg-[#f8fafc] px-2 py-1 rounded">Recent 5 Orders</span>
             </div>
             
             <div className="overflow-x-auto w-full">
@@ -118,16 +123,18 @@ export default function CustomerProfilePage() {
                     <th className="px-6 py-4">DATE</th>
                     <th className="px-6 py-4">AMOUNT</th>
                     <th className="px-6 py-4">STATUS</th>
+                    <th className="px-6 py-4 text-center">ACTION</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-[#e2e8f0]">
+                  {/* Since real orders aren't linked here yet, showing a message or mock if empty */}
                   {customer.totalOrders === 0 ? (
                     <tr>
-                      <td colSpan={4} className="px-6 py-10 text-center text-[#64748b]">No orders found for this customer.</td>
+                      <td colSpan={5} className="px-6 py-10 text-center text-[#64748b]">No orders found for this customer.</td>
                     </tr>
                   ) : (
                     <tr className="hover:bg-[#f8fafc] transition-colors">
-                      <td colSpan={4} className="px-6 py-10 text-center text-[#64748b]">Order tracking is available in the Orders module.</td>
+                      <td colSpan={5} className="px-6 py-10 text-center text-[#64748b]">Order tracking is available in the Orders module.</td>
                     </tr>
                   )}
                 </tbody>
@@ -135,11 +142,12 @@ export default function CustomerProfilePage() {
             </div>
           </div>
 
+          {/* Customer Metadata / Docs */}
           <div className="bg-white border border-[#e2e8f0] rounded-xl shadow-sm p-6 flex flex-col gap-6">
-             <h2 className="text-[18px] font-bold text-[#0f172a]">Business Documents</h2>
+             <h2 className="text-[18px] font-bold text-[#0f172a]">Documents & Verification</h2>
              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                 <div className="flex flex-col gap-3">
-                   <span className="text-[13px] font-semibold text-[#64748b] uppercase tracking-wider">Aadhar Front</span>
+                   <span className="text-[13px] font-semibold text-[#64748b] uppercase tracking-wider">Aadhar Card (Front)</span>
                    {customer.aadharCardFront ? (
                       <div className="relative rounded-xl overflow-hidden border border-[#e2e8f0] h-48 bg-[#f8fafc] group">
                          <img src={customer.aadharCardFront} alt="Aadhar Front" className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-105" />
@@ -149,12 +157,12 @@ export default function CustomerProfilePage() {
                       </div>
                    ) : (
                       <div className="rounded-xl border-2 border-dashed border-[#e2e8f0] h-48 flex items-center justify-center text-[#94a3b8] text-sm bg-white">
-                         Not Available
+                         Not Uploaded
                       </div>
                    )}
                 </div>
                 <div className="flex flex-col gap-3">
-                   <span className="text-[13px] font-semibold text-[#64748b] uppercase tracking-wider">Aadhar Back</span>
+                   <span className="text-[13px] font-semibold text-[#64748b] uppercase tracking-wider">Aadhar Card (Back)</span>
                    {customer.aadharCardBack ? (
                       <div className="relative rounded-xl overflow-hidden border border-[#e2e8f0] h-48 bg-[#f8fafc] group">
                          <img src={customer.aadharCardBack} alt="Aadhar Back" className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-105" />
@@ -164,22 +172,26 @@ export default function CustomerProfilePage() {
                       </div>
                    ) : (
                       <div className="rounded-xl border-2 border-dashed border-[#e2e8f0] h-48 flex items-center justify-center text-[#94a3b8] text-sm bg-white">
-                         Not Available
+                         Not Uploaded
                       </div>
                    )}
                 </div>
              </div>
           </div>
+
         </div>
 
+        {/* RIGHT METADATA COLUMN */}
         <div className="lg:col-span-4 flex flex-col gap-6">
+          
+          {/* Contact Information */}
           <div className="bg-white border border-[#e2e8f0] rounded-xl shadow-sm p-6 flex flex-col gap-6">
             <h3 className="text-[17px] font-bold text-[#0f172a]">Contact Information</h3>
             <div className="flex flex-col gap-5">
               <div className="flex items-start gap-4">
-                <UserIcon className="w-5 h-5 text-[#94a3b8] mt-0.5 shrink-0" />
+                <MailIcon className="w-5 h-5 text-[#94a3b8] mt-0.5 shrink-0" />
                 <div className="flex flex-col gap-0.5">
-                  <span className="text-[#64748b] text-[12.5px] font-semibold">Owner</span>
+                  <span className="text-[#64748b] text-[12.5px] font-semibold">Owner Name</span>
                   <span className="text-[#0f172a] text-[14px] font-medium">{customer.ownerName}</span>
                 </div>
               </div>
@@ -193,18 +205,19 @@ export default function CustomerProfilePage() {
               <div className="flex items-start gap-4">
                 <PinIcon className="w-5 h-5 text-[#94a3b8] mt-0.5 shrink-0" />
                 <div className="flex flex-col gap-0.5">
-                  <span className="text-[#64748b] text-[12.5px] font-semibold">City</span>
-                  <span className="text-[#0f172a] text-[14px] font-medium">{customer.city || "N/A"}</span>
+                  <span className="text-[#64748b] text-[12.5px] font-semibold">City / Region</span>
+                  <span className="text-[#0f172a] text-[14px] font-medium">{customer.city || "Not Specified"}</span>
                 </div>
               </div>
             </div>
           </div>
 
+          {/* Business Information */}
           <div className="bg-white border border-[#e2e8f0] rounded-xl shadow-sm p-6 flex flex-col gap-5">
             <h3 className="text-[17px] font-bold text-[#0f172a]">Business Details</h3>
-            <div className="flex flex-col gap-4 text-[13.5px]">
+            <div className="flex flex-col gap-4">
                <div className="flex justify-between items-center text-[13.5px]">
-                  <span className="text-[#64748b] font-medium">Shop Type</span>
+                  <span className="text-[#64748b] font-medium">Business Type</span>
                   <span className="text-[#0f172a] font-bold">{customer.shopType || "N/A"}</span>
                </div>
                <div className="flex justify-between items-center text-[13.5px]">
@@ -212,36 +225,68 @@ export default function CustomerProfilePage() {
                   <span className="text-[#0f172a] font-bold">{new Date(customer.createdDate).toLocaleDateString()}</span>
                </div>
                <div className="flex justify-between items-center text-[13.5px]">
-                  <span className="text-[#64748b] font-medium">Status</span>
-                  <span className={`inline-flex items-center px-3 py-1 text-[11px] font-bold rounded-full ${
-                    customer.customerStatus === 'Active' ? 'bg-[#dcfce3] text-[#16a34a]' : 'bg-[#fee2e2] text-[#ef4444]'
+                  <span className="text-[#64748b] font-medium">Engagement Level</span>
+                  <span className={`inline-flex items-center px-3 py-1 text-[12px] font-bold rounded-full ${
+                    customer.customerType === 'High' ? 'bg-[#dcfce3] text-[#16a34a]' : 
+                    customer.customerType === 'Medium' ? 'bg-[#fef3c7] text-[#d97706]' : 
+                    'bg-[#f1f5f9] text-[#64748b]'
                   }`}>
-                    {customer.customerStatus}
+                    {customer.customerType}
                   </span>
                </div>
             </div>
           </div>
 
+          {/* Addresses Component */}
           {customer.addresses && customer.addresses.length > 0 && (
             <div className="bg-white border border-[#e2e8f0] rounded-xl shadow-sm flex flex-col pt-6 pb-2">
-               <h3 className="text-[17px] font-bold text-[#0f172a] px-6 mb-4">Saved Locations ({customer.addresses.length})</h3>
+               <h3 className="text-[17px] font-bold text-[#0f172a] px-6 mb-4">Saved Addresses ({customer.addresses.length})</h3>
                <div className="flex flex-col gap-4 px-6 pb-6">
                   {customer.addresses.map((addr: any, idx) => (
                     <div key={idx} className={`rounded-xl p-5 flex flex-col gap-3 ${addr.isDefault ? 'bg-[#f0fdf4] border border-[#bbf7d0]' : 'bg-[#f8fafc] border border-[#e2e8f0]'}`}>
-                       <div className="flex items-center gap-2 text-[11px] font-bold tracking-wider uppercase text-[#64748b]">
-                          <PinIcon className="w-3.5 h-3.5" />
-                          {addr.isDefault ? "Default Address" : "Alternate Address"}
+                       <div className="flex justify-between items-start">
+                          <div className={`flex items-center gap-2 text-[11px] font-bold tracking-wider uppercase ${addr.isDefault ? 'text-[#16a34a]' : 'text-[#64748b]'}`}>
+                             <PinIcon className="w-3.5 h-3.5" />
+                             {addr.isDefault ? "Primary Address" : "Additional Address"}
+                          </div>
                        </div>
                        <span className="text-[#0f172a] font-bold text-[14px]">
-                          {addr.location}
+                          {addr.shopName || customer.shopName}
                        </span>
+                       <div className="flex items-start gap-2.5 text-[#475569] text-[13px] leading-relaxed relative -mt-1">
+                          <PinIcon className="w-3.5 h-3.5 mt-1 shrink-0 text-[#94a3b8]" />
+                          <span className="whitespace-pre-line">{addr.location}</span>
+                       </div>
+                       {addr.nearbyLandmark && (
+                          <div className="text-[#64748b] text-[12px] -mt-1 pl-6 italic">
+                             Near {addr.nearbyLandmark}
+                          </div>
+                       )}
                     </div>
                   ))}
                </div>
             </div>
           )}
+
+          {/* Quick Actions Component */}
+          <div className="bg-white border border-[#e2e8f0] rounded-xl shadow-sm p-6 flex flex-col gap-4">
+             <h3 className="text-[17px] font-bold text-[#0f172a]">Quick Actions</h3>
+             <div className="flex flex-col gap-3">
+                <button className="w-full flex justify-center items-center gap-2 py-3 bg-[#16a34a] hover:bg-[#15803d] text-white font-bold rounded-lg transition-colors text-sm shadow-sm">
+                   <ShoppingCartAddIcon className="w-4 h-4" />
+                   Create New Order
+                </button>
+                <a href={`tel:${customer.mobileNumber}`} className="w-full flex justify-center items-center gap-2 py-2.5 bg-white border border-[#e2e8f0] text-[#0f172a] hover:bg-[#f8fafc] font-semibold rounded-lg transition-colors text-sm shadow-sm">
+                   <PhoneIcon className="w-4 h-4 text-[#64748b]" />
+                   Call Customer
+                </a>
+             </div>
+          </div>
+
         </div>
+
       </div>
+
     </div>
   );
 }
@@ -259,8 +304,21 @@ function ArrowLeftIcon(props: SVGProps<SVGSVGElement>) {
 function ShoppingCartIcon(props: SVGProps<SVGSVGElement>) {
   return (
     <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" {...props}>
-      <circle cx="9" cy="21" r="1"/><circle cx="20" cy="21" r="1"/>
+      <circle cx="9" cy="21" r="1"/>
+      <circle cx="20" cy="21" r="1"/>
       <path d="M1 1h4l2.68 13.39a2 2 0 0 0 2 1.61h9.72a2 2 0 0 0 2-1.61L23 6H6"/>
+    </svg>
+  );
+}
+
+function ShoppingCartAddIcon(props: SVGProps<SVGSVGElement>) {
+  return (
+    <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" {...props}>
+      <circle cx="9" cy="21" r="1"/>
+      <circle cx="20" cy="21" r="1"/>
+      <path d="M1 1h4l2.68 13.39a2 2 0 0 0 2 1.61h9.72a2 2 0 0 0 2-1.61L23 6H6"/>
+      <line x1="12" y1="6" x2="12" y2="10"/>
+      <line x1="10" y1="8" x2="14" y2="8"/>
     </svg>
   );
 }
@@ -304,10 +362,11 @@ function EyeIcon(props: SVGProps<SVGSVGElement>) {
   );
 }
 
-function UserIcon(props: SVGProps<SVGSVGElement>) {
+function MailIcon(props: SVGProps<SVGSVGElement>) {
   return (
     <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" {...props}>
-      <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/>
+      <path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"/>
+      <polyline points="22,6 12,13 2,6"/>
     </svg>
   );
 }
@@ -325,6 +384,27 @@ function PinIcon(props: SVGProps<SVGSVGElement>) {
     <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" {...props}>
       <path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"/>
       <circle cx="12" cy="10" r="3"/>
+    </svg>
+  );
+}
+
+function BuildingIcon(props: SVGProps<SVGSVGElement>) {
+  return (
+    <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" {...props}>
+      <rect x="4" y="2" width="16" height="20" rx="2" ry="2"/>
+      <path d="M9 22v-4h6v4"/>
+      <path d="M8 6h.01M16 6h.01M12 6h.01M12 10h.01M16 10h.01M8 10h.01M8 14h.01M12 14h.01M16 14h.01"/>
+    </svg>
+  );
+}
+
+function TruckEmptyIcon(props: SVGProps<SVGSVGElement>) {
+  return (
+    <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" {...props}>
+      <rect x="1" y="3" width="15" height="13"/>
+      <polygon points="16 8 20 8 23 11 23 16 16 16 16 8"/>
+      <circle cx="5.5" cy="18.5" r="2.5"/>
+      <circle cx="18.5" cy="18.5" r="2.5"/>
     </svg>
   );
 }

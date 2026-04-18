@@ -1,36 +1,65 @@
 "use client";
 
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useRef } from "react";
+import Link from "next/link";
 import { SVGProps } from "react";
 import { customerService, Customer } from "../../services/customerService";
+import api from "../../services/api";
+import toast from "react-hot-toast";
 
+// ─── Types ────────────────────────────────────────────────────────────────────
+interface FormState {
+  // Step 1 – Basic Info
+  shopName: string;
+  ownerName: string;
+  mobileNumber: string;
+  city: string;
+  shopType: string;
+  // Step 2 – Aadhar Docs
+  aadharCardFront: File | null;
+  aadharCardBack: File | null;
+  // Step 3 – Address
+  addressLocation: string;
+  nearbyLandmark: string;
+  isDefaultAddress: boolean;
+}
+
+const INITIAL_FORM: FormState = {
+  shopName: "",
+  ownerName: "",
+  mobileNumber: "",
+  city: "",
+  shopType: "",
+  aadharCardFront: null,
+  aadharCardBack: null,
+  addressLocation: "",
+  nearbyLandmark: "",
+  isDefaultAddress: true,
+};
+
+const SHOP_TYPES = ["Restaurant", "Retailer", "Vendor", "Grocery Store", "Hotel", "Caterer"];
+
+// ─── Main Page ────────────────────────────────────────────────────────────────
 export default function CustomersPage() {
   const [searchValue, setSearchValue] = useState("");
   const [selectedStatus, setSelectedStatus] = useState("All Status");
   const [selectedType, setSelectedType] = useState("All Type");
-
-  // State for data
   const [customers, setCustomers] = useState<Customer[]>([]);
   const [loading, setLoading] = useState(true);
 
-  // Add Customer Modal states
+  // Modal
   const [isAddModalOpen, setIsAddModalOpen] = useState(false);
-  const [formData, setFormData] = useState({
-    shopName: "",
-    ownerName: "",
-    mobileNumber: "",
-    city: "",
-    shopType: "",
-    aadharCardFront: null as File | null,
-    aadharCardBack: null as File | null,
-    
-    // Address fields
-    addressLocation: "",
-    nearbyLandmark: "",
-    isDefaultAddress: true
-  });
+  const [step, setStep] = useState(1); // 1 | 2 | 3
+  const [formData, setFormData] = useState<FormState>(INITIAL_FORM);
   const [saving, setSaving] = useState(false);
 
+  // Preview images
+  const frontInputRef = useRef<HTMLInputElement>(null);
+  const backInputRef = useRef<HTMLInputElement>(null);
+  const [frontPreview, setFrontPreview] = useState<string | null>(null);
+  const [backPreview, setBackPreview] = useState<string | null>(null);
+
+  // ── Fetch customers ──────────────────────────────────────────────────────
   const fetchCustomers = async () => {
     try {
       setLoading(true);
@@ -47,121 +76,146 @@ export default function CustomersPage() {
     fetchCustomers();
   }, []);
 
-  const handleInputChange = (field: string, value: any) => {
-    setFormData(prev => ({ ...prev, [field]: value }));
+  // ── Derived stats ────────────────────────────────────────────────────────
+  const totalCustomers = customers.length;
+  const activeCustomers = customers.filter((c) => c.customerStatus === "Active").length;
+  const totalOrders = customers.reduce((s, c) => s + c.totalOrders, 0);
+  const totalRevenue = customers.reduce((s, c) => s + c.totalSpent, 0);
+  const avgOrderValue = totalOrders > 0 ? totalRevenue / totalOrders : 0;
+
+  // ── Filter ───────────────────────────────────────────────────────────────
+  const filteredCustomers = customers.filter((c) => {
+    const matchSearch =
+      !searchValue ||
+      c.shopName.toLowerCase().includes(searchValue.toLowerCase()) ||
+      c.ownerName.toLowerCase().includes(searchValue.toLowerCase()) ||
+      c.mobileNumber.includes(searchValue);
+    const matchStatus =
+      selectedStatus === "All Status" ||
+      (selectedStatus === "Active" && c.customerStatus === "Active") ||
+      (selectedStatus === "Inactive" && c.customerStatus !== "Active");
+    const matchType =
+      selectedType === "All Type" || c.customerType === selectedType;
+    return matchSearch && matchStatus && matchType;
+  });
+
+  // ── Form helpers ─────────────────────────────────────────────────────────
+  const set = (field: keyof FormState, value: unknown) =>
+    setFormData((prev) => ({ ...prev, [field]: value }));
+
+  const handleFileChange = (side: "front" | "back", file: File | null) => {
+    if (!file) return;
+    if (side === "front") {
+      set("aadharCardFront", file);
+      setFrontPreview(URL.createObjectURL(file));
+    } else {
+      set("aadharCardBack", file);
+      setBackPreview(URL.createObjectURL(file));
+    }
   };
 
+  const resetModal = () => {
+    setFormData(INITIAL_FORM);
+    setStep(1);
+    setSaving(false);
+    setFrontPreview(null);
+    setBackPreview(null);
+  };
+
+  const openModal = () => {
+    resetModal();
+    setIsAddModalOpen(true);
+  };
+
+  const closeModal = () => {
+    setIsAddModalOpen(false);
+    resetModal();
+  };
+
+  // Step validation
+  const canProceedStep1 =
+    formData.shopName.trim() &&
+    formData.ownerName.trim() &&
+    formData.mobileNumber.trim().length >= 10;
+
+  // ── Submit (uses mobile API – multipart/form-data) ───────────────────────
   const handleAddSubmit = async () => {
-    if (!formData.shopName || !formData.mobileNumber) return alert("Shop Name and Mobile are required");
-    
     try {
       setSaving(true);
-      await customerService.create({
-        shopName: formData.shopName,
-        ownerName: formData.ownerName,
-        mobileNumber: formData.mobileNumber,
-        city: formData.city,
-        shopType: formData.shopType,
-        addressLocation: formData.addressLocation,
-        nearbyLandmark: formData.nearbyLandmark,
-        isDefaultAddress: formData.isDefaultAddress
+      const fd = new FormData();
+      fd.append("shopName", formData.shopName);
+      fd.append("ownerName", formData.ownerName);
+      fd.append("mobileNumber", formData.mobileNumber);
+      if (formData.city) fd.append("city", formData.city);
+      if (formData.shopType) fd.append("shopType", formData.shopType);
+      fd.append("status", "Active");
+      if (formData.aadharCardFront)
+        fd.append("aadharCardFront", formData.aadharCardFront);
+      if (formData.aadharCardBack)
+        fd.append("aadharCardBack", formData.aadharCardBack);
+
+      await api.post("/mobile/auth/register", fd, {
+        headers: { "Content-Type": "multipart/form-data" },
       });
-      setIsAddModalOpen(false);
-      setFormData({
-        shopName: "", ownerName: "", mobileNumber: "", city: "", shopType: "",
-        aadharCardFront: null, aadharCardBack: null, addressLocation: "", nearbyLandmark: "", isDefaultAddress: true
-      });
-      fetchCustomers(); // Refresh list
-    } catch (e) {
-      console.error(e);
-      alert("Failed to add customer");
+
+      toast.success("Customer registered successfully!");
+      closeModal();
+      fetchCustomers();
+    } catch (e: unknown) {
+      const err = e as { response?: { data?: { detail?: string } } };
+      toast.error(err?.response?.data?.detail || "Failed to add customer. Please try again.");
     } finally {
       setSaving(false);
     }
   };
 
+  // ─── Render ──────────────────────────────────────────────────────────────
   return (
     <div className="flex flex-col gap-6 max-w-[1400px]">
-      
-      {/* Top Header Row */}
+
+      {/* ── Header ── */}
       <div className="flex justify-between items-center">
-        <h1 className="text-[26px] font-bold text-[#111827]">Customers</h1>
-        <button 
-          onClick={() => setIsAddModalOpen(true)}
-          className="flex items-center gap-2 px-4 py-2 bg-[#00a859] text-white rounded-lg text-sm font-semibold hover:bg-[#00964f] transition-colors shadow-sm"
+        <div>
+          <h1 className="text-[26px] font-bold text-[#111827]">Customers</h1>
+          <p className="text-sm text-[#64748b] mt-0.5">Manage your B2B customer accounts</p>
+        </div>
+        <button
+          id="add-customer-btn"
+          onClick={openModal}
+          className="flex items-center gap-2 px-5 py-2.5 bg-[#00a859] text-white rounded-xl text-sm font-semibold hover:bg-[#009950] active:scale-95 transition-all shadow-[0_4px_14px_rgba(0,168,89,0.3)]"
         >
           <PlusIcon className="w-4 h-4" />
           Add Customer
         </button>
       </div>
 
-      {/* Stats Cards Row */}
-      <div className="grid grid-cols-1 md:grid-cols-5 gap-4">
-        {/* Total Customers */}
-        <div className="bg-white border text-left border-[#e2e8f0] rounded-xl p-5 shadow-sm">
-          <div className="flex items-center gap-2 mb-2">
-            <UsersGroupIcon className="w-5 h-5 text-[#3b82f6]" />
-            <p className="text-sm font-semibold text-[#64748b]">Total Customers</p>
-          </div>
-          <h2 className="text-2xl font-bold text-[#111827]">1</h2>
-        </div>
-
-        {/* Active Customers */}
-        <div className="bg-white border border-[#e2e8f0] rounded-xl p-5 shadow-sm">
-          <div className="flex items-center gap-2 mb-2">
-            <ActivityIcon className="w-5 h-5 text-[#00a859]" />
-            <p className="text-sm font-semibold text-[#64748b]">Active Customers</p>
-          </div>
-          <h2 className="text-2xl font-bold text-[#00a859]">1</h2>
-        </div>
-
-        {/* Total Orders */}
-        <div className="bg-white border border-[#e2e8f0] rounded-xl p-5 shadow-sm">
-          <div className="flex items-center gap-2 mb-2">
-            <CartIcon className="w-5 h-5 text-[#a855f7]" />
-            <p className="text-sm font-semibold text-[#64748b]">Total Orders</p>
-          </div>
-          <h2 className="text-2xl font-bold text-[#111827]">2</h2>
-        </div>
-
-        {/* Total Revenue */}
-        <div className="bg-white border border-[#e2e8f0] rounded-xl p-5 shadow-sm">
-          <div className="flex items-center gap-2 mb-2">
-            <TrendingUpIcon className="w-5 h-5 text-[#3b82f6]" />
-            <p className="text-sm font-semibold text-[#64748b]">Total Revenue</p>
-          </div>
-          <h2 className="text-2xl font-bold text-[#111827]">₹542</h2>
-        </div>
-
-        {/* Avg Order Value */}
-        <div className="bg-white border border-[#e2e8f0] rounded-xl p-5 shadow-sm">
-          <div className="flex items-center gap-2 mb-2">
-            <CartOutlinedIcon className="w-5 h-5 text-[#f97316]" />
-            <p className="text-sm font-semibold text-[#64748b]">Avg Order Value</p>
-          </div>
-          <h2 className="text-2xl font-bold text-[#111827]">₹271</h2>
-        </div>
+      {/* ── Stats Cards ── */}
+      <div className="grid grid-cols-2 md:grid-cols-5 gap-4">
+        <StatCard icon={<UsersGroupIcon className="w-5 h-5 text-[#3b82f6]" />} label="Total Customers" value={totalCustomers.toString()} color="#3b82f6" />
+        <StatCard icon={<ActivityIcon className="w-5 h-5 text-[#00a859]" />} label="Active Customers" value={activeCustomers.toString()} color="#00a859" />
+        <StatCard icon={<CartIcon className="w-5 h-5 text-[#a855f7]" />} label="Total Orders" value={totalOrders.toString()} color="#a855f7" />
+        <StatCard icon={<TrendingUpIcon className="w-5 h-5 text-[#3b82f6]" />} label="Total Revenue" value={`₹${totalRevenue.toLocaleString()}`} color="#3b82f6" />
+        <StatCard icon={<CartOutlinedIcon className="w-5 h-5 text-[#f97316]" />} label="Avg Order Value" value={`₹${Math.round(avgOrderValue).toLocaleString()}`} color="#f97316" />
       </div>
 
-      {/* Filter Row */}
+      {/* ── Filter Row ── */}
       <div className="bg-white border border-[#e2e8f0] rounded-xl p-4 shadow-sm flex flex-wrap gap-4 items-center justify-between">
         <div className="relative flex-1 max-w-md">
           <SearchIcon className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-[#94a3b8]" />
-          <input 
-            type="text" 
-            placeholder="Search Rule" 
+          <input
+            type="text"
+            placeholder="Search by shop, owner or mobile…"
             value={searchValue}
             onChange={(e) => setSearchValue(e.target.value)}
             className="w-full pl-9 pr-4 py-2 bg-[#f8fafc] border border-transparent rounded-lg text-sm outline-none focus:border-[#e2e8f0] transition-colors"
           />
         </div>
-        
-        <div className="flex gap-4">
+        <div className="flex gap-3">
           <div className="relative">
-            <select 
-              value={selectedStatus} 
-              onChange={e => setSelectedStatus(e.target.value)}
-              className="appearance-none pl-4 pr-10 py-2 border border-[#e2e8f0] bg-white rounded-lg text-[#1e293b] text-sm font-medium outline-none cursor-pointer w-[140px]"
+            <select
+              value={selectedStatus}
+              onChange={(e) => setSelectedStatus(e.target.value)}
+              className="appearance-none pl-4 pr-9 py-2 border border-[#e2e8f0] bg-white rounded-lg text-[#1e293b] text-sm font-medium outline-none cursor-pointer"
             >
               <option value="All Status">All Status</option>
               <option value="Active">Active</option>
@@ -169,91 +223,95 @@ export default function CustomersPage() {
             </select>
             <ChevronDownIcon className="w-4 h-4 text-[#64748b] absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none" />
           </div>
-
           <div className="relative">
-            <select 
-              value={selectedType} 
-              onChange={e => setSelectedType(e.target.value)}
-              className="appearance-none pl-4 pr-10 py-2 border border-[#e2e8f0] bg-white rounded-lg text-[#1e293b] text-sm font-medium outline-none cursor-pointer w-[140px]"
+            <select
+              value={selectedType}
+              onChange={(e) => setSelectedType(e.target.value)}
+              className="appearance-none pl-4 pr-9 py-2 border border-[#e2e8f0] bg-white rounded-lg text-[#1e293b] text-sm font-medium outline-none cursor-pointer"
             >
               <option value="All Type">All Type</option>
               <option value="New">New</option>
               <option value="Regular">Regular</option>
+              <option value="VIP">VIP</option>
             </select>
             <ChevronDownIcon className="w-4 h-4 text-[#64748b] absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none" />
           </div>
         </div>
       </div>
 
-      {/* Main Table */}
-      <div className="bg-white border border-[#e2e8f0] rounded-xl shadow-sm overflow-hidden flex flex-col">
+      {/* ── Table ── */}
+      <div className="bg-white border border-[#e2e8f0] rounded-xl shadow-sm overflow-hidden">
         <div className="overflow-x-auto">
           <table className="w-full text-left text-sm whitespace-nowrap">
-            <thead className="bg-white text-[#94a3b8] font-bold border-b border-[#e2e8f0]">
+            <thead className="bg-[#f8fafc] text-[#94a3b8] font-bold border-b border-[#e2e8f0]">
               <tr>
                 <th className="px-5 py-4 uppercase text-[11px] tracking-wider">Customer</th>
                 <th className="px-5 py-4 uppercase text-[11px] tracking-wider">Contact</th>
                 <th className="px-5 py-4 uppercase text-[11px] tracking-wider">Onboard</th>
-                <th className="px-5 py-4 uppercase text-[11px] tracking-wider text-center">Total Order</th>
-                <th className="px-5 py-4 uppercase text-[11px] tracking-wider text-center">Total Spent</th>
+                <th className="px-5 py-4 uppercase text-[11px] tracking-wider text-center">Orders</th>
+                <th className="px-5 py-4 uppercase text-[11px] tracking-wider text-center">Revenue</th>
                 <th className="px-5 py-4 uppercase text-[11px] tracking-wider text-center">Last Order</th>
                 <th className="px-5 py-4 uppercase text-[11px] tracking-wider text-center">Type</th>
                 <th className="px-5 py-4 uppercase text-[11px] tracking-wider text-center">Status</th>
-                <th className="px-5 py-4 uppercase text-[11px] tracking-wider text-center">Actions</th>
+                <th className="px-5 py-4 uppercase text-[11px] tracking-wider text-center">Action</th>
               </tr>
             </thead>
-            <tbody className="divide-y divide-[#e2e8f0]">
-              {customers.map((customer) => (
+            <tbody className="divide-y divide-[#f1f5f9]">
+              {filteredCustomers.map((customer) => (
                 <tr key={customer.id} className="hover:bg-[#f8fafc] transition-colors">
                   <td className="px-5 py-4">
-                    <div className="flex items-center gap-4">
-                      <div className="w-10 h-10 rounded-full bg-[#3b82f6] text-white flex items-center justify-center font-bold text-lg shrink-0">
-                        {customer.shopName?.charAt(0) || "U"}
+                    <div className="flex items-center gap-3">
+                      <div
+                        className="w-10 h-10 rounded-full flex items-center justify-center font-bold text-base text-white shrink-0"
+                        style={{ background: stringToColor(customer.shopName) }}
+                      >
+                        {customer.shopName?.charAt(0)?.toUpperCase() || "?"}
                       </div>
-                      <div className="flex flex-col">
-                        <span className="font-bold text-[#111827] text-sm">{customer.shopName}</span>
-                        <span className="text-[#94a3b8] text-xs">{customer.ownerName}</span>
+                      <div>
+                        <p className="font-semibold text-[#111827]">{customer.shopName}</p>
+                        <p className="text-xs text-[#94a3b8]">{customer.ownerName}</p>
                       </div>
                     </div>
                   </td>
                   <td className="px-5 py-4">
-                    <div className="flex flex-col">
-                      <span className="text-[#64748b] text-xs flex items-center gap-1.5 font-medium"><PhoneIcon className="w-3 h-3"/> {customer.mobileNumber}</span>
-                      <span className="text-[#94a3b8] text-[11px] mt-0.5">{customer.shopType || "N/A"}</span>
-                    </div>
+                    <p className="text-[#64748b] text-sm flex items-center gap-1.5">
+                      <PhoneIcon className="w-3.5 h-3.5" /> {customer.mobileNumber}
+                    </p>
+                    <p className="text-xs text-[#94a3b8] mt-0.5">{customer.shopType || "—"}</p>
                   </td>
-                  <td className="px-5 py-4 text-[#64748b] font-medium">
-                    {customer.createdDate ? new Date(customer.createdDate).toLocaleDateString() : 'N/A'}
+                  <td className="px-5 py-4 text-[#64748b]">
+                    {customer.createdDate ? new Date(customer.createdDate).toLocaleDateString("en-IN") : "N/A"}
                   </td>
                   <td className="px-5 py-4 text-center font-bold text-[#111827]">{customer.totalOrders}</td>
-                  <td className="px-5 py-4 text-center font-bold text-[#111827]">₹{customer.totalSpent.toLocaleString()}</td>
-                  <td className="px-5 py-4 text-[#64748b] font-medium text-center">
-                    {customer.lastOrderDate ? new Date(customer.lastOrderDate).toLocaleDateString() : 'N/A'}
+                  <td className="px-5 py-4 text-center font-semibold text-[#111827]">₹{customer.totalSpent.toLocaleString()}</td>
+                  <td className="px-5 py-4 text-center text-[#64748b]">
+                    {customer.lastOrderDate ? new Date(customer.lastOrderDate).toLocaleDateString("en-IN") : "—"}
                   </td>
                   <td className="px-5 py-4 text-center">
-                    <span className="inline-flex items-center px-2.5 py-1 rounded-md bg-[#f1f5f9] text-[#64748b] text-xs font-bold w-fit mx-auto">
+                    <span className="inline-flex items-center px-2.5 py-1 rounded-md bg-[#f1f5f9] text-[#64748b] text-xs font-bold">
                       {customer.customerType}
                     </span>
                   </td>
                   <td className="px-5 py-4 text-center">
-                    <span className={`inline-flex items-center px-2.5 py-1 rounded-md text-xs font-bold w-fit mx-auto ${customer.customerStatus === 'Active' ? 'bg-[#dcfce7] text-[#16a34a]' : customer.customerStatus === 'At Risk' ? 'bg-[#fef3c7] text-[#d97706]' : 'bg-[#fee2e2] text-[#dc2626]'}`}>
+                    <span className={`inline-flex items-center px-2.5 py-1 rounded-md text-xs font-bold ${customer.customerStatus === "Active" ? "bg-[#dcfce7] text-[#16a34a]" : customer.customerStatus === "At Risk" ? "bg-[#fef3c7] text-[#d97706]" : "bg-[#fee2e2] text-[#dc2626]"}`}>
                       {customer.customerStatus}
                     </span>
                   </td>
                   <td className="px-5 py-4 text-center">
-                    <div className="flex items-center justify-center">
-                       <button className="text-[#111827] hover:text-[#3b82f6] transition-colors" title="View Details">
-                         <EyeIcon className="w-4 h-4" />
-                       </button>
-                    </div>
+                    <Link href={`/customers/${customer.id}`} className="inline-flex items-center justify-center text-[#94a3b8] hover:text-[#3b82f6] transition-colors" title="View">
+                      <EyeIcon className="w-4 h-4" />
+                    </Link>
                   </td>
                 </tr>
               ))}
-              {customers.length === 0 && (
+              {filteredCustomers.length === 0 && (
                 <tr>
-                   <td colSpan={9} className="px-5 py-8 text-center text-[#94a3b8]">
-                      {loading ? 'Loading customers...' : 'No customers found.'}
-                   </td>
+                  <td colSpan={9} className="px-5 py-12 text-center">
+                    <div className="flex flex-col items-center gap-2 text-[#94a3b8]">
+                      <UsersGroupIcon className="w-10 h-10 opacity-30" />
+                      <p className="font-medium">{loading ? "Loading customers…" : "No customers found."}</p>
+                    </div>
+                  </td>
                 </tr>
               )}
             </tbody>
@@ -261,283 +319,429 @@ export default function CustomersPage() {
         </div>
       </div>
 
-      {/* Add Customer Desktop Modal */}
+      {/* ════════════════════════════════════════════════════════════════════
+          ADD CUSTOMER MODAL – Multi-Step (mirrors mobile registration flow)
+      ═══════════════════════════════════════════════════════════════════════ */}
       {isAddModalOpen && (
-        <div className="fixed inset-0 z-50 bg-black/40 backdrop-blur-sm flex justify-center items-center overflow-y-auto p-4 sm:p-6">
-          <div className="w-full max-w-[800px] bg-white rounded-2xl shadow-2xl relative flex flex-col pt-2 overflow-hidden my-auto max-h-[95vh]">
-            
-            {/* Header */}
-            <div className="flex justify-between items-center px-8 py-5 border-b border-[#f1f5f9]">
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4" style={{ background: "rgba(0,0,0,0.5)", backdropFilter: "blur(4px)" }}>
+          <div className="relative w-full max-w-lg bg-white rounded-3xl shadow-2xl overflow-hidden flex flex-col" style={{ maxHeight: "95vh" }}>
+
+            {/* ── Gradient top strip ── */}
+            <div className="h-1.5 w-full bg-gradient-to-r from-[#00a859] via-[#34d399] to-[#00a859]" />
+
+            {/* ── Header ── */}
+            <div className="flex items-center justify-between px-7 pt-6 pb-4">
               <div>
-                <h2 className="text-2xl font-bold text-[#111827]">Add Customer</h2>
-                <p className="text-[#64748b] text-sm mt-1">Register a new B2B account</p>
+                <h2 className="text-xl font-bold text-[#111827]">Add New Customer</h2>
+                <p className="text-sm text-[#64748b] mt-0.5">B2B account registration</p>
               </div>
-              <button 
-                onClick={() => setIsAddModalOpen(false)}
-                className="w-8 h-8 rounded-full bg-[#f1f5f9] flex items-center justify-center text-[#64748b] hover:bg-[#e2e8f0] hover:text-[#111827] transition-all"
+              <button
+                onClick={closeModal}
+                className="w-8 h-8 rounded-full bg-[#f1f5f9] flex items-center justify-center text-[#64748b] hover:bg-[#e2e8f0] transition-all"
               >
-                ✕
+                <XIcon className="w-4 h-4" />
               </button>
             </div>
 
-            {/* Scrollable Form Content */}
-            <div className="p-8 flex-1 overflow-y-auto w-full">
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-8 w-full">
-                {/* Left Column: Customer Details */}
-                <div className="flex flex-col gap-5 border-r border-transparent md:border-[#f1f5f9] pr-0 md:pr-4">
-                  <h3 className="font-bold text-[#111827] text-base border-b pb-2 mb-2">Customer Profile</h3>
-                  
-                  <div>
-                    <label className="block text-sm font-bold text-[#111827] mb-1.5">Shop Name<span className="text-[#f97316]">*</span></label>
-                    <input 
-                      type="text" placeholder="e.g. Standard Cart"
-                      value={formData.shopName}
-                      onChange={e => handleInputChange('shopName', e.target.value)}
-                      className="w-full bg-[#f8fafc] text-[#111827] text-sm px-4 py-3 xl:py-2.5 rounded-xl border border-transparent focus:bg-white focus:border-[#00a859] outline-none transition-all"
-                    />
-                  </div>
-                  <div>
-                    <label className="block text-sm font-bold text-[#111827] mb-1.5">Owner Name<span className="text-[#f97316]">*</span></label>
-                    <input 
-                      type="text" placeholder="e.g. John Doe"
-                      value={formData.ownerName}
-                      onChange={e => handleInputChange('ownerName', e.target.value)}
-                      className="w-full bg-[#f8fafc] text-[#111827] text-sm px-4 py-3 xl:py-2.5 rounded-xl border border-transparent focus:bg-white focus:border-[#00a859] outline-none transition-all"
-                    />
-                  </div>
-                  <div>
-                    <label className="block text-sm font-bold text-[#111827] mb-1.5">Mobile Number<span className="text-[#f97316]">*</span></label>
-                    <input 
-                      type="text" placeholder="10-digit number"
-                      value={formData.mobileNumber}
-                      onChange={e => handleInputChange('mobileNumber', e.target.value)}
-                      className="w-full bg-[#f8fafc] text-[#111827] text-sm px-4 py-3 xl:py-2.5 rounded-xl border border-transparent focus:bg-white focus:border-[#00a859] outline-none transition-all"
-                    />
-                  </div>
-                  
-                  <div className="grid grid-cols-2 gap-4">
-                     <div>
-                        <label className="block text-sm font-bold text-[#111827] mb-1.5">City</label>
-                        <input 
-                          type="text" placeholder="e.g. Gurugram"
-                          value={formData.city}
-                          onChange={e => handleInputChange('city', e.target.value)}
-                          className="w-full bg-[#f8fafc] text-[#111827] text-sm px-4 py-3 xl:py-2.5 rounded-xl border border-transparent focus:bg-white focus:border-[#00a859] outline-none transition-all"
-                        />
-                     </div>
-                     <div>
-                        <label className="block text-sm font-bold text-[#111827] mb-1.5">Type</label>
-                        <select
-                           value={formData.shopType}
-                           onChange={e => handleInputChange('shopType', e.target.value)}
-                           className="w-full bg-[#f8fafc] text-[#111827] text-sm px-4 py-3 xl:py-2.5 rounded-xl border border-transparent focus:bg-white focus:border-[#00a859] outline-none cursor-pointer"
-                        >
-                           <option value="">Select type...</option>
-                           <option value="Restaurant">Restaurant</option>
-                           <option value="Retailer">Retailer</option>
-                           <option value="Vendor">Vendor</option>
-                           <option value="Grocery Store">Grocery Store</option>
-                        </select>
-                     </div>
-                  </div>
-                </div>
+            {/* ── Step Indicator ── */}
+            <div className="px-7 pb-5">
+              <div className="flex items-center gap-0">
+                {[
+                  { n: 1, label: "Basic Info" },
+                  { n: 2, label: "Documents" },
+                  { n: 3, label: "Address" },
+                ].map(({ n, label }, idx) => (
+                  <React.Fragment key={n}>
+                    <div className="flex flex-col items-center gap-1">
+                      <div
+                        className={`w-8 h-8 rounded-full flex items-center justify-center text-sm font-bold transition-all ${
+                          step > n
+                            ? "bg-[#00a859] text-white"
+                            : step === n
+                            ? "bg-[#00a859] text-white ring-4 ring-[#00a859]/20"
+                            : "bg-[#f1f5f9] text-[#94a3b8]"
+                        }`}
+                      >
+                        {step > n ? <CheckIcon className="w-4 h-4" /> : n}
+                      </div>
+                      <span className={`text-[10px] font-semibold ${step >= n ? "text-[#00a859]" : "text-[#94a3b8]"}`}>
+                        {label}
+                      </span>
+                    </div>
+                    {idx < 2 && (
+                      <div className={`flex-1 h-0.5 mb-4 mx-1 transition-all ${step > n ? "bg-[#00a859]" : "bg-[#e2e8f0]"}`} />
+                    )}
+                  </React.Fragment>
+                ))}
+              </div>
+            </div>
 
-                {/* Right Column: Address Details */}
-                <div className="flex flex-col gap-5 pl-0 md:pl-4 mt-6 md:mt-0">
-                  <h3 className="font-bold text-[#111827] text-base border-b pb-2 mb-2">Delivery Address</h3>
-                  
-                  <div>
-                    <label className="block text-sm font-bold text-[#111827] mb-1.5">Map Location</label>
+            {/* ── Form body (scrollable) ── */}
+            <div className="flex-1 overflow-y-auto px-7" style={{ minHeight: 0 }}>
+
+              {/* STEP 1 – Basic Info */}
+              {step === 1 && (
+                <div className="flex flex-col gap-5 pb-6">
+                  <FormField label="Shop Name" required>
+                    <input
+                      id="shopName"
+                      type="text"
+                      placeholder="e.g. Standard Mart"
+                      value={formData.shopName}
+                      onChange={(e) => set("shopName", e.target.value)}
+                      className="form-input"
+                    />
+                  </FormField>
+
+                  <FormField label="Owner / Contact Person" required>
+                    <input
+                      id="ownerName"
+                      type="text"
+                      placeholder="e.g. Rahul Sharma"
+                      value={formData.ownerName}
+                      onChange={(e) => set("ownerName", e.target.value)}
+                      className="form-input"
+                    />
+                  </FormField>
+
+                  <FormField label="Mobile Number" required>
                     <div className="relative">
-                      <SearchIcon className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-[#94a3b8]" />
-                      <input 
-                        type="text" 
-                        placeholder="Search area (e.g. Sec 17C Gurugram)"
-                        value={formData.addressLocation}
-                        onChange={(e) => handleInputChange('addressLocation', e.target.value)}
-                        className="w-full bg-[#f8fafc] text-[#111827] text-sm pl-9 pr-4 py-3 xl:py-2.5 rounded-xl border border-transparent focus:bg-white focus:border-[#00a859] outline-none transition-all"
+                      <span className="absolute left-3.5 top-1/2 -translate-y-1/2 text-[#64748b] text-sm font-semibold select-none">+91</span>
+                      <input
+                        id="mobileNumber"
+                        type="tel"
+                        maxLength={10}
+                        placeholder="10-digit number"
+                        value={formData.mobileNumber}
+                        onChange={(e) => set("mobileNumber", e.target.value.replace(/\D/g, ""))}
+                        className="form-input pl-12"
                       />
                     </div>
-                  </div>
+                  </FormField>
 
+                  <div className="grid grid-cols-2 gap-4">
+                    <FormField label="City">
+                      <input
+                        id="city"
+                        type="text"
+                        placeholder="e.g. Gurugram"
+                        value={formData.city}
+                        onChange={(e) => set("city", e.target.value)}
+                        className="form-input"
+                      />
+                    </FormField>
+                    <FormField label="Business Type">
+                      <select
+                        id="shopType"
+                        value={formData.shopType}
+                        onChange={(e) => set("shopType", e.target.value)}
+                        className="form-input"
+                      >
+                        <option value="">Select…</option>
+                        {SHOP_TYPES.map((t) => (
+                          <option key={t} value={t}>{t}</option>
+                        ))}
+                      </select>
+                    </FormField>
+                  </div>
+                </div>
+              )}
+
+              {/* STEP 2 – Aadhar Documents */}
+              {step === 2 && (
+                <div className="flex flex-col gap-6 pb-6">
+                  <p className="text-sm text-[#64748b]">Upload Aadhar card for KYC verification. This step is optional.</p>
+
+                  {/* Front */}
                   <div>
-                    <label className="block text-sm font-bold text-[#111827] mb-1.5">Nearby Landmark</label>
-                    <input 
-                      type="text" placeholder="e.g. Opposite Metro Station"
-                      value={formData.nearbyLandmark}
-                      onChange={e => handleInputChange('nearbyLandmark', e.target.value)}
-                      className="w-full bg-[#f8fafc] text-[#111827] text-sm px-4 py-3 xl:py-2.5 rounded-xl border border-transparent focus:bg-white focus:border-[#00a859] outline-none transition-all"
+                    <label className="block text-sm font-semibold text-[#111827] mb-2">Aadhar Front</label>
+                    <input
+                      ref={frontInputRef}
+                      type="file"
+                      accept="image/*"
+                      className="hidden"
+                      onChange={(e) => handleFileChange("front", e.target.files?.[0] || null)}
                     />
+                    {frontPreview ? (
+                      <div className="relative rounded-2xl overflow-hidden border border-[#e2e8f0] group">
+                        {/* eslint-disable-next-line @next/next/no-img-element */}
+                        <img src={frontPreview} alt="Aadhar front" className="w-full h-40 object-cover" />
+                        <button
+                          onClick={() => { setFrontPreview(null); set("aadharCardFront", null); }}
+                          className="absolute top-2 right-2 w-7 h-7 bg-white/90 rounded-full flex items-center justify-center text-[#dc2626] shadow hover:bg-white"
+                        >
+                          <XIcon className="w-3.5 h-3.5" />
+                        </button>
+                        <div className="absolute bottom-0 inset-x-0 bg-gradient-to-t from-black/50 to-transparent p-3">
+                          <p className="text-white text-xs font-semibold">Front side uploaded</p>
+                        </div>
+                      </div>
+                    ) : (
+                      <button
+                        onClick={() => frontInputRef.current?.click()}
+                        className="w-full border-2 border-dashed border-[#cbd5e1] rounded-2xl py-8 flex flex-col items-center gap-2 text-[#94a3b8] hover:border-[#00a859] hover:text-[#00a859] hover:bg-[#f0fdf4] transition-all group"
+                      >
+                        <UploadIcon className="w-8 h-8" />
+                        <p className="text-sm font-semibold">Click to upload front side</p>
+                        <p className="text-xs">JPG, PNG or WEBP · Max 10 MB</p>
+                      </button>
+                    )}
                   </div>
 
-                  <div className="flex items-center gap-3 mt-2 bg-[#f8fafc] p-4 rounded-xl border border-[#f1f5f9]">
-                    <div className="flex-1">
-                      <p className="text-sm font-bold text-[#111827]">Set as Default</p>
-                      <p className="text-xs text-[#64748b] mt-0.5">Use this as primary address</p>
+                  {/* Back */}
+                  <div>
+                    <label className="block text-sm font-semibold text-[#111827] mb-2">Aadhar Back</label>
+                    <input
+                      ref={backInputRef}
+                      type="file"
+                      accept="image/*"
+                      className="hidden"
+                      onChange={(e) => handleFileChange("back", e.target.files?.[0] || null)}
+                    />
+                    {backPreview ? (
+                      <div className="relative rounded-2xl overflow-hidden border border-[#e2e8f0]">
+                        {/* eslint-disable-next-line @next/next/no-img-element */}
+                        <img src={backPreview} alt="Aadhar back" className="w-full h-40 object-cover" />
+                        <button
+                          onClick={() => { setBackPreview(null); set("aadharCardBack", null); }}
+                          className="absolute top-2 right-2 w-7 h-7 bg-white/90 rounded-full flex items-center justify-center text-[#dc2626] shadow hover:bg-white"
+                        >
+                          <XIcon className="w-3.5 h-3.5" />
+                        </button>
+                        <div className="absolute bottom-0 inset-x-0 bg-gradient-to-t from-black/50 to-transparent p-3">
+                          <p className="text-white text-xs font-semibold">Back side uploaded</p>
+                        </div>
+                      </div>
+                    ) : (
+                      <button
+                        onClick={() => backInputRef.current?.click()}
+                        className="w-full border-2 border-dashed border-[#cbd5e1] rounded-2xl py-8 flex flex-col items-center gap-2 text-[#94a3b8] hover:border-[#00a859] hover:text-[#00a859] hover:bg-[#f0fdf4] transition-all"
+                      >
+                        <UploadIcon className="w-8 h-8" />
+                        <p className="text-sm font-semibold">Click to upload back side</p>
+                        <p className="text-xs">JPG, PNG or WEBP · Max 10 MB</p>
+                      </button>
+                    )}
+                  </div>
+                </div>
+              )}
+
+              {/* STEP 3 – Address */}
+              {step === 3 && (
+                <div className="flex flex-col gap-5 pb-6">
+                  <FormField label="Address / Location">
+                    <div className="relative">
+                      <MapPinIcon className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-[#94a3b8]" />
+                      <input
+                        id="addressLocation"
+                        type="text"
+                        placeholder="e.g. Sector 17C, Gurugram"
+                        value={formData.addressLocation}
+                        onChange={(e) => set("addressLocation", e.target.value)}
+                        className="form-input pl-10"
+                      />
+                    </div>
+                  </FormField>
+
+                  <FormField label="Nearby Landmark">
+                    <input
+                      id="nearbyLandmark"
+                      type="text"
+                      placeholder="e.g. Opposite Metro Station"
+                      value={formData.nearbyLandmark}
+                      onChange={(e) => set("nearbyLandmark", e.target.value)}
+                      className="form-input"
+                    />
+                  </FormField>
+
+                  <div className="flex items-center justify-between bg-[#f8fafc] border border-[#e2e8f0] rounded-2xl p-4">
+                    <div>
+                      <p className="text-sm font-semibold text-[#111827]">Set as Default Address</p>
+                      <p className="text-xs text-[#64748b] mt-0.5">Use this as the primary delivery address</p>
                     </div>
                     <label className="relative inline-flex items-center cursor-pointer">
-                      <input type="checkbox" className="sr-only peer" checked={formData.isDefaultAddress} onChange={() => handleInputChange('isDefaultAddress', !formData.isDefaultAddress)} />
-                      <div className="w-11 h-6 bg-[#e2e8f0] peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-[#00a859]"></div>
+                      <input
+                        type="checkbox"
+                        className="sr-only peer"
+                        checked={formData.isDefaultAddress}
+                        onChange={() => set("isDefaultAddress", !formData.isDefaultAddress)}
+                      />
+                      <div className="w-11 h-6 bg-[#e2e8f0] rounded-full peer peer-checked:bg-[#00a859] after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border after:border-gray-300 after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:after:translate-x-full peer-checked:after:border-white" />
                     </label>
                   </div>
-                  
-                  {/* Documents Zone (Desktop View) */}
-                  <div className="mt-auto">
-                    <label className="block text-sm font-bold text-[#111827] mb-2">Verification Docs</label>
-                    <div className="flex gap-3">
-                      <button className="flex-1 flex flex-col items-center justify-center gap-1.5 border border-dashed border-[#cbd5e1] py-4 rounded-xl text-xs font-semibold text-[#64748b] hover:bg-[#f8fafc] hover:border-[#00a859] transition-colors group">
-                        <UploadIcon className="w-5 h-5 text-[#94a3b8] group-hover:text-[#00a859]" />
-                        Front Image
-                      </button>
-                      <button className="flex-1 flex flex-col items-center justify-center gap-1.5 border border-dashed border-[#cbd5e1] py-4 rounded-xl text-xs font-semibold text-[#64748b] hover:bg-[#f8fafc] hover:border-[#00a859] transition-colors group">
-                        <UploadIcon className="w-5 h-5 text-[#94a3b8] group-hover:text-[#00a859]" />
-                        Back Image
-                      </button>
+
+                  {/* Review summary */}
+                  <div className="bg-gradient-to-br from-[#f0fdf4] to-[#dcfce7] rounded-2xl p-4 border border-[#bbf7d0]">
+                    <p className="text-xs font-bold text-[#16a34a] uppercase tracking-wider mb-3">Registration Summary</p>
+                    <div className="grid grid-cols-2 gap-y-2 gap-x-4">
+                      <SummaryRow label="Shop" value={formData.shopName} />
+                      <SummaryRow label="Owner" value={formData.ownerName} />
+                      <SummaryRow label="Mobile" value={`+91 ${formData.mobileNumber}`} />
+                      <SummaryRow label="City" value={formData.city || "—"} />
+                      <SummaryRow label="Type" value={formData.shopType || "—"} />
+                      <SummaryRow label="Aadhar" value={formData.aadharCardFront ? "Uploaded ✓" : "Skipped"} />
                     </div>
                   </div>
 
+
                 </div>
-              </div>
+              )}
             </div>
 
-            {/* Bottom Action Footer */}
-            <div className="px-8 py-5 bg-[#f8fafc] border-t border-[#f1f5f9] flex justify-end gap-3 mt-auto rounded-b-2xl">
-              <button 
-                onClick={() => setIsAddModalOpen(false)}
-                className="px-6 py-2.5 bg-white border border-[#e2e8f0] text-[#64748b] rounded-xl text-sm font-bold hover:bg-[#f1f5f9] transition-colors"
-                disabled={saving}
-              >
-                Cancel
-              </button>
-              <button 
-                onClick={handleAddSubmit}
-                disabled={saving}
-                className="px-8 py-2.5 bg-[#00a859] text-white rounded-xl text-sm font-bold hover:bg-[#00964f] transition-colors shadow-[0_4px_14px_rgba(0,168,89,0.3)] disabled:opacity-70 flex items-center gap-2"
-              >
-                {saving ? (
-                   <span className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin"></span>
-                ) : (
-                   <PlusIcon className="w-4 h-4" />
-                )}
-                {saving ? 'Creating...' : 'Create Customer'}
-              </button>
+            {/* ── Footer ── */}
+            <div className="px-7 py-5 bg-[#f8fafc] border-t border-[#e2e8f0] flex items-center gap-3">
+              {step > 1 && (
+                <button
+                  onClick={() => setStep((s) => s - 1)}
+                  disabled={saving}
+                  className="flex items-center gap-2 px-5 py-2.5 bg-white border border-[#e2e8f0] text-[#64748b] rounded-xl text-sm font-semibold hover:bg-[#f1f5f9] transition-colors"
+                >
+                  <ArrowLeftIcon className="w-4 h-4" /> Back
+                </button>
+              )}
+              <div className="flex-1" />
+              {step < 3 ? (
+                <button
+                  onClick={() => setStep((s) => s + 1)}
+                  disabled={step === 1 && !canProceedStep1}
+                  className="flex items-center gap-2 px-6 py-2.5 bg-[#00a859] text-white rounded-xl text-sm font-semibold hover:bg-[#009950] disabled:opacity-50 disabled:cursor-not-allowed transition-all shadow-[0_4px_14px_rgba(0,168,89,0.3)] active:scale-95"
+                >
+                  Continue <ArrowRightIcon className="w-4 h-4" />
+                </button>
+              ) : (
+                <button
+                  onClick={handleAddSubmit}
+                  disabled={saving || !!successMsg}
+                  className="flex items-center gap-2 px-7 py-2.5 bg-[#00a859] text-white rounded-xl text-sm font-semibold hover:bg-[#009950] disabled:opacity-70 transition-all shadow-[0_4px_14px_rgba(0,168,89,0.3)] active:scale-95"
+                >
+                  {saving ? (
+                    <>
+                      <span className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                      Registering…
+                    </>
+                  ) : (
+                    <>
+                      <CheckIcon className="w-4 h-4" /> Register Customer
+                    </>
+                  )}
+                </button>
+              )}
             </div>
-            
           </div>
         </div>
       )}
 
+      {/* ── Inline styles for form inputs ── */}
+      <style jsx global>{`
+        .form-input {
+          width: 100%;
+          background: #f8fafc;
+          color: #111827;
+          font-size: 0.875rem;
+          padding: 0.75rem 1rem;
+          border-radius: 0.875rem;
+          border: 1.5px solid transparent;
+          outline: none;
+          transition: all 0.15s;
+        }
+        .form-input:focus {
+          background: white;
+          border-color: #00a859;
+          box-shadow: 0 0 0 3px rgba(0, 168, 89, 0.12);
+        }
+        .form-input::placeholder { color: #94a3b8; }
+      `}</style>
     </div>
   );
 }
 
-// Icons
-function PlusIcon(props: SVGProps<SVGSVGElement>) {
+// ─── Sub-components ───────────────────────────────────────────────────────────
+function StatCard({ icon, label, value, color }: { icon: React.ReactNode; label: string; value: string; color: string }) {
   return (
-    <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" {...props}>
-      <line x1="12" y1="5" x2="12" y2="19"/>
-      <line x1="5" y1="12" x2="19" y2="12"/>
-    </svg>
+    <div className="bg-white border border-[#e2e8f0] rounded-xl p-5 shadow-sm">
+      <div className="flex items-center gap-2 mb-2">{icon}<p className="text-sm font-semibold text-[#64748b]">{label}</p></div>
+      <h2 className="text-2xl font-bold" style={{ color }}>{value}</h2>
+    </div>
   );
 }
 
-function SearchIcon(props: SVGProps<SVGSVGElement>) {
+function FormField({ label, required, children }: { label: string; required?: boolean; children: React.ReactNode }) {
   return (
-    <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" {...props}>
-      <circle cx="11" cy="11" r="8"/>
-      <line x1="21" y1="21" x2="16.65" y2="16.65"/>
-    </svg>
+    <div>
+      <label className="block text-sm font-semibold text-[#111827] mb-1.5">
+        {label}{required && <span className="text-[#f97316] ml-0.5">*</span>}
+      </label>
+      {children}
+    </div>
   );
 }
 
-function ChevronDownIcon(props: SVGProps<SVGSVGElement>) {
+function SummaryRow({ label, value }: { label: string; value: string }) {
   return (
-    <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" {...props}>
-      <polyline points="6 9 12 15 18 9"/>
-    </svg>
+    <div>
+      <p className="text-[10px] uppercase font-bold text-[#16a34a]/70 tracking-wider">{label}</p>
+      <p className="text-sm font-semibold text-[#15803d] truncate">{value}</p>
+    </div>
   );
 }
 
-function PhoneIcon(props: SVGProps<SVGSVGElement>) {
-  return (
-    <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" {...props}>
-      <path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72 12.84 12.84 0 0 0 .7 2.81 2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45 12.84 12.84 0 0 0 2.81.7A2 2 0 0 1 22 16.92z"/>
-    </svg>
-  );
+// ─── Utility ──────────────────────────────────────────────────────────────────
+function stringToColor(str: string): string {
+  const colors = ["#3b82f6", "#8b5cf6", "#f97316", "#ec4899", "#14b8a6", "#f59e0b", "#6366f1"];
+  let hash = 0;
+  for (let i = 0; i < str.length; i++) hash = str.charCodeAt(i) + ((hash << 5) - hash);
+  return colors[Math.abs(hash) % colors.length];
 }
 
-function EyeIcon(props: SVGProps<SVGSVGElement>) {
-  return (
-    <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" {...props}>
-      <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/>
-      <circle cx="12" cy="12" r="3"/>
-    </svg>
-  );
+// ─── Icons ────────────────────────────────────────────────────────────────────
+function PlusIcon(p: SVGProps<SVGSVGElement>) {
+  return <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2.5} strokeLinecap="round" strokeLinejoin="round" {...p}><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>;
 }
-
-function UsersGroupIcon(props: SVGProps<SVGSVGElement>) {
-  return (
-    <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" {...props}>
-      <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"></path>
-      <circle cx="9" cy="7" r="4"></circle>
-      <path d="M23 21v-2a4 4 0 0 0-3-3.87"></path>
-      <path d="M16 3.13a4 4 0 0 1 0 7.75"></path>
-    </svg>
-  );
+function SearchIcon(p: SVGProps<SVGSVGElement>) {
+  return <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round" {...p}><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>;
 }
-
-function ActivityIcon(props: SVGProps<SVGSVGElement>) {
-  return (
-    <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" {...props}>
-      <polyline points="22 12 18 12 15 21 9 3 6 12 2 12"></polyline>
-    </svg>
-  );
+function ChevronDownIcon(p: SVGProps<SVGSVGElement>) {
+  return <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round" {...p}><polyline points="6 9 12 15 18 9"/></svg>;
 }
-
-function CartIcon(props: SVGProps<SVGSVGElement>) {
-  return (
-    <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" {...props}>
-      <circle cx="9" cy="21" r="1"></circle>
-      <circle cx="20" cy="21" r="1"></circle>
-      <path d="M1 1h4l2.68 13.39a2 2 0 0 0 2 1.61h9.72a2 2 0 0 0 2-1.61L23 6H6"></path>
-    </svg>
-  );
+function PhoneIcon(p: SVGProps<SVGSVGElement>) {
+  return <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round" {...p}><path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72 12.84 12.84 0 0 0 .7 2.81 2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45 12.84 12.84 0 0 0 2.81.7A2 2 0 0 1 22 16.92z"/></svg>;
 }
-
-function TrendingUpIcon(props: SVGProps<SVGSVGElement>) {
-  return (
-    <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" {...props}>
-      <polyline points="23 6 13.5 15.5 8.5 10.5 1 18"></polyline>
-      <polyline points="17 6 23 6 23 12"></polyline>
-    </svg>
-  );
+function EyeIcon(p: SVGProps<SVGSVGElement>) {
+  return <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round" {...p}><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>;
 }
-
-function CartOutlinedIcon(props: SVGProps<SVGSVGElement>) {
-  return (
-    <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" {...props}>
-      <path d="M6 2L3 6v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V6l-3-4z"></path>
-      <line x1="3" y1="6" x2="21" y2="6"></line>
-      <path d="M16 10a4 4 0 0 1-8 0"></path>
-    </svg>
-  );
+function UsersGroupIcon(p: SVGProps<SVGSVGElement>) {
+  return <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round" {...p}><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>;
 }
-
-function ArrowLeftIcon(props: SVGProps<SVGSVGElement>) {
-  return (
-    <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" {...props}>
-      <line x1="19" y1="12" x2="5" y2="12"></line>
-      <polyline points="12 19 5 12 12 5"></polyline>
-    </svg>
-  );
+function ActivityIcon(p: SVGProps<SVGSVGElement>) {
+  return <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round" {...p}><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/></svg>;
 }
-
-function UploadIcon(props: SVGProps<SVGSVGElement>) {
-  return (
-    <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" {...props}>
-      <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
-      <polyline points="17 8 12 3 7 8"></polyline>
-      <line x1="12" y1="3" x2="12" y2="15"></line>
-    </svg>
-  );
+function CartIcon(p: SVGProps<SVGSVGElement>) {
+  return <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round" {...p}><circle cx="9" cy="21" r="1"/><circle cx="20" cy="21" r="1"/><path d="M1 1h4l2.68 13.39a2 2 0 0 0 2 1.61h9.72a2 2 0 0 0 2-1.61L23 6H6"/></svg>;
+}
+function TrendingUpIcon(p: SVGProps<SVGSVGElement>) {
+  return <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round" {...p}><polyline points="23 6 13.5 15.5 8.5 10.5 1 18"/><polyline points="17 6 23 6 23 12"/></svg>;
+}
+function CartOutlinedIcon(p: SVGProps<SVGSVGElement>) {
+  return <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round" {...p}><path d="M6 2L3 6v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V6l-3-4z"/><line x1="3" y1="6" x2="21" y2="6"/><path d="M16 10a4 4 0 0 1-8 0"/></svg>;
+}
+function ArrowLeftIcon(p: SVGProps<SVGSVGElement>) {
+  return <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round" {...p}><line x1="19" y1="12" x2="5" y2="12"/><polyline points="12 19 5 12 12 5"/></svg>;
+}
+function ArrowRightIcon(p: SVGProps<SVGSVGElement>) {
+  return <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round" {...p}><line x1="5" y1="12" x2="19" y2="12"/><polyline points="12 5 19 12 12 19"/></svg>;
+}
+function UploadIcon(p: SVGProps<SVGSVGElement>) {
+  return <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round" {...p}><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>;
+}
+function XIcon(p: SVGProps<SVGSVGElement>) {
+  return <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2.5} strokeLinecap="round" strokeLinejoin="round" {...p}><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>;
+}
+function CheckIcon(p: SVGProps<SVGSVGElement>) {
+  return <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2.5} strokeLinecap="round" strokeLinejoin="round" {...p}><polyline points="20 6 9 17 4 12"/></svg>;
+}
+function CheckCircleIcon(p: SVGProps<SVGSVGElement>) {
+  return <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round" {...p}><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></svg>;
+}
+function MapPinIcon(p: SVGProps<SVGSVGElement>) {
+  return <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round" {...p}><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"/><circle cx="12" cy="10" r="3"/></svg>;
 }

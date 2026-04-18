@@ -16,6 +16,15 @@ export interface Customer {
   lastOrderDate?: string;
   customerType: string;
   customerStatus: string;
+  addresses?: {
+    id: string;
+    location: string;
+    shopName?: string;
+    ownerName?: string;
+    mobileNumber?: string;
+    nearbyLandmark?: string;
+    isDefault?: boolean;
+  }[];
 }
 
 export interface AdminCustomerCreate {
@@ -37,6 +46,11 @@ export const customerService = {
 
   create: async (data: AdminCustomerCreate): Promise<Customer> => {
     const response = await api.post('/customers', data);
+    return response.data;
+  },
+
+  getById: async (id: string): Promise<Customer> => {
+    const response = await api.get(`/customers/detail/${id}`);
     return response.data;
   }
 };
