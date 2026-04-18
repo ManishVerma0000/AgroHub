@@ -52,12 +52,39 @@ export default function CustomersPage() {
   const [step, setStep] = useState(1); // 1 | 2 | 3
   const [formData, setFormData] = useState<FormState>(INITIAL_FORM);
   const [saving, setSaving] = useState(false);
+  const [successMsg, setSuccessMsg] = useState("");
 
   // Preview images
   const frontInputRef = useRef<HTMLInputElement>(null);
   const backInputRef = useRef<HTMLInputElement>(null);
   const [frontPreview, setFrontPreview] = useState<string | null>(null);
   const [backPreview, setBackPreview] = useState<string | null>(null);
+  
+  // Map resolution
+  const [isResolving, setIsResolving] = useState(false);
+  const [resolvedMapData, setResolvedMapData] = useState<{lat: number, lng: number, place_name: string} | null>(null);
+
+  useEffect(() => {
+    const resolveMap = async () => {
+      const val = formData.addressLocation;
+      if (val && (val.includes("google.com/maps") || val.includes("maps.app.goo.gl") || val.includes("goo.gl/maps"))) {
+        try {
+          setIsResolving(true);
+          const response = await api.get(`/utils/resolve-maps-url?url=${encodeURIComponent(val)}`);
+          if (response.data && !response.data.error) {
+            setResolvedMapData(response.data);
+          }
+        } catch (e) {
+          console.error("Map resolution failed", e);
+        } finally {
+          setIsResolving(false);
+        }
+      } else {
+        setResolvedMapData(null);
+      }
+    };
+    resolveMap();
+  }, [formData.addressLocation]);
 
   // ── Fetch customers ──────────────────────────────────────────────────────
   const fetchCustomers = async () => {
@@ -153,8 +180,15 @@ export default function CustomersPage() {
         fd.append("aadharCardFront", formData.aadharCardFront);
       if (formData.aadharCardBack)
         fd.append("aadharCardBack", formData.aadharCardBack);
+      
+      // Step 3 – Address
+      if (formData.addressLocation)
+        fd.append("addressLocation", formData.addressLocation);
+      if (formData.nearbyLandmark)
+        fd.append("nearbyLandmark", formData.nearbyLandmark);
+      fd.append("isDefaultAddress", formData.isDefaultAddress.toString());
 
-      await api.post("/mobile/auth/register", fd, {
+      await api.post("/customers/", fd, {
         headers: { "Content-Type": "multipart/form-data" },
       });
 
@@ -541,6 +575,31 @@ export default function CustomersPage() {
                         className="form-input pl-10"
                       />
                     </div>
+                    {isResolving && (
+                      <div className="flex items-center gap-2 mt-2 px-3 py-2 bg-blue-50 border border-blue-100 rounded-xl animate-pulse">
+                        <div className="w-4 h-4 border-2 border-blue-400 border-t-transparent rounded-full animate-spin" />
+                        <span className="text-xs font-semibold text-blue-600">Resolving Google Maps URL…</span>
+                      </div>
+                    )}
+                    {resolvedMapData && !isResolving && (
+                      <div className="flex flex-col gap-2 mt-3 p-4 bg-[#f0fdf4] border border-[#bbf7d0] rounded-2xl shadow-sm">
+                        <div className="flex items-center gap-2">
+                          <div className="w-2 h-2 rounded-full bg-[#16a34a]" />
+                          <span className="text-[11px] font-bold text-[#16a34a] uppercase tracking-wider">Located Verified</span>
+                        </div>
+                        <p className="text-sm font-bold text-[#15803d]">{resolvedMapData.place_name}</p>
+                        <div className="flex gap-4 mt-1">
+                           <div className="flex flex-col">
+                              <span className="text-[9px] font-bold text-[#16a34a]/60 uppercase">Latitude</span>
+                              <span className="text-[12px] font-mono font-bold text-[#15803d]">{resolvedMapData.lat}</span>
+                           </div>
+                           <div className="flex flex-col">
+                              <span className="text-[9px] font-bold text-[#16a34a]/60 uppercase">Longitude</span>
+                              <span className="text-[12px] font-mono font-bold text-[#15803d]">{resolvedMapData.lng}</span>
+                           </div>
+                        </div>
+                      </div>
+                    )}
                   </FormField>
 
                   <FormField label="Nearby Landmark">

@@ -258,8 +258,20 @@ export default function CustomerProfilePage() {
                           <span className="whitespace-pre-line">{addr.location}</span>
                        </div>
                        {addr.nearbyLandmark && (
-                          <div className="text-[#64748b] text-[12px] -mt-1 pl-6 italic">
+                          <div className="text-[#64748b] text-[12px] -mt-1 pl-6 italic uppercase tracking-tighter">
                              Near {addr.nearbyLandmark}
+                          </div>
+                       )}
+                       {(addr.lat && addr.long) && (
+                          <div className="flex gap-4 mt-1 pl-6">
+                             <div className="flex flex-col">
+                               <span className="text-[10px] font-bold text-[#94a3b8] uppercase">Latitude</span>
+                               <span className="text-[12px] font-mono font-medium text-[#475569]">{addr.lat}</span>
+                             </div>
+                             <div className="flex flex-col">
+                               <span className="text-[10px] font-bold text-[#94a3b8] uppercase">Longitude</span>
+                               <span className="text-[12px] font-mono font-medium text-[#475569]">{addr.long}</span>
+                             </div>
                           </div>
                        )}
                     </div>

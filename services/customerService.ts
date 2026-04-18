@@ -9,6 +9,8 @@ export interface Customer {
   shopType?: string;
   status: string;
   createdDate: string;
+  aadharCardFront?: string;
+  aadharCardBack?: string;
   
   // Analytics
   totalOrders: number;
@@ -23,6 +25,8 @@ export interface Customer {
     ownerName?: string;
     mobileNumber?: string;
     nearbyLandmark?: string;
+    lat?: number;
+    long?: number;
     isDefault?: boolean;
   }[];
 }
