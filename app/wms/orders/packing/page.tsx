@@ -4,8 +4,7 @@ import React, { useState, useEffect, useCallback } from "react";
 import Link from "next/link";
 import { SVGProps } from "react";
 import { mobileOrderService, MobileOrder } from "../../../../services/mobileOrderService";
-
-const ACTIVE_WAREHOUSE_ID = "69b82ccf3709f6cca0ec8c41";
+import { wmsAuthService } from "../../../../services/wmsAuthService";
 
 const avatarColors = ["bg-[#0ea5e9]", "bg-[#0d9488]", "bg-[#38bdf8]", "bg-[#0284c7]", "bg-[#10b981]", "bg-[#14b8a6]", "bg-[#8b5cf6]", "bg-[#db2777]"];
 const getAvatarBg = (name: string) => {
@@ -26,7 +25,10 @@ export default function PackingListPage() {
   const fetchOrders = useCallback(async () => {
     setLoading(true);
     try {
-      const data = await mobileOrderService.getByWarehouseAndStatus(ACTIVE_WAREHOUSE_ID, "Picking");
+      const token = localStorage.getItem('wmsToken');
+      if (!token) return;
+      const profile = await wmsAuthService.getProfile(token);
+      const data = await mobileOrderService.getByWarehouseAndStatus(profile.id, "Picking");
       setOrders(data);
     } catch (err) {
       console.error("Error fetching picking orders:", err);

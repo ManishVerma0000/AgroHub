@@ -21,7 +21,7 @@ export const warehouseService = {
     return response.data;
   },
   getById: async (id: string) => {
-    const response = await api.get(`/warehouses/${id}`);
+    const response = await api.get(`/warehouses/detail/${id}`);
     return response.data;
   },
   create: async (data: any, newImages?: File[], newDocuments?: File[]) => {

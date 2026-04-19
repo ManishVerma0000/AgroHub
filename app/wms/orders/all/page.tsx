@@ -4,6 +4,7 @@ import React, { useState, useEffect } from "react";
 import Link from "next/link";
 import { SVGProps } from "react";
 import { mobileOrderService, MobileOrder } from "../../../../services/mobileOrderService";
+import { wmsAuthService } from "../../../../services/wmsAuthService";
 
 // Helper for deterministic avatar color
 const avatarColors = ["bg-[#0ea5e9]", "bg-[#0d9488]", "bg-[#38bdf8]", "bg-[#0284c7]", "bg-[#10b981]", "bg-[#14b8a6]", "bg-[#8b5cf6]", "bg-[#db2777]"];
@@ -24,14 +25,14 @@ export default function AllOrdersPage() {
   const [loading, setLoading] = useState<boolean>(true);
   const [selectedOrders, setSelectedOrders] = useState<Set<string>>(new Set());
 
-  // Hardcoding the active warehouse based on prior backend flows 
-  const activeWarehouseId = "69b82ccf3709f6cca0ec8c41"; 
-
   useEffect(() => {
     const fetchOrders = async () => {
       setLoading(true);
       try {
-        const data = await mobileOrderService.getByWarehouse(activeWarehouseId);
+        const token = localStorage.getItem('wmsToken');
+        if (!token) return;
+        const profile = await wmsAuthService.getProfile(token);
+        const data = await mobileOrderService.getByWarehouse(profile.id);
         setOrders(data);
       } catch (error) {
         console.error("Error fetching warehouse orders:", error);

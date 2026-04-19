@@ -9,6 +9,7 @@ import { warehouseProductService } from "../../../../services/warehouseProductSe
 import { categoryService } from "../../../../services/categoryService";
 import { StockActionModal, StockActionType } from "../../../../components/Products/StockActionModal";
 import { warehouseService } from "../../../../services/warehouseService";
+import { wmsAuthService } from "../../../../services/wmsAuthService";
 
 export default function WMSProductInventory() {
   const [selectedItems, setSelectedItems] = useState<number[]>([]);
@@ -42,18 +43,23 @@ export default function WMSProductInventory() {
     setIsLoadingProducts(true);
     setIsLoadingInventory(true);
     try {
-      const [productsData, inventoryData, categoriesData, warehouseData] = await Promise.all([
+      const token = localStorage.getItem('wmsToken');
+      if (!token) return;
+
+      const profile = await wmsAuthService.getProfile(token);
+      const warehouseId = profile.id;
+
+      const [productsData, inventoryData, categoriesData] = await Promise.all([
         productService.getAll(),
-        warehouseProductService.getAll(),
+        warehouseProductService.getAll(warehouseId),
         categoryService.getAll(),
-        warehouseService.getById("69b82ccf3709f6cca0ec8c41")
       ]);
       setGlobalProducts(productsData);
       setInventoryItems(inventoryData);
       setCategories(categoriesData);
       setWarehouseCosts({
-        overhead: warehouseData.overheadCost || 0,
-        logistic: warehouseData.logisticCost || 0
+        overhead: profile.overheadCost || 0,
+        logistic: profile.logisticCost || 0
       });
     } catch (error) {
       console.error("Failed to fetch initial data:", error);
@@ -76,12 +82,17 @@ export default function WMSProductInventory() {
   const handleAddInventory = async () => {
     setIsSubmitting(true);
     try {
+      const token = localStorage.getItem('wmsToken');
+      if (!token) return;
+      const profile = await wmsAuthService.getProfile(token);
+      const warehouseId = profile.id;
+
       const promises = selectedGlobalProducts.map(gid => {
         const itemData = setupData[gid] || {};
         const gp = globalProducts.find(p => p.id === gid);
         const payload = {
           productId: gid,
-          warehouseId: "69b82ccf3709f6cca0ec8c41",
+          warehouseId: warehouseId,
           initialStock: itemData.initialStock !== undefined ? Number(itemData.initialStock) : 0,
           reorderLevel: itemData.reorderLevel !== undefined ? Number(itemData.reorderLevel) : 0,
           basePrice: itemData.basePrice !== undefined ? Number(itemData.basePrice) : (gp?.basePrice ? Number(gp.basePrice) : 0),
@@ -93,7 +104,7 @@ export default function WMSProductInventory() {
       await Promise.all(promises);
       
       // Refresh inventory
-      const inventoryData = await warehouseProductService.getAll();
+      const inventoryData = await warehouseProductService.getAll(warehouseId);
       setInventoryItems(inventoryData);
       
       setIsAddModalOpen(false);

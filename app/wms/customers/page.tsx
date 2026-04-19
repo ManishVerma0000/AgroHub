@@ -3,8 +3,7 @@
 import React, { useState, useEffect, useCallback, SVGProps } from "react";
 import Link from "next/link";
 import { wmsCustomerService, WmsCustomer } from "../../../services/wmsCustomerService";
-
-const ACTIVE_WAREHOUSE_ID = "69b82ccf3709f6cca0ec8c41";
+import { wmsAuthService } from "../../../services/wmsAuthService";
 
 const avatarColors = ["bg-[#2dd4bf]", "bg-[#0d9488]", "bg-[#06b6d4]", "bg-[#0891b2]", "bg-[#0ea5e9]", "bg-[#0284c7]", "bg-[#10b981]", "bg-[#059669]", "bg-[#8b5cf6]", "bg-[#db2777]"];
 const getAvatarBg = (name: string) => {
@@ -25,7 +24,10 @@ export default function CustomersPage() {
   const fetchCustomers = useCallback(async () => {
     setLoading(true);
     try {
-      const data = await wmsCustomerService.getByWarehouse(ACTIVE_WAREHOUSE_ID);
+      const token = localStorage.getItem('wmsToken');
+      if (!token) return;
+      const profile = await wmsAuthService.getProfile(token);
+      const data = await wmsCustomerService.getByWarehouse(profile.id);
       setCustomers(data);
     } catch (err) {
       console.error("Error fetching warehouse customers:", err);

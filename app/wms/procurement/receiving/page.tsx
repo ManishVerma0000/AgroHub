@@ -5,6 +5,7 @@ import { SVGProps } from "react";
 import Link from "next/link";
 import { purchaseOrderService, PurchaseOrder, PurchaseOrderItem } from "../../../../services/purchaseOrderService";
 import { warehouseProductService } from "../../../../services/warehouseProductService";
+import { wmsAuthService } from "../../../../services/wmsAuthService";
 
 // Helper to format dates cleanly
 const formatDate = (dateString: string) => {
@@ -92,8 +93,11 @@ export default function POReceivingPage() {
       });
       
       // 3. Update Warehouse Product Base Prices
-      // Use the default WMS warehouse ID
-      const targetWarehouseId = "69b82ccf3709f6cca0ec8c41"; 
+      // Use the dynamic WMS warehouse ID from profile
+      const token = localStorage.getItem('wmsToken');
+      if (!token) throw new Error("No authentication token found");
+      const profile = await wmsAuthService.getProfile(token);
+      const targetWarehouseId = profile.id; 
       try {
         const warehouseProducts = await warehouseProductService.getAll(targetWarehouseId);
         

@@ -4,6 +4,7 @@ import React, { SVGProps, useEffect, useState } from "react";
 import Link from "next/link";
 import { useParams } from "next/navigation";
 import { customerService, Customer } from "@/services/customerService";
+import { mobileOrderService, MobileOrder } from "@/services/mobileOrderService";
 
 export default function CustomerProfilePage() {
   const params = useParams();
@@ -11,19 +12,27 @@ export default function CustomerProfilePage() {
   const [customer, setCustomer] = useState<Customer | null>(null);
   const [loading, setLoading] = useState(true);
 
+  const [orders, setOrders] = useState<MobileOrder[]>([]);
+  const [ordersLoading, setOrdersLoading] = useState(true);
+
   useEffect(() => {
-    const fetchCustomer = async () => {
+    const fetchData = async () => {
       try {
         setLoading(true);
-        const data = await customerService.getById(id);
-        setCustomer(data);
+        const [customerData, ordersData] = await Promise.all([
+          customerService.getById(id),
+          mobileOrderService.getByCustomer(id)
+        ]);
+        setCustomer(customerData);
+        setOrders(ordersData);
       } catch (error) {
-        console.error("Error fetching customer:", error);
+        console.error("Error fetching data:", error);
       } finally {
         setLoading(false);
+        setOrdersLoading(false);
       }
     };
-    if (id) fetchCustomer();
+    if (id) fetchData();
   }, [id]);
 
   if (loading) {
@@ -64,9 +73,18 @@ export default function CustomerProfilePage() {
                 <span className="text-[#64748b] text-[14px]">Customer ID: {customer.id.slice(-8).toUpperCase()} &bull; Joined {new Date(customer.createdDate).toLocaleDateString()}</span>
              </div>
           </div>
-          <span className={`px-5 py-1.5 rounded-full text-[14px] font-bold shadow-sm ${customer.customerStatus === 'Active' ? 'bg-[#dcfce3] text-[#16a34a]' : 'bg-[#fee2e2] text-[#ef4444]'}`}>
-            {customer.customerStatus}
-          </span>
+          <div className="flex items-center gap-3">
+             <Link 
+               href={`/customers/${id}`}
+               className="px-6 py-2 bg-[#16a34a] hover:bg-[#15803d] text-white text-[14px] font-bold rounded-lg transition-all shadow-md shadow-[#16a34a]/10 flex items-center gap-2"
+             >
+                <ShoppingCartIcon className="w-4 h-4" />
+                Place Order
+             </Link>
+             <span className={`px-5 py-2 rounded-full text-[14px] font-bold shadow-sm ${customer.customerStatus === 'Active' ? 'bg-[#dcfce3] text-[#16a34a]' : 'bg-[#fee2e2] text-[#ef4444]'}`}>
+               {customer.customerStatus}
+             </span>
+          </div>
         </div>
       </div>
 
@@ -121,14 +139,25 @@ export default function CustomerProfilePage() {
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-[#e2e8f0]">
-                  {customer.totalOrders === 0 ? (
+                  {ordersLoading ? (
+                    <tr><td colSpan={4} className="px-6 py-10 text-center text-[#64748b]">Loading orders...</td></tr>
+                  ) : orders.length === 0 ? (
                     <tr>
                       <td colSpan={4} className="px-6 py-10 text-center text-[#64748b]">No orders found for this customer.</td>
                     </tr>
                   ) : (
-                    <tr className="hover:bg-[#f8fafc] transition-colors">
-                      <td colSpan={4} className="px-6 py-10 text-center text-[#64748b]">Order tracking is available in the Orders module.</td>
-                    </tr>
+                    orders.slice(0, 5).map((order) => (
+                      <tr key={order.id} className="hover:bg-[#f8fafc] transition-colors">
+                        <td className="px-6 py-4 font-bold text-[#2563eb]">#{order.id.slice(-6).toUpperCase()}</td>
+                        <td className="px-6 py-4 text-[#64748b]">{new Date(order.createdAt).toLocaleDateString()}</td>
+                        <td className="px-6 py-4 font-bold text-[#0f172a]">₹{order.grandTotal.toLocaleString()}</td>
+                        <td className="px-6 py-4">
+                           <span className="inline-flex items-center px-2 py-1 rounded-md bg-[#f1f5f9] text-[#475569] text-[11px] font-bold border border-[#e2e8f0]">
+                             {order.status}
+                           </span>
+                        </td>
+                      </tr>
+                    ))
                   )}
                 </tbody>
               </table>
