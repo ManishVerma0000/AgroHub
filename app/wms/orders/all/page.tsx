@@ -24,6 +24,8 @@ export default function AllOrdersPage() {
   const [orders, setOrders] = useState<MobileOrder[]>([]);
   const [loading, setLoading] = useState<boolean>(true);
   const [selectedOrders, setSelectedOrders] = useState<Set<string>>(new Set());
+  const [searchTerm, setSearchTerm] = useState("");
+  const [statusFilter, setStatusFilter] = useState("All Status");
 
   useEffect(() => {
     const fetchOrders = async () => {
@@ -44,15 +46,26 @@ export default function AllOrdersPage() {
     fetchOrders();
   }, []);
 
+  const filteredOrders = orders.filter(order => {
+    const matchesSearch = 
+      (order.id?.toLowerCase().includes(searchTerm.toLowerCase())) ||
+      (order.customerName?.toLowerCase().includes(searchTerm.toLowerCase())) ||
+      (order.location?.toLowerCase().includes(searchTerm.toLowerCase()));
+    
+    const matchesStatus = statusFilter === "All Status" || order.status === statusFilter;
+    
+    return matchesSearch && matchesStatus;
+  });
+
   // Function to determine Tailwind classes based on status string dynamically matching Figma dropdown bubbles
   const getStatusStyles = (status: string) => {
     switch(status) {
-      case "New Order": case "Pending": return "bg-[#f1f5f9] border-[#e2e8f0] text-[#475569]";
+      case "New Order": case "Pending": case "Placed": return "bg-[#f1f5f9] border-[#e2e8f0] text-[#475569]";
       case "Picking": return "bg-[#f3e8ff] border-[#e9d5ff] text-[#9333ea]";
       case "Packing": return "bg-[#ffedd5] border-[#fed7aa] text-[#c2410c]";
       case "Ready for Dispatch": return "bg-[#ccfbf1] border-[#99f6e4] text-[#0d9488]";
       case "Out for Delivery": return "bg-[#e0e7ff] border-[#c7d2fe] text-[#4338ca]";
-      case "Delivered": case "Placed": case "Completed": return "bg-[#dcfce7] border-[#bbf7d0] text-[#15803d]";
+      case "Delivered": case "Completed": return "bg-[#dcfce7] border-[#bbf7d0] text-[#15803d]";
       default: return "bg-[#f1f5f9] border-[#e2e8f0] text-[#475569]";
     }
   };
@@ -71,19 +84,25 @@ export default function AllOrdersPage() {
       <div className="flex justify-between items-center">
         <div className="flex items-center gap-3">
           <h1 className="text-[26px] font-bold text-[#1e293b]">All Orders</h1>
-          {!loading && <span className="text-[#64748b] text-[20px] font-medium">{orders.length}</span>}
+          {!loading && <span className="text-[#64748b] text-[20px] font-medium">{filteredOrders.length}</span>}
           <ChevronDownIcon className="w-5 h-5 text-[#64748b]" />
         </div>
         
         <div className="flex items-center gap-3">
-          <button className="flex items-center gap-2 px-4 py-2 border border-[#e2e8f0] bg-white text-[#475569] rounded-lg text-sm font-medium hover:bg-[#f8fafc] transition-colors shadow-sm">
-            Bulk Action
-            <ChevronDownIcon className="w-4 h-4 text-[#64748b] ml-1" />
-          </button>
+          {/* Search Input */}
+          <div className="relative">
+            <SearchIcon className="w-4 h-4 text-[#64748b] absolute left-3 top-1/2 -translate-y-1/2" />
+            <input 
+              type="text" 
+              placeholder="Search orders..." 
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
+              className="pl-10 pr-4 py-2 border border-[#e2e8f0] bg-white text-[#475569] rounded-lg text-sm outline-none focus:border-[#2563eb] w-[250px] shadow-sm transition-all"
+            />
+          </div>
 
           <button className="flex items-center gap-2 px-4 py-2 border border-[#e2e8f0] bg-white text-[#475569] rounded-lg text-sm font-medium hover:bg-[#f8fafc] transition-colors shadow-sm">
-            <CalendarIcon className="w-4 h-4 text-[#64748b]" />
-            28 Feb 24 - 31 Mar 25
+            Bulk Action
             <ChevronDownIcon className="w-4 h-4 text-[#64748b] ml-1" />
           </button>
           
@@ -97,10 +116,19 @@ export default function AllOrdersPage() {
       <div className="flex items-center gap-4 py-1">
         <span className="text-sm text-[#64748b] font-medium">Filter by:</span>
         <div className="relative">
-          <select className="appearance-none pl-4 pr-10 py-2 border border-[#cbd5e1] rounded-lg text-sm text-[#0f172a] outline-none hover:bg-[#f8fafc] cursor-pointer focus:border-[#2563eb] bg-white min-w-[140px] shadow-sm">
+          <select 
+            value={statusFilter}
+            onChange={(e) => setStatusFilter(e.target.value)}
+            className="appearance-none pl-4 pr-10 py-2 border border-[#cbd5e1] rounded-lg text-sm text-[#0f172a] outline-none hover:bg-[#f8fafc] cursor-pointer focus:border-[#2563eb] bg-white min-w-[140px] shadow-sm"
+          >
             <option value="All Status">All Status</option>
-            <option value="New Order">New Order</option>
+            <option value="Placed">Placed</option>
+            <option value="Confirmed">Confirmed</option>
             <option value="Picking">Picking</option>
+            <option value="Packing">Packing</option>
+            <option value="Ready for Dispatch">Ready for Dispatch</option>
+            <option value="Out for Delivery">Out for Delivery</option>
+            <option value="Delivered">Delivered</option>
           </select>
           <ChevronDownIcon className="w-4 h-4 text-[#64748b] absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none" />
         </div>
@@ -120,9 +148,9 @@ export default function AllOrdersPage() {
         <div className="py-24 flex justify-center items-center">
             <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-[#16a34a]"></div>
         </div>
-      ) : orders.length === 0 ? (
+      ) : filteredOrders.length === 0 ? (
         <div className="bg-[#f8fafc] border border-dashed border-[#cbd5e1] rounded-xl p-10 text-center text-[#64748b]">
-            No mobile orders found for this warehouse.
+            {searchTerm || statusFilter !== "All Status" ? "No matching orders found." : "No mobile orders found for this warehouse."}
         </div>
       ) : (
         <div className="bg-white border border-[#e2e8f0] rounded-xl shadow-sm flex flex-col overflow-hidden">
@@ -145,7 +173,7 @@ export default function AllOrdersPage() {
                 </tr>
                 </thead>
                 <tbody className="divide-y divide-[#e2e8f0]">
-                {orders.map((order) => {
+                {filteredOrders.map((order) => {
                     const cName = order.customerName || "Unknown Customer";
                     const initial = cName.charAt(0).toUpperCase();
 
@@ -203,7 +231,7 @@ export default function AllOrdersPage() {
             
             {/* Pagination Footer */}
             <div className="px-6 py-4 border-t border-[#e2e8f0] flex items-center justify-between bg-white mt-auto">
-            <span className="text-sm text-[#64748b]">Showing 1 to {orders.length} of {orders.length} results</span>
+            <span className="text-sm text-[#64748b]">Showing 1 to {filteredOrders.length} of {filteredOrders.length} results</span>
             <div className="flex items-center gap-2">
                 <button className="px-4 py-2 border border-[#e2e8f0] text-[#64748b] text-sm font-medium rounded-md hover:bg-[#f8fafc] disabled:opacity-50 transition-colors shadow-sm">
                 Previous
@@ -223,6 +251,14 @@ export default function AllOrdersPage() {
 }
 
 // Inline SVG Icons
+function SearchIcon(props: SVGProps<SVGSVGElement>) {
+  return (
+    <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" {...props}>
+      <circle cx="11" cy="11" r="8"/>
+      <line x1="21" y1="21" x2="16.65" y2="16.65"/>
+    </svg>
+  );
+}
 function CalendarIcon(props: SVGProps<SVGSVGElement>) {
   return (
     <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" {...props}>

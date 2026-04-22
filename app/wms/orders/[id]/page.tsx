@@ -142,24 +142,30 @@ export default function OrderDetailsPage({ params }: { params: Promise<{ id: str
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-[#f1f5f9]">
-                  {order.items?.map((item, i) => (
-                    <tr key={i} className="bg-white hover:bg-[#f8fafc] transition-colors">
-                      <td className="px-6 py-4">
-                        <div className="flex items-center gap-4">
-                          <div className="w-10 h-10 rounded-lg bg-[#eff6ff] text-[#2563eb] flex items-center justify-center shrink-0 shadow-sm border border-[#bfdbfe]">
-                            <CubeIcon className="w-5 h-5" />
+                  {order.items?.map((item, i) => {
+                    const itemName = item.name || item.productName || "Unknown Product";
+                    const price = item.basePrice || item.unitPrice || 0;
+                    const total = (item.quantity || 0) * price;
+                    
+                    return (
+                      <tr key={i} className="bg-white hover:bg-[#f8fafc] transition-colors">
+                        <td className="px-6 py-4">
+                          <div className="flex items-center gap-4">
+                            <div className="w-10 h-10 rounded-lg bg-[#eff6ff] text-[#2563eb] flex items-center justify-center shrink-0 shadow-sm border border-[#bfdbfe]">
+                              <CubeIcon className="w-5 h-5" />
+                            </div>
+                            <div className="flex flex-col">
+                              <span className="text-[#0f172a] font-bold text-[15px]">{itemName}</span>
+                              <span className="text-[#64748b] text-[13px]">{item.productId?.slice(-6).toUpperCase() || 'SYS-N/A'}</span>
+                            </div>
                           </div>
-                          <div className="flex flex-col">
-                            <span className="text-[#0f172a] font-bold text-[15px]">{item.productName}</span>
-                            <span className="text-[#64748b] text-[13px]">{item.productId?.slice(-6).toUpperCase() || 'SYS-N/A'}</span>
-                          </div>
-                        </div>
-                      </td>
-                      <td className="px-6 py-4 text-[#475569]">{item.quantity}</td>
-                      <td className="px-6 py-4 text-[#0f172a] font-medium">₹{item.unitPrice?.toLocaleString('en-IN') || 0}</td>
-                      <td className="px-6 py-4 text-[#0f172a] font-bold">₹{((item.quantity || 0) * (item.unitPrice || 0)).toLocaleString('en-IN')}</td>
-                    </tr>
-                  )) || (
+                        </td>
+                        <td className="px-6 py-4 text-[#475569]">{item.quantity}</td>
+                        <td className="px-6 py-4 text-[#0f172a] font-medium">₹{price.toLocaleString('en-IN')}</td>
+                        <td className="px-6 py-4 text-[#0f172a] font-bold">₹{total.toLocaleString('en-IN')}</td>
+                      </tr>
+                    );
+                  }) || (
                     <tr><td colSpan={4} className="text-center py-6 text-[#64748b]">No items recorded</td></tr>
                   )}
                 </tbody>
