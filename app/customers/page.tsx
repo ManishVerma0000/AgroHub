@@ -118,9 +118,7 @@ export default function CustomersPage() {
       c.ownerName.toLowerCase().includes(searchValue.toLowerCase()) ||
       c.mobileNumber.includes(searchValue);
     const matchStatus =
-      selectedStatus === "All Status" ||
-      (selectedStatus === "Active" && c.customerStatus === "Active") ||
-      (selectedStatus === "Inactive" && c.customerStatus !== "Active");
+      selectedStatus === "All Status" || c.customerStatus === selectedStatus;
     const matchType =
       selectedType === "All Type" || c.customerType === selectedType;
     return matchSearch && matchStatus && matchType;
@@ -252,7 +250,9 @@ export default function CustomersPage() {
               className="appearance-none pl-4 pr-9 py-2 border border-[#e2e8f0] bg-white rounded-lg text-[#1e293b] text-sm font-medium outline-none cursor-pointer"
             >
               <option value="All Status">All Status</option>
+              <option value="Regular">Regular</option>
               <option value="Active">Active</option>
+              <option value="At Risk">At Risk</option>
               <option value="Inactive">Inactive</option>
             </select>
             <ChevronDownIcon className="w-4 h-4 text-[#64748b] absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none" />
@@ -265,8 +265,9 @@ export default function CustomersPage() {
             >
               <option value="All Type">All Type</option>
               <option value="New">New</option>
-              <option value="Regular">Regular</option>
-              <option value="VIP">VIP</option>
+              <option value="Low">Low</option>
+              <option value="Medium">Medium</option>
+              <option value="High">High</option>
             </select>
             <ChevronDownIcon className="w-4 h-4 text-[#64748b] absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none" />
           </div>
@@ -327,7 +328,11 @@ export default function CustomersPage() {
                     </span>
                   </td>
                   <td className="px-5 py-4 text-center">
-                    <span className={`inline-flex items-center px-2.5 py-1 rounded-md text-xs font-bold ${customer.customerStatus === "Active" ? "bg-[#dcfce7] text-[#16a34a]" : customer.customerStatus === "At Risk" ? "bg-[#fef3c7] text-[#d97706]" : "bg-[#fee2e2] text-[#dc2626]"}`}>
+                    <span className={`inline-flex items-center px-2.5 py-1 rounded-md text-xs font-bold ${
+                      customer.customerStatus === "Regular" ? "bg-[#cffafe] text-[#0891b2]" :
+                      customer.customerStatus === "Active" ? "bg-[#dcfce7] text-[#16a34a]" : 
+                      customer.customerStatus === "At Risk" ? "bg-[#fef3c7] text-[#d97706]" : 
+                      "bg-[#fee2e2] text-[#dc2626]"}`}>
                       {customer.customerStatus}
                     </span>
                   </td>

@@ -10,12 +10,15 @@ export default function Sidebar() {
   const navItems = [
     { label: "Dashboard", href: "/", icon: DashboardIcon },
     { label: "Customers", href: "/customers", icon: ProfileIcon },
-    // { label: "Orders", href: "/orders", icon: BoxIcon },
     { label: "Category Management", href: "/categories", icon: TagIcon },
     { label: "Subcategory Management", href: "/subcategories", icon: TagIcon },
     { label: "Product Management", href: "/products", icon: BoxIcon },
     { label: "Warehouse Management", href: "/warehouse", icon: WarehouseIcon },
-    { label: "Settings", href: "/settings", icon: SettingsIcon },
+  ];
+
+  const rulesPricingItems = [
+    { label: "Delivery Charges", href: "/delivery-charges", icon: TruckIcon },
+    { label: "Global Costing", href: "/global-costing", icon: DollarIcon },
   ];
 
   return (
@@ -32,8 +35,29 @@ export default function Sidebar() {
       
       <div className="py-5 flex-1">
         <p className="text-[11px] font-semibold text-[#94a3b8] tracking-widest px-6 mb-3">NAVIGATION</p>
-        <nav className="flex flex-col gap-1">
+        <nav className="flex flex-col gap-1 mb-6">
           {navItems.map((item) => {
+            const isActive = pathname === item.href;
+            return (
+              <Link 
+                href={item.href} 
+                key={item.href}
+                className={`flex items-center gap-3 py-3 px-6 mx-2 rounded-lg text-sm transition-all relative ${
+                  isActive 
+                  ? 'bg-[#f2fcf6] text-[#07ac57] font-semibold before:absolute before:left-0 before:top-2 before:bottom-2 before:w-1 before:bg-[#07ac57] before:rounded-full [&>svg]:text-[#07ac57]' 
+                  : 'text-[#6b7280] font-medium hover:bg-[#f9fafb] hover:text-[#111827] [&>svg]:text-[#94a3b8]'
+                }`}
+              >
+                <item.icon className="w-5 h-5 shrink-0" />
+                <span>{item.label}</span>
+              </Link>
+            );
+          })}
+        </nav>
+
+        <p className="text-[11px] font-semibold text-[#94a3b8] tracking-widest px-6 mb-3">RULES & PRICING</p>
+        <nav className="flex flex-col gap-1">
+          {rulesPricingItems.map((item) => {
             const isActive = pathname === item.href;
             return (
               <Link 
@@ -125,6 +149,26 @@ function ProfileIcon(props: SVGProps<SVGSVGElement>) {
     <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" {...props}>
       <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/>
       <circle cx="12" cy="7" r="4"/>
+    </svg>
+  );
+}
+
+function TruckIcon(props: SVGProps<SVGSVGElement>) {
+  return (
+    <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" {...props}>
+      <rect x="1" y="3" width="15" height="13" rx="1"/>
+      <polygon points="16 8 20 8 23 11 23 16 16 16 16 8"/>
+      <circle cx="5.5" cy="18.5" r="2.5"/>
+      <circle cx="18.5" cy="18.5" r="2.5"/>
+    </svg>
+  );
+}
+
+function DollarIcon(props: SVGProps<SVGSVGElement>) {
+  return (
+    <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" {...props}>
+      <line x1="12" y1="1" x2="12" y2="23"/>
+      <path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/>
     </svg>
   );
 }
