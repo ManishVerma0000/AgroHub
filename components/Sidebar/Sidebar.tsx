@@ -18,7 +18,7 @@ export default function Sidebar() {
 
   const rulesPricingItems = [
     { label: "Delivery Charges", href: "/delivery-charges", icon: TruckIcon },
-    { label: "Global Costing", href: "/global-costing", icon: DollarIcon },
+    { label: "Offers", href: "/offers", icon: DollarIcon },
   ];
 
   return (
