@@ -49,12 +49,12 @@ export default function WMSProductInventory() {
       const profile = await wmsAuthService.getProfile(token);
       const warehouseId = profile.id;
 
-      const [productsData, inventoryData, categoriesData] = await Promise.all([
-        productService.getAll(),
+      const [productsRes, inventoryData, categoriesData] = await Promise.all([
+        productService.getAll(0, 100), // Get first 100 for the selection modal
         warehouseProductService.getAll(warehouseId),
         categoryService.getAll(),
       ]);
-      setGlobalProducts(productsData);
+      setGlobalProducts(productsRes.items);
       setInventoryItems(inventoryData);
       setCategories(categoriesData);
       setWarehouseCosts({

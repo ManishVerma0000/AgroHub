@@ -35,16 +35,16 @@ export default function SupplierProfilePage() {
     if (!id) return;
     try {
       setIsLoading(true);
-      const [supplierData, productsData, globalProds, globalCats, allPOs] = await Promise.all([
+      const [supplierData, productsData, globalProdsRes, globalCats, allPOs] = await Promise.all([
         supplierService.getSupplierById(id),
         supplierProductService.getBySupplierId(id),
-        productService.getAll(),
+        productService.getAll(0, 100), // Get first 100 for selection
         categoryService.getAll(),
         purchaseOrderService.getAll()
       ]);
       setSupplier(supplierData);
       setSuppliedProducts(productsData);
-      setGlobalProducts(globalProds);
+      setGlobalProducts(globalProdsRes.items);
       setCategories(globalCats);
       setPoHistory(allPOs.filter(po => po.supplierId === id));
     } catch (err) {

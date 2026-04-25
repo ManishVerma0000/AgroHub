@@ -16,8 +16,8 @@ const uploadImage = async (file: File): Promise<string | null> => {
 };
 
 export const productService = {
-  getAll: async () => {
-    const response = await api.get('/products/');
+  getAll: async (skip: number = 0, limit: number = 10) => {
+    const response = await api.get(`/products/?skip=${skip}&limit=${limit}`);
     return response.data;
   },
   getById: async (id: string) => {

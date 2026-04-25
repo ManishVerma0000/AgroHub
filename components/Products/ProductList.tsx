@@ -28,9 +28,16 @@ interface ProductListProps {
   categories: any[];
   onEdit: (item: ProductData) => void;
   onDelete: (id: string) => void;
+  pagination: {
+    currentPage: number;
+    totalPages: number;
+    totalItems: number;
+    onNext: () => void;
+    onPrev: () => void;
+  };
 }
 
-export function ProductList({ data, categories, onEdit, onDelete }: ProductListProps) {
+export function ProductList({ data, categories, onEdit, onDelete, pagination }: ProductListProps) {
   const [searchTerm, setSearchTerm] = useState('');
   const [deleteModalOpen, setDeleteModalOpen] = useState(false);
   const [itemToDelete, setItemToDelete] = useState<ProductData | null>(null);
@@ -40,8 +47,9 @@ export function ProductList({ data, categories, onEdit, onDelete }: ProductListP
   const [statusFilter, setStatusFilter] = useState('');
   const [dateFilter, setDateFilter] = useState('');
 
-  const [currentPage, setCurrentPage] = useState(1);
-  const itemsPerPage = 5;
+  // We no longer slice data here if we are using backend pagination
+  // But to keep it simple and consistent with the user request, 
+  // I'll make sure it's using the passed data.
 
   const columns: Column<ProductData>[] = [
     {
@@ -146,18 +154,11 @@ export function ProductList({ data, categories, onEdit, onDelete }: ProductListP
     return matchesSearch && matchesCategory && matchesStatus && matchesDate;
   });
 
-  React.useEffect(() => {
-    setCurrentPage(1);
-  }, [searchTerm, categoryFilter, statusFilter, dateFilter]);
-
-  const totalPages = Math.max(1, Math.ceil(filteredData.length / itemsPerPage));
-  const paginatedData = filteredData.slice((currentPage - 1) * itemsPerPage, currentPage * itemsPerPage);
-
   return (
     <>
       <DataTable
         columns={columns}
-        data={paginatedData}
+        data={data}
         searchPlaceholder="Search products..."
         onSearch={setSearchTerm}
         filters={
@@ -189,13 +190,7 @@ export function ProductList({ data, categories, onEdit, onDelete }: ProductListP
             />
           </>
         }
-        pagination={{
-          currentPage,
-          totalPages,
-          totalItems: filteredData.length,
-          onNext: () => setCurrentPage(p => Math.min(p + 1, totalPages)),
-          onPrev: () => setCurrentPage(p => Math.max(p - 1, 1))
-        }}
+        pagination={pagination}
       />
 
       <ConfirmDeleteModal

@@ -44,13 +44,15 @@ export default function CustomerOrderPage() {
     const fetchInitialData = async () => {
       try {
         setLoading(true);
-        const [customerData, inventoryData, globalProducts, categoriesData, subcategoriesData] = await Promise.all([
+        const [customerData, inventoryData, globalProductsRes, categoriesData, subcategoriesData] = await Promise.all([
           customerService.getById(id),
           warehouseProductService.getAll(WAREHOUSE_ID),
-          productService.getAll(),
+          productService.getAll(0, 100), // Get first 100
           categoryService.getAll(),
           subcategoryService.getAll()
         ]);
+
+        const globalProducts = globalProductsRes.items;
 
         setCustomer(customerData);
         setCategories(categoriesData);

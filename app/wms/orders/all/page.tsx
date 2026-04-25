@@ -26,25 +26,30 @@ export default function AllOrdersPage() {
   const [selectedOrders, setSelectedOrders] = useState<Set<string>>(new Set());
   const [searchTerm, setSearchTerm] = useState("");
   const [statusFilter, setStatusFilter] = useState("All Status");
+  const [currentPage, setCurrentPage] = useState(1);
+  const [totalOrders, setTotalOrders] = useState(0);
+  const limit = 10;
+
+  const fetchOrders = React.useCallback(async () => {
+    setLoading(true);
+    try {
+      const token = localStorage.getItem('wmsToken');
+      if (!token) return;
+      const profile = await wmsAuthService.getProfile(token);
+      const skip = (currentPage - 1) * limit;
+      const data = await mobileOrderService.getByWarehouse(profile.id, skip, limit);
+      setOrders(data.items);
+      setTotalOrders(data.total);
+    } catch (error) {
+      console.error("Error fetching warehouse orders:", error);
+    } finally {
+      setLoading(false);
+    }
+  }, [currentPage, limit]);
 
   useEffect(() => {
-    const fetchOrders = async () => {
-      setLoading(true);
-      try {
-        const token = localStorage.getItem('wmsToken');
-        if (!token) return;
-        const profile = await wmsAuthService.getProfile(token);
-        const data = await mobileOrderService.getByWarehouse(profile.id);
-        setOrders(data);
-      } catch (error) {
-        console.error("Error fetching warehouse orders:", error);
-      } finally {
-        setLoading(false);
-      }
-    };
-    
     fetchOrders();
-  }, []);
+  }, [fetchOrders]);
 
   const filteredOrders = orders.filter(order => {
     const matchesSearch = 
@@ -231,15 +236,25 @@ export default function AllOrdersPage() {
             
             {/* Pagination Footer */}
             <div className="px-6 py-4 border-t border-[#e2e8f0] flex items-center justify-between bg-white mt-auto">
-            <span className="text-sm text-[#64748b]">Showing 1 to {filteredOrders.length} of {filteredOrders.length} results</span>
+            <span className="text-sm text-[#64748b]">
+                Showing {((currentPage - 1) * limit) + 1} to {Math.min(currentPage * limit, totalOrders)} of {totalOrders} results
+            </span>
             <div className="flex items-center gap-2">
-                <button className="px-4 py-2 border border-[#e2e8f0] text-[#64748b] text-sm font-medium rounded-md hover:bg-[#f8fafc] disabled:opacity-50 transition-colors shadow-sm">
+                <button 
+                  onClick={() => setCurrentPage(p => Math.max(1, p - 1))}
+                  disabled={currentPage === 1}
+                  className="px-4 py-2 border border-[#e2e8f0] text-[#64748b] text-sm font-medium rounded-md hover:bg-[#f8fafc] disabled:opacity-50 transition-colors shadow-sm"
+                >
                 Previous
                 </button>
                 <button className="w-9 h-9 flex items-center justify-center bg-[#16a34a] text-white text-sm font-bold rounded-md shadow-sm">
-                1
+                {currentPage}
                 </button>
-                <button className="px-4 py-2 border border-[#e2e8f0] text-[#64748b] text-sm font-medium rounded-md hover:bg-[#f8fafc] disabled:opacity-50 transition-colors shadow-sm">
+                <button 
+                  onClick={() => setCurrentPage(p => p + 1)}
+                  disabled={currentPage * limit >= totalOrders}
+                  className="px-4 py-2 border border-[#e2e8f0] text-[#64748b] text-sm font-medium rounded-md hover:bg-[#f8fafc] disabled:opacity-50 transition-colors shadow-sm"
+                >
                 Next
                 </button>
             </div>

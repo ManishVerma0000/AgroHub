@@ -13,20 +13,25 @@ import { categoryService } from '@/services/categoryService';
 export default function ProductsPage() {
   const [data, setData] = useState<ProductData[]>([]);
   const [categories, setCategories] = useState<any[]>([]);
+  const [currentPage, setCurrentPage] = useState(1);
+  const [totalItems, setTotalItems] = useState(0);
+  const limit = 10;
 
   useEffect(() => {
     const fetchProductsAndCategories = async () => {
       try {
-        const [productsList, categoriesList] = await Promise.all([
-          productService.getAll(),
+        const skip = (currentPage - 1) * limit;
+        const [productsRes, categoriesList] = await Promise.all([
+          productService.getAll(skip, limit),
           categoryService.getAll()
         ]);
         
         setCategories(categoriesList);
+        setTotalItems(productsRes.total);
 
         const categoryMap = new Map(categoriesList.map((c: any) => [c.id, c.name]));
         
-        const mappedProducts = productsList.map((p: any) => ({
+        const mappedProducts = productsRes.items.map((p: any) => ({
           ...p,
           categoryName: categoryMap.get(p.categoryId) || undefined
         }));
@@ -37,7 +42,7 @@ export default function ProductsPage() {
       }
     };
     fetchProductsAndCategories();
-  }, []);
+  }, [currentPage]);
   const [isAdding, setIsAdding] = useState(false);
   const [editingItem, setEditingItem] = useState<ProductData | null>(null);
 
@@ -129,6 +134,13 @@ export default function ProductsPage() {
           categories={categories}
           onEdit={handleEdit} 
           onDelete={handleDelete} 
+          pagination={{
+            currentPage,
+            totalPages: Math.ceil(totalItems / limit),
+            totalItems,
+            onNext: () => setCurrentPage(p => Math.min(p + 1, Math.ceil(totalItems / limit))),
+            onPrev: () => setCurrentPage(p => Math.max(p - 1, 1))
+          }}
         />
       )}
     </div>

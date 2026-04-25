@@ -29,13 +29,13 @@ export const mobileOrderService = {
     return response.data;
   },
   
-  getByCustomer: async (customerId: string): Promise<MobileOrder[]> => {
-    const response = await api.get(`/mobile/orders/?customer_id=${customerId}`);
+  getByCustomer: async (customerId: string, skip: number = 0, limit: number = 10): Promise<{items: MobileOrder[], total: number}> => {
+    const response = await api.get(`/mobile/orders/?customer_id=${customerId}&skip=${skip}&limit=${limit}`);
     return response.data;
   },
 
-  getByWarehouse: async (warehouseId: string): Promise<MobileOrder[]> => {
-    const response = await api.get(`/mobile/orders/warehouse/${warehouseId}`);
+  getByWarehouse: async (warehouseId: string, skip: number = 0, limit: number = 10): Promise<{items: MobileOrder[], total: number}> => {
+    const response = await api.get(`/mobile/orders/warehouse/${warehouseId}?skip=${skip}&limit=${limit}`);
     return response.data;
   },
 
