@@ -24,7 +24,7 @@ export default function CustomerProfilePage() {
           mobileOrderService.getByCustomer(id)
         ]);
         setCustomer(customerData);
-        setOrders(ordersData);
+        setOrders(ordersData.items);
       } catch (error) {
         console.error("Error fetching data:", error);
       } finally {
