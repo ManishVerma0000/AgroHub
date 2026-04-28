@@ -53,5 +53,9 @@ export const warehouseService = {
   delete: async (id: string) => {
     const response = await api.delete(`/warehouses/${id}`);
     return response.data;
+  },
+  getNearest: async (lat: number, lon: number) => {
+    const response = await api.get(`/mobile/nearest-warehouse?lat=${lat}&lon=${lon}`);
+    return response.data;
   }
 };

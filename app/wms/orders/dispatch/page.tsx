@@ -29,7 +29,6 @@ export default function DispatchManagementPage() {
   const [orders, setOrders] = useState<MobileOrder[]>([]);
   const [history, setHistory] = useState<DispatchBatch[]>([]);
   const [loading, setLoading] = useState(true);
-  const [dispatchingIds, setDispatchingIds] = useState<Set<string>>(new Set());
   const [selectedOrderIds, setSelectedOrderIds] = useState<Set<string>>(new Set());
   const [warehouseId, setWarehouseId] = useState<string | null>(null);
 
@@ -69,29 +68,7 @@ export default function DispatchManagementPage() {
     fetchOrders();
   }, [fetchOrders]);
 
-  const handleReadyForDispatch = async (orderId: string) => {
-    if (dispatchingIds.has(orderId)) return;
-    setDispatchingIds((prev) => new Set(prev).add(orderId));
-    try {
-      await mobileOrderService.readyForDispatch(orderId);
-      toast.success("Order marked ready for dispatch");
-      setOrders((prev) => prev.filter((o) => o.id !== orderId));
-      setSelectedOrderIds((prev) => {
-        const next = new Set(prev);
-        next.delete(orderId);
-        return next;
-      });
-    } catch (err) {
-      console.error("Error marking order ready for dispatch:", err);
-      toast.error("Failed to update status");
-    } finally {
-      setDispatchingIds((prev) => {
-        const next = new Set(prev);
-        next.delete(orderId);
-        return next;
-      });
-    }
-  };
+
 
   const handleCreateBatch = async () => {
     if (!batchFormData.driverName || !batchFormData.vehicleNumber || !batchFormData.route) {
@@ -246,7 +223,6 @@ export default function DispatchManagementPage() {
                     {orders.map((order) => {
                       const cName = order.customerName || "Unknown Customer";
                       const initial = cName.charAt(0).toUpperCase();
-                      const isLoading = dispatchingIds.has(order.id);
                       const isSelected = selectedOrderIds.has(order.id);
 
                       return (
@@ -293,21 +269,14 @@ export default function DispatchManagementPage() {
                           <td className="px-6 py-5">
                             <button
                               id={`dispatch-${order.id}`}
-                              onClick={() => handleReadyForDispatch(order.id)}
-                              disabled={isLoading}
-                              className="px-4 py-2 bg-[#0284c7] hover:bg-[#0369a1] disabled:opacity-60 disabled:cursor-not-allowed text-white font-bold rounded-lg transition-colors text-[13px] shadow-sm inline-flex items-center gap-2 min-w-[160px] justify-center"
+                              onClick={() => {
+                                setSelectedOrderIds(new Set([order.id]));
+                                setIsBatchModalOpen(true);
+                              }}
+                              className="px-4 py-2 bg-[#16a34a] hover:bg-[#15803d] text-white font-bold rounded-lg transition-all active:scale-95 text-[13px] shadow-sm inline-flex items-center gap-2 min-w-[160px] justify-center"
                             >
-                              {isLoading ? (
-                                <>
-                                  <span className="animate-spin inline-block w-3.5 h-3.5 border-2 border-white/30 border-t-white rounded-full" />
-                                  Processing...
-                                </>
-                              ) : (
-                                <>
-                                  <TruckIcon className="w-3.5 h-3.5" />
-                                  Ready for Dispatch
-                                </>
-                              )}
+                              <TruckIcon className="w-3.5 h-3.5" />
+                              Create Dispatch Batch (1)
                             </button>
                           </td>
                         </tr>

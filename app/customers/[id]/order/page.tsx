@@ -9,6 +9,7 @@ import { productService } from "@/services/productService";
 import { categoryService } from "@/services/categoryService";
 import { subcategoryService } from "@/services/subcategoryService";
 import { mobileOrderService } from "@/services/mobileOrderService";
+import { warehouseService } from "@/services/warehouseService";
 import { toast } from "react-hot-toast";
 
 interface CartItem {
@@ -30,6 +31,8 @@ export default function CustomerOrderPage() {
   const [categories, setCategories] = useState<any[]>([]);
   const [subcategories, setSubcategories] = useState<any[]>([]);
   const [cart, setCart] = useState<CartItem[]>([]);
+  const [warehouse, setWarehouse] = useState<any>(null);
+  const [showNoLocationModal, setShowNoLocationModal] = useState(false);
 
   // Filters
   const [searchQuery, setSearchQuery] = useState("");
@@ -38,47 +41,73 @@ export default function CustomerOrderPage() {
   const [selectedDeliverySlot, setSelectedDeliverySlot] = useState("7:00 - 8:00 AM");
   const [selectedAddressId, setSelectedAddressId] = useState<string>("");
 
-  const WAREHOUSE_ID = "69b82ccf3709f6cca0ec8c41";
-
   useEffect(() => {
     const fetchInitialData = async () => {
       try {
         setLoading(true);
-        const [customerData, inventoryData, globalProductsRes, categoriesData, subcategoriesData] = await Promise.all([
-          customerService.getById(id),
-          warehouseProductService.getAll(WAREHOUSE_ID),
-          productService.getAll(0, 100), // Get first 100
-          categoryService.getAll(),
-          subcategoryService.getAll()
-        ]);
-
-        const globalProducts = globalProductsRes.items;
-
+        const customerData = await customerService.getById(id);
         setCustomer(customerData);
-        setCategories(categoriesData);
-        setSubcategories(subcategoriesData);
 
-        // Auto-select default address
+        // 1. Get location coordinates
+        let lat, long;
         if (customerData.addresses && customerData.addresses.length > 0) {
           const defaultAddr = customerData.addresses.find((a: any) => a.isDefault) || customerData.addresses[0];
           setSelectedAddressId(defaultAddr.id);
+          lat = defaultAddr.lat;
+          long = defaultAddr.long;
+          console.log("Customer coordinates:", { lat, long });
         }
 
-        // Map inventory with global product details (slabs, unit, etc.)
-        const mappedProducts = inventoryData.map((invItem: any) => {
-          const gp = globalProducts.find((p: any) => p.id === invItem.productId) || {};
-          return {
-            ...invItem,
-            name: invItem.productName || gp.name || "Unknown Product",
-            unit: gp.baseUnit || "kg",
-            category: gp.category || "General",
-            subcategory: gp.subcategory || "General",
-            slabs: gp.b2bBulkSlabs || [],
-            mrp: gp.mrp || 0,
-            imageUrl: gp.imageUrl
-          };
-        });
-        setProducts(mappedProducts);
+        if (!lat || !long) {
+          console.warn("Customer has no coordinates set.");
+          setShowNoLocationModal(true);
+          setLoading(false);
+          return;
+        }
+
+        // 2. Find nearest warehouse
+        try {
+          const nearestWarehouse = await warehouseService.getNearest(lat, long);
+          console.log("Nearest warehouse found:", nearestWarehouse);
+          setWarehouse(nearestWarehouse);
+          
+          if (nearestWarehouse) {
+            // 3. Fetch data for this warehouse
+            const [inventoryData, globalProductsRes, categoriesData, subcategoriesData] = await Promise.all([
+              warehouseProductService.getAll(nearestWarehouse.id),
+              productService.getAll(0, 100),
+              categoryService.getAll(),
+              subcategoryService.getAll()
+            ]);
+
+            const globalProducts = globalProductsRes.items;
+            setCategories(categoriesData);
+            setSubcategories(subcategoriesData);
+
+            const mappedProducts = inventoryData.map((invItem: any) => {
+              const gp = globalProducts.find((p: any) => p.id === invItem.productId) || {};
+              return {
+                ...invItem,
+                name: invItem.productName || gp.name || "Unknown Product",
+                unit: gp.baseUnit || "kg",
+                category: gp.category || "General",
+                subcategory: gp.subcategory || "General",
+                slabs: gp.b2bBulkSlabs || [],
+                mrp: gp.mrp || 0,
+                imageUrl: gp.imageUrl
+              };
+            });
+            setProducts(mappedProducts);
+          } else {
+            setShowNoLocationModal(true);
+          }
+        } catch (err: any) {
+          if (err.response?.status === 404) {
+            setShowNoLocationModal(true);
+          } else {
+            toast.error("Failed to check for nearest warehouse");
+          }
+        }
 
       } catch (error) {
         console.error("Error fetching data:", error);
@@ -88,6 +117,60 @@ export default function CustomerOrderPage() {
     };
     if (id) fetchInitialData();
   }, [id]);
+
+  // Handle address change to re-check warehouse
+  useEffect(() => {
+    const handleAddressChange = async () => {
+      if (!customer || !selectedAddressId) return;
+      
+      const addr = customer.addresses?.find((a: any) => a.id === selectedAddressId);
+      if (!addr || !addr.lat || !addr.long) return;
+
+      setLoading(true);
+      try {
+        const nearestWarehouse = await warehouseService.getNearest(addr.lat, addr.long);
+        setWarehouse(nearestWarehouse);
+        
+        if (nearestWarehouse) {
+          setShowNoLocationModal(false);
+          const inventoryData = await warehouseProductService.getAll(nearestWarehouse.id);
+          const globalProductsRes = await productService.getAll(0, 100);
+          const globalProducts = globalProductsRes.items;
+
+          const mappedProducts = inventoryData.map((invItem: any) => {
+            const gp = globalProducts.find((p: any) => p.id === invItem.productId) || {};
+            return {
+              ...invItem,
+              name: invItem.productName || gp.name || "Unknown Product",
+              unit: gp.baseUnit || "kg",
+              category: gp.category || "General",
+              subcategory: gp.subcategory || "General",
+              slabs: gp.b2bBulkSlabs || [],
+              mrp: gp.mrp || 0,
+              imageUrl: gp.imageUrl
+            };
+          });
+          setProducts(mappedProducts);
+        } else {
+          setProducts([]);
+          setShowNoLocationModal(true);
+        }
+      } catch (err: any) {
+        setProducts([]);
+        if (err.response?.status === 404) {
+          setShowNoLocationModal(true);
+        } else {
+          toast.error("Failed to check for nearest warehouse");
+        }
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    // Only run if selectedAddressId changes and it's not the initial load (which is handled by the first useEffect)
+    // Actually, it's safer to just run it when selectedAddressId changes.
+    handleAddressChange();
+  }, [selectedAddressId, customer?.id]);
 
   const addToCart = (product: any) => {
     const existing = cart.find(item => item.id === product.id);
@@ -132,7 +215,7 @@ export default function CustomerOrderPage() {
     try {
       const orderPayload = {
         customerId: id,
-        warehouseId: WAREHOUSE_ID,
+        warehouseId: warehouse?.id,
         items: cart,
         subtotal: subtotal,
         deliveryFee: deliveryFee,
@@ -478,6 +561,37 @@ export default function CustomerOrderPage() {
 
         </div>
       </div>
+      {showNoLocationModal && (
+        <div className="fixed inset-0 bg-black/60 backdrop-blur-md z-[9999] flex items-center justify-center p-4 overflow-y-auto">
+          <div className="bg-white rounded-3xl p-8 max-w-md w-full shadow-2xl flex flex-col items-center text-center gap-6 animate-in fade-in zoom-in duration-300 relative border border-gray-100">
+            <div className="w-24 h-24 rounded-full bg-red-50 flex items-center justify-center mb-2">
+              <div className="w-16 h-16 rounded-full bg-red-100 flex items-center justify-center animate-pulse">
+                <PinIcon className="w-10 h-10 text-red-500" />
+              </div>
+            </div>
+            <div className="flex flex-col gap-3">
+              <h2 className="text-2xl font-black text-gray-900 tracking-tight">No Location Nearby</h2>
+              <p className="text-gray-500 leading-relaxed font-medium">
+                We couldn't find any active warehouse within a 10km radius of the selected delivery address.
+              </p>
+            </div>
+            <div className="flex flex-col w-full gap-3">
+              <button
+                onClick={() => setShowNoLocationModal(false)}
+                className="w-full py-3 bg-gray-100 hover:bg-gray-200 text-gray-700 font-bold rounded-xl transition-colors"
+              >
+                Change Address
+              </button>
+              <Link
+                href={`/customers/${id}`}
+                className="w-full py-3 bg-red-500 hover:bg-red-600 text-white font-bold rounded-xl transition-colors shadow-lg shadow-red-500/20"
+              >
+                Back to Profile
+              </Link>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

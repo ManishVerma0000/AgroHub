@@ -64,7 +64,8 @@ export default function AllOrdersPage() {
 
   // Function to determine Tailwind classes based on status string dynamically matching Figma dropdown bubbles
   const getStatusStyles = (status: string) => {
-    switch(status) {
+    const displayStatus = status === "" ? "Packing" : status;
+    switch(displayStatus) {
       case "New Order": case "Pending": case "Placed": return "bg-[#f1f5f9] border-[#e2e8f0] text-[#475569]";
       case "Picking": return "bg-[#f3e8ff] border-[#e9d5ff] text-[#9333ea]";
       case "Packing": return "bg-[#ffedd5] border-[#fed7aa] text-[#c2410c]";
@@ -131,7 +132,6 @@ export default function AllOrdersPage() {
             <option value="Confirmed">Confirmed</option>
             <option value="Picking">Picking</option>
             <option value="Packing">Packing</option>
-            <option value="Ready for Dispatch">Ready for Dispatch</option>
             <option value="Out for Delivery">Out for Delivery</option>
             <option value="Delivered">Delivered</option>
           </select>
@@ -213,7 +213,7 @@ export default function AllOrdersPage() {
                             <td className="px-6 py-4">
                                 {/* Completely locked Graphical Badge Instead of interactive select */}
                                 <span className={`inline-flex items-center justify-center px-4 py-1.5 border rounded-full text-[11px] font-bold shadow-[0_1px_2px_rgba(0,0,0,0.02)] ${getStatusStyles(order.status)}`}>
-                                    {order.status}
+                                    {order.status === "" ? "Packing" : order.status}
                                 </span>
                             </td>
                             <td className="px-6 py-4 text-[#64748b] text-[13px]">{formatDate(order.createdAt)}</td>

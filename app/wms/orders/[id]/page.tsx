@@ -81,10 +81,10 @@ export default function OrderDetailsPage({ params }: { params: Promise<{ id: str
     );
   }
 
-  const orderStatus = order.status || "Placed";
+  const orderStatus = order.status === "" ? "Packing" : (order.status || "Placed");
 
   // Tracker Logic Nodes
-  const statusHierarchy = ["Placed", "Confirmed", "Processing", "Picking", "Packing", "Ready for Dispatch", "Out for Delivery", "Delivered", "Completed"];
+  const statusHierarchy = ["Placed", "Confirmed", "Processing", "Picking", "Packing", "Out for Delivery", "Delivered"];
   const currentIndex = statusHierarchy.indexOf(orderStatus);
   
   const isPastOrCurrent = (status: string) => {
