@@ -572,7 +572,7 @@ export default function CustomerOrderPage() {
             <div className="flex flex-col gap-3">
               <h2 className="text-2xl font-black text-gray-900 tracking-tight">No Location Nearby</h2>
               <p className="text-gray-500 leading-relaxed font-medium">
-                We couldn't find any active warehouse within a 10km radius of the selected delivery address.
+                We couldn't find any active warehouse within a 100km radius of the selected delivery address.
               </p>
             </div>
             <div className="flex flex-col w-full gap-3">
