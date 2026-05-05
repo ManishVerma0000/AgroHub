@@ -115,9 +115,8 @@ export function WarehouseForm({ initialData, onSave, onCancel }: WarehouseFormPr
               onChange={(e) => setFormData({ ...formData, manager: e.target.value })}
             />
             <Input
-              label="GST No."
+              label="GST No. (Optional)"
               placeholder="15-digit GST number"
-              required
               value={formData.gstNo}
               onChange={(e) => setFormData({ ...formData, gstNo: e.target.value })}
             />
@@ -130,9 +129,8 @@ export function WarehouseForm({ initialData, onSave, onCancel }: WarehouseFormPr
               onChange={(e) => setFormData({ ...formData, contact: e.target.value })}
             />
             <Input
-              label="FSSAI No."
+              label="FSSAI No. (Optional)"
               placeholder="14-digit FSSAI number"
-              required
               value={formData.fssaiNo}
               onChange={(e) => setFormData({ ...formData, fssaiNo: e.target.value })}
             />

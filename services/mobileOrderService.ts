@@ -9,6 +9,7 @@ export interface MobileOrder {
   deliveryFee: number;
   grandTotal: number;
   paymentMethod: string;
+  paymentStatus?: string | null;
   status: string;
   createdAt: string;
   items: any[];

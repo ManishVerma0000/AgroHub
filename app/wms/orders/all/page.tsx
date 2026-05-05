@@ -172,6 +172,7 @@ export default function AllOrdersPage() {
                     <th className="px-6 py-4">ITEMS</th>
                     <th className="px-6 py-4">AMOUNT</th>
                     <th className="px-6 py-4">PAYMENT</th>
+                    <th className="px-6 py-4">PAYMENT STATUS</th>
                     <th className="px-6 py-4">STATUS</th>
                     <th className="px-6 py-4">DATE</th>
                     <th className="px-6 py-4 text-center">ACTIONS</th>
@@ -210,6 +211,12 @@ export default function AllOrdersPage() {
                             <td className="px-6 py-4 text-[#475569]">{order.items?.length || 0} items</td>
                             <td className="px-6 py-4 text-[#0f172a] font-bold">₹{order.grandTotal?.toLocaleString('en-IN') || 0}</td>
                             <td className="px-6 py-4 text-[#475569]">{order.paymentMethod || "N/A"}</td>
+                            <td className="px-6 py-4">
+                                <span className={`inline-flex items-center gap-1 px-3 py-1 rounded-md text-[12px] font-medium cursor-pointer ${order.paymentStatus === 'Paid' ? 'bg-[#dcfce7] text-[#16a34a]' : 'bg-[#fee2e2] text-[#ef4444]'}`}>
+                                    {order.paymentStatus || "Unpaid"}
+                                    <ChevronDownIcon className="w-3 h-3" />
+                                </span>
+                            </td>
                             <td className="px-6 py-4">
                                 {/* Completely locked Graphical Badge Instead of interactive select */}
                                 <span className={`inline-flex items-center justify-center px-4 py-1.5 border rounded-full text-[11px] font-bold shadow-[0_1px_2px_rgba(0,0,0,0.02)] ${getStatusStyles(order.status)}`}>

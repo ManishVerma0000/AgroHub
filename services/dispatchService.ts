@@ -30,6 +30,11 @@ export const dispatchService = {
     return response.data;
   },
 
+  getById: async (id: string): Promise<DispatchBatch & { orders?: any[] }> => {
+    const response = await api.get(`/dispatch/${id}`);
+    return response.data;
+  },
+
   updateStatus: async (id: string, status: string): Promise<DispatchBatch> => {
     const response = await api.patch(`/dispatch/${id}/status?status=${status}`);
     return response.data;

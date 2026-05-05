@@ -24,7 +24,7 @@ export function ProductForm({ initialData, onSave, onCancel }: ProductFormProps)
     hsn: '',
     gstRate: '',
     mrp: '',
-    baseUnit: '',
+    baseUnit: 'kg',
     basePrice: '',
     status: true,
     description: '',
@@ -278,25 +278,23 @@ export function ProductForm({ initialData, onSave, onCancel }: ProductFormProps)
               onChange={(e) => setFormData({...formData, basePrice: e.target.value})}
             />
 
-            <Select
-              label="Base Unit"
-              options={[
-                { label: 'Kg', value: 'kg' },
-                { label: 'g', value: 'g' },
-                { label: 'L', value: 'l' },
-                { label: 'pc', value: 'pc' },
-              ]}
-              value={formData.baseUnit}
-              onChange={(e) => setFormData({...formData, baseUnit: e.target.value})}
-              required
-            />
+            <div className="flex flex-col gap-1.5">
+              <label className="text-sm font-medium text-[#374151]">Base Unit</label>
+              <div className="flex items-center h-[42px] px-3 bg-[#f3f4f6] border border-[#d1d5db] rounded-lg text-sm font-semibold text-[#374151] select-none cursor-not-allowed gap-2">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#6b7280" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M12 2L2 7l10 5 10-5-10-5z"/><path d="M2 17l10 5 10-5"/><path d="M2 12l10 5 10-5"/></svg>
+                KG
+                <span className="ml-auto text-xs text-[#9ca3af] font-normal">Fixed</span>
+              </div>
+            </div>
             <Select
               label="Procurement Unit"
               options={[
+                { label: 'Select Unit', value: '' },
                 { label: 'Kg', value: 'kg' },
-                { label: 'g', value: 'g' },
-                { label: 'L', value: 'l' },
-                { label: 'pc', value: 'pc' },
+                { label: 'Piece', value: 'piece' },
+                { label: 'Crate', value: 'crate' },
+                { label: 'Box', value: 'box' },
+                { label: 'Bag', value: 'bag' },
               ]}
               value={formData.procurementUnit}
               onChange={(e) => setFormData({...formData, procurementUnit: e.target.value})}

@@ -359,9 +359,9 @@ export default function DispatchManagementPage() {
                         </span>
                       </td>
                       <td className="px-6 py-5 text-center">
-                        <button className="p-1.5 text-[#94a3b8] hover:text-[#0f172a] transition-colors">
+                        <Link href={`/wms/orders/dispatch/${batch.id}`} className="inline-flex p-1.5 text-[#94a3b8] hover:text-[#0f172a] transition-colors">
                           <EyeIcon className="w-4 h-4" />
-                        </button>
+                        </Link>
                       </td>
                     </tr>
                   ))
