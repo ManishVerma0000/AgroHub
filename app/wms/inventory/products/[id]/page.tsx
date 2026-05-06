@@ -77,6 +77,7 @@ export default function ProductDetailsPage({ params }: { params: Promise<{ id: s
         productStatus: wpResponse.status,
         updatedBy: "Admin",
         b2bSlabs: b2bSlabs,
+        imageUrl: wpResponse.imageUrl || baseProduct.imageUrl || null,
       });
     } catch (error) {
       console.error("Failed to fetch product details:", error);
@@ -128,6 +129,14 @@ export default function ProductDetailsPage({ params }: { params: Promise<{ id: s
     TrashIcon: <TrashIcon className="w-4 h-4" />,
     SettingsIcon: <SettingsIcon className="w-4 h-4" />,
   };
+
+  const BoxIcon = (props: SVGProps<SVGSVGElement>) => (
+    <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" {...props}>
+      <path d="M21 8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16Z" />
+      <path d="m3.3 7 8.7 5 8.7-5" />
+      <path d="M12 22V12" />
+    </svg>
+  );
   
   if (isLoading || !product) {
     return (
@@ -157,11 +166,20 @@ export default function ProductDetailsPage({ params }: { params: Promise<{ id: s
         </Link>
         
         <div className="flex justify-between items-start">
-          <div>
-            <h1 className="text-3xl font-bold text-[#111827]">{product.name}</h1>
-            <p className="text-sm text-[#6b7280] mt-1 font-medium">
-              Inventory ID: {product.inventoryId} &bull; Base Price: {product.basePriceFormatted}
-            </p>
+          <div className="flex items-center gap-6">
+            {product.imageUrl ? (
+              <img src={product.imageUrl} alt={product.name} className="w-24 h-24 rounded-2xl object-cover border-2 border-white shadow-md bg-white" />
+            ) : (
+              <div className="w-24 h-24 rounded-2xl bg-[#f2fcf6] text-[#07ac57] flex items-center justify-center border-2 border-white shadow-md">
+                <BoxIcon className="w-10 h-10" />
+              </div>
+            )}
+            <div>
+              <h1 className="text-3xl font-bold text-[#111827]">{product.name}</h1>
+              <p className="text-sm text-[#6b7280] mt-1 font-medium">
+                Inventory ID: {product.inventoryId} &bull; Base Price: {product.basePriceFormatted}
+              </p>
+            </div>
           </div>
           <span className="px-5 py-2 rounded-lg bg-[#dcfce7] text-[#059669] font-bold text-sm">
             {product.status}

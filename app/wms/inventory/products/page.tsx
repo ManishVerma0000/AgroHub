@@ -206,7 +206,8 @@ export default function WMSProductInventory() {
       sellingPrice: invItem.sellingPrice ? `₹${Number(invItem.sellingPrice).toFixed(2)}` : "-",
       location: invItem.location || "-",
       status: invItem.status || "In Stock",
-      unit: gp.baseUnit || gp.unit || "Units"
+      unit: gp.baseUnit || gp.unit || "Units",
+      imageUrl: invItem.imageUrl || gp.imageUrl || null
     };
   });
 
@@ -490,9 +491,13 @@ export default function WMSProductInventory() {
                     {columns.find(c => c.id === 'product')?.visible && (
                       <td className="px-6 py-4 font-bold text-[#111827] cursor-pointer hover:text-[#07ac57]">
                         <div className="flex items-center gap-3">
-                          <div className="w-8 h-8 rounded-lg bg-[#f2fcf6] text-[#07ac57] flex items-center justify-center border border-[#dcfce7]">
-                            <BoxIcon className="w-4 h-4" />
-                          </div>
+                          {item.imageUrl ? (
+                            <img src={item.imageUrl} alt={item.name} className="w-8 h-8 rounded-lg object-cover border border-[#e2e8f0]" />
+                          ) : (
+                            <div className="w-8 h-8 rounded-lg bg-[#f2fcf6] text-[#07ac57] flex items-center justify-center border border-[#dcfce7]">
+                              <BoxIcon className="w-4 h-4" />
+                            </div>
+                          )}
                           {item.name}
                         </div>
                       </td>
@@ -647,8 +652,19 @@ export default function WMSProductInventory() {
                               />
                             </td>
                             <td className="px-4 py-3 font-medium text-[#111827]">
-                              {gp.name}
-                              {isExisting && <span className="text-xs text-[#ef4444] ml-2 font-normal rounded-md border border-[#fca5a5] px-1.5 py-0.5 bg-[#fef2f2]">Added</span>}
+                              <div className="flex items-center gap-3">
+                                {gp.imageUrl ? (
+                                  <img src={gp.imageUrl} alt={gp.name} className="w-8 h-8 rounded-lg object-cover border border-[#e2e8f0]" />
+                                ) : (
+                                  <div className="w-8 h-8 rounded-lg bg-[#f2fcf6] text-[#07ac57] flex items-center justify-center border border-[#dcfce7]">
+                                    <BoxIcon className="w-4 h-4" />
+                                  </div>
+                                )}
+                                <div>
+                                  {gp.name}
+                                  {isExisting && <span className="text-xs text-[#ef4444] ml-2 font-normal rounded-md border border-[#fca5a5] px-1.5 py-0.5 bg-[#fef2f2]">Added</span>}
+                                </div>
+                              </div>
                             </td>
                             <td className="px-4 py-3 text-[#6b7280]">{gp.category || '-'}</td>
                             <td className="px-4 py-3 text-[#6b7280]">{gp.baseUnit || '-'}</td>
@@ -718,8 +734,19 @@ export default function WMSProductInventory() {
                         return (
                           <tr key={gp.id}>
                             <td className="px-4 py-4">
-                              <p className="font-bold text-[#111827] text-base">{gp.name}</p>
-                              <p className="text-xs text-[#94a3b8] mt-0.5">{gp.baseUnit || 'Unit'}</p>
+                              <div className="flex items-center gap-3">
+                                {gp.imageUrl ? (
+                                  <img src={gp.imageUrl} alt={gp.name} className="w-10 h-10 rounded-lg object-cover border border-[#e2e8f0]" />
+                                ) : (
+                                  <div className="w-10 h-10 rounded-lg bg-[#f2fcf6] text-[#07ac57] flex items-center justify-center border border-[#dcfce7]">
+                                    <BoxIcon className="w-5 h-5" />
+                                  </div>
+                                )}
+                                <div>
+                                  <p className="font-bold text-[#111827] text-base">{gp.name}</p>
+                                  <p className="text-xs text-[#94a3b8] mt-0.5">{gp.baseUnit || 'Unit'}</p>
+                                </div>
+                              </div>
                             </td>
                             <td className="px-4 py-4"><input type="number" placeholder="0" value={setupData[gp.id]?.initialStock || ''} onChange={e => handleSetupChange(gp.id, 'initialStock', e.target.value)} className="w-[100px] border border-[#e2e8f0] px-3 py-2 rounded-lg outline-none focus:border-[#07ac57] text-[#111827] bg-white"/></td>
                             <td className="px-4 py-4"><input type="number" placeholder="0" value={setupData[gp.id]?.reorderLevel || ''} onChange={e => handleSetupChange(gp.id, 'reorderLevel', e.target.value)} className="w-[100px] border border-[#e2e8f0] px-3 py-2 rounded-lg outline-none focus:border-[#07ac57] text-[#111827] bg-white"/></td>

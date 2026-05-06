@@ -40,6 +40,7 @@ export default function DispatchDetailsPage({ params: paramsProp }: { params: Pr
   const [batch, setBatch] = useState<BatchWithOrders | null>(null);
   const [orders, setOrders] = useState<MobileOrder[]>([]);
   const [loading, setLoading] = useState(true);
+  const [selectedOrderIds, setSelectedOrderIds] = useState<string[]>([]);
 
   const fetchDetails = useCallback(async () => {
     setLoading(true);
@@ -63,6 +64,41 @@ export default function DispatchDetailsPage({ params: paramsProp }: { params: Pr
       setLoading(false);
     }
   }, [params.id]);
+  
+  const handleUpdatePaymentStatus = async (orderId: string, newStatus: string) => {
+    try {
+      await mobileOrderService.updatePaymentStatus(orderId, newStatus);
+      toast.success(`Payment status updated to ${newStatus}`);
+      fetchDetails(); // Refresh data
+    } catch (err) {
+      console.error("Error updating payment status:", err);
+      toast.error("Failed to update payment status");
+    }
+  };
+
+  const handleMarkSelectedDelivered = async () => {
+    if (!batch) return;
+    
+    // Determine which orders to update: either selected ones or ALL if none selected
+    const idsToUpdate = selectedOrderIds.length > 0 
+      ? selectedOrderIds 
+      : orders.map(o => o.id);
+
+    if (idsToUpdate.length === 0) {
+      toast.error("No orders to update");
+      return;
+    }
+
+    try {
+      await mobileOrderService.bulkUpdateStatus(idsToUpdate, "Delivered");
+      toast.success(`${idsToUpdate.length} orders marked as delivered`);
+      setSelectedOrderIds([]); // Clear selection
+      fetchDetails();
+    } catch (err) {
+      console.error("Error marking selected as delivered:", err);
+      toast.error("Failed to update status");
+    }
+  };
 
   useEffect(() => {
     fetchDetails();
@@ -200,12 +236,27 @@ export default function DispatchDetailsPage({ params: paramsProp }: { params: Pr
                 <table className="w-full text-left text-sm whitespace-nowrap">
                   <thead className="bg-[#f8fafc] text-[#64748b] font-bold text-[11px] uppercase tracking-wider border-b border-[#e2e8f0]">
                     <tr>
+                      <th className="px-6 py-4 w-[40px]">
+                        <input 
+                          type="checkbox" 
+                          className="rounded border-[#cbd5e1] text-[#2563eb] focus:ring-[#2563eb]"
+                          checked={orders.length > 0 && selectedOrderIds.length === orders.length}
+                          onChange={(e) => {
+                            if (e.target.checked) {
+                              setSelectedOrderIds(orders.map(o => o.id));
+                            } else {
+                              setSelectedOrderIds([]);
+                            }
+                          }}
+                        />
+                      </th>
                       <th className="px-6 py-4">ORDER ID</th>
                       <th className="px-6 py-4">CUSTOMER</th>
                       <th className="px-6 py-4 min-w-[200px]">DELIVERY ADDRESS</th>
                       <th className="px-6 py-4">ITEMS</th>
                       <th className="px-6 py-4">PAYMENT</th>
                       <th className="px-6 py-4">AMOUNT</th>
+                      <th className="px-6 py-4">PAYMENT STATUS</th>
                       <th className="px-6 py-4">STATUS</th>
                     </tr>
                   </thead>
@@ -214,7 +265,21 @@ export default function DispatchDetailsPage({ params: paramsProp }: { params: Pr
                       const isCOD = order.paymentMethod === "COD";
                       const isPaid = order.paymentStatus === "Paid" || !isCOD;
                       return (
-                        <tr key={order.id} className="hover:bg-[#f8fafc] transition-colors">
+                        <tr key={order.id} className={`hover:bg-[#f8fafc] transition-colors ${selectedOrderIds.includes(order.id) ? 'bg-[#eff6ff]' : ''}`}>
+                          <td className="px-6 py-6 text-center">
+                            <input 
+                              type="checkbox" 
+                              className="rounded border-[#cbd5e1] text-[#2563eb] focus:ring-[#2563eb]"
+                              checked={selectedOrderIds.includes(order.id)}
+                              onChange={(e) => {
+                                if (e.target.checked) {
+                                  setSelectedOrderIds([...selectedOrderIds, order.id]);
+                                } else {
+                                  setSelectedOrderIds(selectedOrderIds.filter(id => id !== order.id));
+                                }
+                              }}
+                            />
+                          </td>
                           <td className="px-6 py-6 border-l-4 border-l-transparent hover:border-l-[#2563eb] transition-all">
                             <Link href={`/wms/orders/${order.id}`} className="text-[#2563eb] font-bold hover:underline flex flex-col w-[80px] break-words whitespace-normal leading-tight">
                               {order.id.slice(-8).toUpperCase()}
@@ -247,15 +312,25 @@ export default function DispatchDetailsPage({ params: paramsProp }: { params: Pr
                               </span>
                             )}
                           </td>
+                          <td className="px-6 py-6 text-[#0f172a] font-bold text-[14px]">
+                            ₹{order.grandTotal?.toLocaleString("en-IN") || 0}
+                          </td>
                           <td className="px-6 py-6">
-                            <div className="flex flex-col gap-1 w-[90px]">
-                              <span className="text-[#0f172a] font-bold text-[14px]">
-                                ₹{order.grandTotal?.toLocaleString("en-IN") || 0}
-                              </span>
-                              <span className={`text-[11px] font-bold uppercase ${isCOD ? "text-[#ca8a04]" : "text-[#16a34a]"}`}>
-                                {isCOD ? "To Collect" : "Paid"}
-                              </span>
-                            </div>
+                            <select 
+                              value={order.paymentStatus || (isCOD ? "Unpaid" : "Paid")}
+                              onChange={(e) => handleUpdatePaymentStatus(order.id, e.target.value)}
+                              className={`text-[11px] font-bold uppercase bg-transparent border-none focus:ring-0 cursor-pointer p-0 w-full outline-none transition-colors ${
+                                (order.paymentStatus === "Paid" || (!order.paymentStatus && !isCOD)) ? "text-[#16a34a]" : 
+                                (order.paymentStatus === "Unpaid" || order.paymentStatus === "Pending" || (!order.paymentStatus && isCOD)) ? "text-[#ca8a04]" :
+                                order.paymentStatus === "Failed" ? "text-[#ef4444]" : "text-[#64748b]"
+                              }`}
+                            >
+                              <option value="Unpaid">Unpaid</option>
+                              <option value="Paid">Paid</option>
+                              <option value="Pending">Pending</option>
+                              <option value="Failed">Failed</option>
+                              <option value="Refunded">Refunded</option>
+                            </select>
                           </td>
                           <td className="px-6 py-6">
                             {order.status === "Delivered" ? (
@@ -281,6 +356,31 @@ export default function DispatchDetailsPage({ params: paramsProp }: { params: Pr
 
         {/* Right Sidebar */}
         <div className="lg:col-span-4 flex flex-col gap-6">
+
+          {/* Actions Card */}
+          <div className="bg-white border border-[#e2e8f0] rounded-xl shadow-sm p-6 flex flex-col gap-4">
+            <h3 className="text-[17px] font-bold text-[#0f172a]">Actions</h3>
+            <div className="flex flex-col gap-3">
+              <button 
+                onClick={handleMarkSelectedDelivered}
+                disabled={batch.status === "Delivered" && selectedOrderIds.length === 0}
+                className={`flex items-center justify-center gap-2 px-6 py-3 rounded-xl font-bold text-[14px] shadow-sm transition-all ${
+                  (batch.status === "Delivered" && selectedOrderIds.length === 0)
+                  ? "bg-[#f1f5f9] text-[#94a3b8] cursor-not-allowed" 
+                  : "bg-[#2563eb] text-white hover:bg-[#1d4ed8] active:scale-[0.98]"
+                }`}
+              >
+                <CheckCircleIcon className="w-4 h-4" />
+                {selectedOrderIds.length > 0 ? `Mark Selected (${selectedOrderIds.length}) Delivered` : "Mark All Delivered"}
+              </button>
+              <button 
+                className="flex items-center justify-center gap-2 px-6 py-3 bg-[#16a34a] text-white rounded-xl font-bold text-[14px] shadow-sm hover:bg-[#15803d] transition-all active:scale-[0.98]"
+              >
+                <PrinterIcon className="w-4 h-4" />
+                Generate Dispatch Slip
+              </button>
+            </div>
+          </div>
 
           {/* Vehicle Information */}
           <div className="bg-white border border-[#e2e8f0] rounded-xl shadow-sm p-6 flex flex-col gap-6">
@@ -319,7 +419,10 @@ export default function DispatchDetailsPage({ params: paramsProp }: { params: Pr
               </div>
               <div className="flex flex-col">
                 <span className="text-[#0f172a] font-bold text-[16px]">{batch.driverName || "Unknown Driver"}</span>
-                <span className="text-[#64748b] text-[13px]">Driver</span>
+                <div className="flex items-center gap-1.5 mt-0.5">
+                  <PhoneIcon className="w-3.5 h-3.5 text-[#64748b]" />
+                  <span className="text-[#64748b] text-[13px]">{batch.driverPhone || "No Phone"}</span>
+                </div>
               </div>
             </div>
           </div>
@@ -414,6 +517,24 @@ function CreditCardIcon(props: SVGProps<SVGSVGElement>) {
     <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" {...props}>
       <rect x="1" y="4" width="22" height="16" rx="2" ry="2"></rect>
       <line x1="1" y1="10" x2="23" y2="10"></line>
+    </svg>
+  );
+}
+
+function PhoneIcon(props: SVGProps<SVGSVGElement>) {
+  return (
+    <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" {...props}>
+      <path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72 12.84 12.84 0 0 0 .7 2.81 2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45 12.84 12.84 0 0 0 2.81.7A2 2 0 0 1 22 16.92z"></path>
+    </svg>
+  );
+}
+
+function PrinterIcon(props: SVGProps<SVGSVGElement>) {
+  return (
+    <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" {...props}>
+      <polyline points="6 9 6 2 18 2 18 9"></polyline>
+      <path d="M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2"></path>
+      <rect x="6" y="14" width="12" height="8"></rect>
     </svg>
   );
 }

@@ -63,5 +63,16 @@ export const mobileOrderService = {
   readyForDispatch: async (orderId: string): Promise<MobileOrder> => {
     const response = await api.patch(`/mobile/orders/${orderId}/ready-for-dispatch`);
     return response.data;
+  },
+
+
+  updatePaymentStatus: async (orderId: string, paymentStatus: string): Promise<MobileOrder> => {
+    const response = await api.patch(`/mobile/orders/${orderId}/payment-status`, { paymentStatus });
+    return response.data;
+  },
+
+  bulkUpdateStatus: async (orderIds: string[], status: string): Promise<{message: string}> => {
+    const response = await api.post('/mobile/orders/bulk-update-status', { orderIds, status });
+    return response.data;
   }
 };

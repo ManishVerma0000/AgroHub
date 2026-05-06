@@ -5,6 +5,7 @@ export interface DispatchBatch {
   dispatchId: string;
   vehicleNumber: string;
   driverName: string;
+  driverPhone?: string;
   orderIds: string[];
   orderCount: number;
   route: string;
@@ -22,6 +23,7 @@ export const dispatchService = {
   createBatch: async (data: {
     orderIds: string[];
     driverName: string;
+    driverPhone?: string;
     vehicleNumber: string;
     route: string;
     warehouseId: string;
