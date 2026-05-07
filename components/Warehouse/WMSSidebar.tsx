@@ -2,11 +2,12 @@
 
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
-import { SVGProps } from "react";
+import { SVGProps, useState } from "react";
 
 export default function WMSSidebar() {
   const pathname = usePathname();
   const router = useRouter();
+  const [isExpanded, setIsExpanded] = useState(false);
 
   const handleLogout = () => {
     localStorage.removeItem('wmsToken');
@@ -51,21 +52,49 @@ export default function WMSSidebar() {
   ];
 
   return (
-    <aside className="w-[300px] bg-white border-r border-[#f3f4f6] flex flex-col h-full shrink-0">
-      <div className="px-5 py-6 flex items-center gap-3 relative after:absolute after:top-1/2 after:-right-[14px] after:-translate-y-1/2 after:w-7 after:h-7 after:bg-white after:border after:border-[#f3f4f6] after:rounded-full after:z-10 after:flex after:justify-center after:items-center after:bg-no-repeat after:bg-center after:cursor-pointer after:bg-[url('data:image/svg+xml,%3Csvg xmlns=\'http://www.w3.org/2000/svg\' width=\'14\' height=\'14\' viewBox=\'0 0 24 24\' fill=\'none\' stroke=\'%23cbd5e1\' stroke-width=\'2\' stroke-linecap=\'round\' stroke-linejoin=\'round\'%3E%3Cpolyline points=\'15 18 9 12 15 6\'%3E%3C/polyline%3E%3C/svg%3E')]">
-        <div className="w-10 h-10 bg-[#07ac57] text-white rounded-lg flex items-center justify-center [&>svg]:w-5 [&>svg]:h-5">
+    <aside
+      className={`bg-white border-r border-[#f3f4f6] flex flex-col h-full shrink-0 transition-[width] duration-300 ease-in-out ${
+        isExpanded ? "w-[300px]" : "w-[78px]"
+      }`}
+      onMouseEnter={() => setIsExpanded(true)}
+      onMouseLeave={() => setIsExpanded(false)}
+      onFocus={() => setIsExpanded(true)}
+      onBlur={(event) => {
+        const nextFocus = event.relatedTarget as Node | null;
+        if (!nextFocus || !event.currentTarget.contains(nextFocus)) {
+          setIsExpanded(false);
+        }
+      }}
+    >
+      <div
+        className={`px-5 py-6 flex items-center gap-3 relative transition-all duration-300 ${
+          isExpanded ? "" : "justify-center"
+        }`}
+      >
+        <div className="absolute top-1/2 -right-[14px] z-10 flex h-7 w-7 -translate-y-1/2 items-center justify-center rounded-full border border-[#f3f4f6] bg-white text-[#cbd5e1]">
+          <ChevronIcon className={`h-3.5 w-3.5 transition-transform duration-300 ${isExpanded ? "" : "rotate-180"}`} />
+        </div>
+        <div className="w-10 h-10 bg-[#07ac57] text-white rounded-lg flex items-center justify-center shrink-0 [&>svg]:w-5 [&>svg]:h-5">
           <WarehouseIcon />
         </div>
-        <div className="flex flex-col">
+        <div
+          className={`flex min-w-0 flex-col overflow-hidden transition-all duration-200 ${
+            isExpanded ? "max-w-[190px] opacity-100" : "max-w-0 opacity-0"
+          }`}
+        >
           <h1 className="text-base font-bold text-[#111827] m-0 leading-tight">WMS Panel</h1>
-          <p className="text-xs text-[#07ac57] font-medium m-0">AgroAdmin Warehouse</p>
+          <p className="text-xs text-[#07ac57] font-medium m-0 whitespace-nowrap">AgroAdmin Warehouse</p>
         </div>
       </div>
       
       <div className="py-2 flex-1 overflow-y-auto">
         {navGroups.map((group, idx) => (
           <div key={idx} className="mb-4">
-            <p className="text-[11px] font-semibold text-[#94a3b8] tracking-widest px-6 mb-2">
+            <p
+              className={`text-[11px] font-semibold text-[#94a3b8] tracking-widest px-6 mb-2 overflow-hidden transition-all duration-200 ${
+                isExpanded ? "h-4 opacity-100" : "h-0 opacity-0"
+              }`}
+            >
               {group.label}
             </p>
             <nav className="flex flex-col gap-1">
@@ -75,14 +104,23 @@ export default function WMSSidebar() {
                   <Link 
                     href={item.href} 
                     key={item.href}
-                    className={`flex items-center gap-3 py-2.5 px-6 mx-2 rounded-lg text-sm transition-all relative ${
+                    title={!isExpanded ? item.label : undefined}
+                    className={`flex items-center gap-3 py-2.5 mx-2 rounded-lg text-sm transition-all relative ${
+                      isExpanded ? "px-6" : "justify-center px-0"
+                    } ${
                       isActive 
                       ? 'bg-[#f2fcf6] text-[#07ac57] font-semibold before:absolute before:left-0 before:top-2 before:bottom-2 before:w-1 before:bg-[#07ac57] before:rounded-full [&>svg]:text-[#07ac57]' 
                       : 'text-[#6b7280] font-medium hover:bg-[#f9fafb] hover:text-[#111827] [&>svg]:text-[#94a3b8]'
                     }`}
                   >
                     <item.icon className="w-5 h-5 shrink-0" />
-                    <span>{item.label}</span>
+                    <span
+                      className={`overflow-hidden whitespace-nowrap transition-all duration-200 ${
+                        isExpanded ? "max-w-[190px] opacity-100" : "max-w-0 opacity-0"
+                      }`}
+                    >
+                      {item.label}
+                    </span>
                   </Link>
                 );
               })}
@@ -94,21 +132,39 @@ export default function WMSSidebar() {
       <div className="py-4 px-4 border-t border-[#f3f4f6] flex flex-col gap-1">
         <Link
           href="/wms/profile"
-          className={`flex items-center gap-3 py-2.5 px-3 rounded-lg text-sm transition-all ${
+          title={!isExpanded ? "Warehouse Profile" : undefined}
+          className={`flex items-center gap-3 py-2.5 rounded-lg text-sm transition-all ${
+            isExpanded ? "px-3" : "justify-center px-0"
+          } ${
             pathname === '/wms/profile'
               ? 'bg-[#f2fcf6] text-[#07ac57] font-semibold'
               : 'text-[#6b7280] font-medium hover:bg-[#f9fafb] hover:text-[#111827]'
           }`}
         >
-          <ProfileIcon className="w-5 h-5" />
-          <span>Warehouse Profile</span>
+          <ProfileIcon className="w-5 h-5 shrink-0" />
+          <span
+            className={`overflow-hidden whitespace-nowrap transition-all duration-200 ${
+              isExpanded ? "max-w-[190px] opacity-100" : "max-w-0 opacity-0"
+            }`}
+          >
+            Warehouse Profile
+          </span>
         </Link>
         <button
           onClick={handleLogout}
-          className="flex items-center gap-3 py-2.5 px-3 rounded-lg text-sm text-red-500 font-medium hover:bg-red-50 transition-all w-full text-left"
+          title={!isExpanded ? "Logout" : undefined}
+          className={`flex items-center gap-3 py-2.5 rounded-lg text-sm text-red-500 font-medium hover:bg-red-50 transition-all w-full text-left ${
+            isExpanded ? "px-3" : "justify-center px-0"
+          }`}
         >
-          <LogoutIcon className="w-5 h-5" />
-          <span>Logout</span>
+          <LogoutIcon className="w-5 h-5 shrink-0" />
+          <span
+            className={`overflow-hidden whitespace-nowrap transition-all duration-200 ${
+              isExpanded ? "max-w-[190px] opacity-100" : "max-w-0 opacity-0"
+            }`}
+          >
+            Logout
+          </span>
         </button>
       </div>
     </aside>
@@ -121,6 +177,14 @@ function WarehouseIcon(props: SVGProps<SVGSVGElement>) {
     <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" {...props}>
       <path d="M3 21V9l9-6 9 6v12"/>
       <path d="M9 21v-6h6v6"/>
+    </svg>
+  );
+}
+
+function ChevronIcon(props: SVGProps<SVGSVGElement>) {
+  return (
+    <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" {...props}>
+      <polyline points="15 18 9 12 15 6"/>
     </svg>
   );
 }
@@ -266,4 +330,3 @@ function LogoutIcon(props: SVGProps<SVGSVGElement>) {
     </svg>
   );
 }
-
