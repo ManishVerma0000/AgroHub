@@ -7,6 +7,40 @@ import { supplierService, Supplier } from "../../../../services/supplierService"
 import { supplierProductService, SupplierProduct } from "../../../../services/supplierProductService";
 import { purchaseOrderService } from "../../../../services/purchaseOrderService";
 
+interface WarehouseProductSource {
+  id: string;
+  productId?: string;
+  productName?: string | null;
+  name?: string | null;
+  product?: {
+    name?: string | null;
+  } | null;
+  category?: string | null;
+  subcategory?: string | null;
+  baseUnit?: string | null;
+  currentStock?: number | null;
+  reservedStock?: number | null;
+  availableStock?: number | null;
+  reorderLevel?: number | null;
+}
+
+interface PlanningItem {
+  id: string;
+  globalProductId: string;
+  product: string;
+  subtext: string;
+  category: string;
+  subcategory: string;
+  unit: string;
+  current: number;
+  reserved: number;
+  available: number;
+  ordered: number;
+  reorder: number;
+  suggested: number;
+  status: "Out of Stock" | "Low Stock" | "In Stock";
+}
+
 export default function PurchasePlanning() {
   const [searchQuery, setSearchQuery] = useState("");
   const [selectedCategory, setSelectedCategory] = useState("All Categories");
@@ -16,7 +50,7 @@ export default function PurchasePlanning() {
   const [showGeneratePO, setShowGeneratePO] = useState(false);
   const [showSuccessModal, setShowSuccessModal] = useState(false);
   
-  const [products, setProducts] = useState<any[]>([]);
+  const [products, setProducts] = useState<PlanningItem[]>([]);
   const [categories, setCategories] = useState<string[]>([]);
   const [subcategories, setSubcategories] = useState<string[]>([]);
   const [suppliers, setSuppliers] = useState<Supplier[]>([]);
@@ -41,8 +75,11 @@ export default function PurchasePlanning() {
           supplierProductService.getAll()
         ]);
         
-        const planningItems = warehouseData.map((item: any) => {
-          let status = "In Stock";
+        const planningItems = (warehouseData as WarehouseProductSource[]).flatMap<PlanningItem>((item) => {
+          const productName = item.productName || item.name || item.product?.name;
+          if (!productName || !item.productId) return [];
+
+          let status: PlanningItem["status"] = "In Stock";
           let suggested = 0;
           const reorderLvl = item.reorderLevel || 0;
           const currentStock = item.currentStock || 0;
@@ -58,7 +95,7 @@ export default function PurchasePlanning() {
           return {
             id: item.id,
             globalProductId: item.productId, // CRITICAL: The global ID linked in SupplierProducts
-            product: item.productName || "Unknown",
+            product: productName,
             subtext: item.productId?.slice(-6).toUpperCase() || "N/A",
             category: item.category || "Uncategorized",
             subcategory: item.subcategory || "N/A",
@@ -71,15 +108,15 @@ export default function PurchasePlanning() {
             suggested: suggested > 0 ? suggested : 0,
             status: status
           };
-        }).filter((item: any) => item.status === "Out of Stock" || item.status === "Low Stock");
+        }).filter((item) => item.status === "Out of Stock" || item.status === "Low Stock");
         
         setProducts(planningItems);
         setSuppliers(suppliersData);
         setSupplierProducts(supplierProductsData);
 
         // Populate dynamic category dropdowns
-        const uniqueCategories = Array.from(new Set(planningItems.map((p: any) => p.category))) as string[];
-        const uniqueSubcategories = Array.from(new Set(planningItems.map((p: any) => p.subcategory))) as string[];
+        const uniqueCategories = Array.from(new Set(planningItems.map((p) => p.category)));
+        const uniqueSubcategories = Array.from(new Set(planningItems.map((p) => p.subcategory)));
         setCategories(uniqueCategories);
         setSubcategories(uniqueSubcategories);
 
