@@ -17,10 +17,36 @@ const formatDate = (dateString: string) => {
   return new Date(dateString).toLocaleDateString("en-GB", { day: "numeric", month: "short", year: "numeric" });
 };
 
+const getOrderItemKey = (item: unknown, index: number) => {
+  if (item && typeof item === "object") {
+    const value = item as { id?: string; productId?: string };
+    return value.id || value.productId || String(index);
+  }
+  return String(index);
+};
+
+const getOrderItemName = (item: unknown) => {
+  if (item && typeof item === "object") {
+    const value = item as { productName?: string; name?: string; title?: string };
+    return value.productName || value.name || value.title || "Product";
+  }
+  return "Product";
+};
+
+const getOrderItemQuantity = (item: unknown) => {
+  if (item && typeof item === "object") {
+    const value = item as { quantity?: number; qty?: number };
+    return value.quantity || value.qty || 0;
+  }
+  return 0;
+};
+
 export default function PackingListPage() {
   const [orders, setOrders] = useState<MobileOrder[]>([]);
   const [loading, setLoading] = useState(true);
   const [packingIds, setPackingIds] = useState<Set<string>>(new Set());
+  const [verifyOrder, setVerifyOrder] = useState<MobileOrder | null>(null);
+  const [verifiedItems, setVerifiedItems] = useState<Set<string>>(new Set());
 
   const fetchOrders = useCallback(async () => {
     setLoading(true);
@@ -57,6 +83,44 @@ export default function PackingListPage() {
         return next;
       });
     }
+  };
+
+  const openVerifyPacking = (order: MobileOrder) => {
+    setVerifyOrder(order);
+    setVerifiedItems(new Set());
+  };
+
+  const closeVerifyPacking = () => {
+    setVerifyOrder(null);
+    setVerifiedItems(new Set());
+  };
+
+  const verifyItems = verifyOrder?.items || [];
+  const verifiedCount = verifiedItems.size;
+  const allItemsVerified = verifyItems.length === 0 || verifiedCount === verifyItems.length;
+
+  const toggleVerifiedItem = (key: string) => {
+    setVerifiedItems((prev) => {
+      const next = new Set(prev);
+      if (next.has(key)) next.delete(key);
+      else next.add(key);
+      return next;
+    });
+  };
+
+  const toggleMarkAll = () => {
+    if (allItemsVerified && verifyItems.length > 0) {
+      setVerifiedItems(new Set());
+      return;
+    }
+
+    setVerifiedItems(new Set(verifyItems.map((item, index) => getOrderItemKey(item, index))));
+  };
+
+  const confirmVerifiedPacking = async () => {
+    if (!verifyOrder || !allItemsVerified) return;
+    await handleMarkPacked(verifyOrder.id);
+    closeVerifyPacking();
   };
 
   return (
@@ -187,7 +251,7 @@ export default function PackingListPage() {
                       <td className="px-6 py-5">
                         <button
                           id={`mark-packed-${order.id}`}
-                          onClick={() => handleMarkPacked(order.id)}
+                          onClick={() => openVerifyPacking(order)}
                           disabled={isLoading}
                           className="px-4 py-2 bg-[#16a34a] hover:bg-[#15803d] disabled:opacity-60 disabled:cursor-not-allowed text-white font-bold rounded-lg transition-colors text-[13px] shadow-sm inline-flex items-center gap-2 min-w-[130px] justify-center"
                         >
@@ -220,6 +284,139 @@ export default function PackingListPage() {
           </div>
         )}
       </div>
+
+      {verifyOrder && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4 backdrop-blur-sm">
+          <div className="w-full max-w-[760px] overflow-hidden rounded-2xl bg-white shadow-2xl">
+            <div className="flex items-start justify-between border-b border-[#e2e8f0] px-7 py-5">
+              <div className="flex items-center gap-4">
+                <div className="flex h-11 w-11 items-center justify-center rounded-full bg-[#fff7ed] text-[#f97316]">
+                  <CubeIcon className="h-6 w-6" />
+                </div>
+                <div>
+                  <h2 className="text-[22px] font-bold text-[#0f172a]">Verify Packing</h2>
+                  <p className="mt-0.5 text-sm text-[#64748b]">
+                    Order: {verifyOrder.id.slice(-6).toUpperCase()} &bull; Customer: {verifyOrder.customerName || "Unknown Customer"}
+                  </p>
+                </div>
+              </div>
+              <button
+                onClick={closeVerifyPacking}
+                className="rounded-lg p-2 text-[#94a3b8] transition-colors hover:bg-[#f8fafc] hover:text-[#0f172a]"
+                aria-label="Close verify packing"
+              >
+                <XIcon className="h-5 w-5" />
+              </button>
+            </div>
+
+            <div className="px-7 py-6">
+              <div className={`mb-6 flex items-center justify-between rounded-xl border px-5 py-4 ${
+                allItemsVerified ? "border-[#86efac] bg-[#f0fdf4]" : "border-[#fed7aa] bg-[#fff7ed]"
+              }`}>
+                <div className="flex items-center gap-3">
+                  <div className={`flex h-9 w-9 items-center justify-center rounded-full ${
+                    allItemsVerified ? "text-[#16a34a]" : "text-[#f97316]"
+                  }`}>
+                    {allItemsVerified ? <CheckCircleIcon className="h-8 w-8" /> : <CubeIcon className="h-8 w-8" />}
+                  </div>
+                  <div>
+                    <p className="text-[16px] font-bold text-[#0f172a]">
+                      {allItemsVerified ? "All Items Verified" : "Reverify Items"}
+                    </p>
+                    <p className={`text-sm ${allItemsVerified ? "text-[#15803d]" : "text-[#c2410c]"}`}>
+                      {allItemsVerified ? "Ready to mark as packed" : "Confirm every item before packing"}
+                    </p>
+                  </div>
+                </div>
+                <div className="text-right">
+                  <p className="text-3xl font-bold text-[#0f172a]">{verifiedCount}/{verifyItems.length}</p>
+                  <p className="text-sm text-[#64748b]">Items Packed</p>
+                </div>
+              </div>
+
+              <div className="overflow-hidden rounded-xl border border-[#e2e8f0]">
+                <div className="flex items-center justify-between border-b border-[#e2e8f0] bg-[#f8fafc] px-5 py-4">
+                  <h3 className="text-[16px] font-bold text-[#0f172a]">Items to Pack ({verifyItems.length})</h3>
+                  <label className="flex cursor-pointer items-center gap-2 text-sm font-bold text-[#475569]">
+                    <input
+                      type="checkbox"
+                      checked={allItemsVerified}
+                      onChange={toggleMarkAll}
+                      className="h-4 w-4 rounded border-[#cbd5e1] text-[#16a34a]"
+                    />
+                    Mark All
+                  </label>
+                </div>
+
+                {verifyItems.length === 0 ? (
+                  <div className="flex min-h-[150px] flex-col items-center justify-center gap-3 text-[#94a3b8]">
+                    <CubeIcon className="h-14 w-14 text-[#cbd5e1]" />
+                    <p className="text-sm font-medium">No items to pack</p>
+                  </div>
+                ) : (
+                  <div className="max-h-[320px] overflow-y-auto divide-y divide-[#e2e8f0]">
+                    {verifyItems.map((item, index) => {
+                      const key = getOrderItemKey(item, index);
+                      const isVerified = verifiedItems.has(key);
+
+                      return (
+                        <label key={key} className="flex cursor-pointer items-center justify-between gap-4 px-5 py-4 hover:bg-[#f8fafc]">
+                          <div className="flex items-center gap-3">
+                            <input
+                              type="checkbox"
+                              checked={isVerified}
+                              onChange={() => toggleVerifiedItem(key)}
+                              className="h-4 w-4 rounded border-[#cbd5e1] text-[#16a34a]"
+                            />
+                            <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-[#fff7ed] text-[#f97316]">
+                              <CubeIcon className="h-5 w-5" />
+                            </div>
+                            <div>
+                              <p className="font-bold text-[#0f172a]">{getOrderItemName(item)}</p>
+                              <p className="text-xs text-[#64748b]">Item #{index + 1}</p>
+                            </div>
+                          </div>
+                          <span className="rounded-full bg-[#f1f5f9] px-3 py-1 text-sm font-bold text-[#475569]">
+                            Qty: {getOrderItemQuantity(item)}
+                          </span>
+                        </label>
+                      );
+                    })}
+                  </div>
+                )}
+              </div>
+            </div>
+
+            <div className="flex items-center justify-between border-t border-[#e2e8f0] bg-[#f8fafc] px-7 py-4">
+              <span className={`text-sm font-bold ${allItemsVerified ? "text-[#10b981]" : "text-[#f97316]"}`}>
+                {allItemsVerified ? "✓ All items verified and ready" : "Verify all items to continue"}
+              </span>
+              <div className="flex items-center gap-3">
+                <button
+                  onClick={closeVerifyPacking}
+                  className="rounded-xl border border-[#e2e8f0] bg-white px-6 py-3 text-sm font-bold text-[#475569] transition-colors hover:bg-[#f8fafc]"
+                >
+                  Cancel
+                </button>
+                <button
+                  onClick={confirmVerifiedPacking}
+                  disabled={!allItemsVerified || packingIds.has(verifyOrder.id)}
+                  className="inline-flex min-w-[170px] items-center justify-center gap-2 rounded-xl bg-[#16a34a] px-6 py-3 text-sm font-bold text-white shadow-sm transition-colors hover:bg-[#15803d] disabled:cursor-not-allowed disabled:opacity-60"
+                >
+                  {packingIds.has(verifyOrder.id) ? (
+                    <>
+                      <span className="h-4 w-4 animate-spin rounded-full border-2 border-white/30 border-t-white" />
+                      Confirming...
+                    </>
+                  ) : (
+                    "Confirm Packed"
+                  )}
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
@@ -251,12 +448,30 @@ function CheckIcon(props: SVGProps<SVGSVGElement>) {
   );
 }
 
+function CheckCircleIcon(props: SVGProps<SVGSVGElement>) {
+  return (
+    <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" {...props}>
+      <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/>
+      <polyline points="22 4 12 14.01 9 11.01"/>
+    </svg>
+  );
+}
+
 function RefreshIcon(props: SVGProps<SVGSVGElement>) {
   return (
     <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" {...props}>
       <polyline points="23 4 23 10 17 10"/>
       <polyline points="1 20 1 14 7 14"/>
       <path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"/>
+    </svg>
+  );
+}
+
+function XIcon(props: SVGProps<SVGSVGElement>) {
+  return (
+    <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" {...props}>
+      <line x1="18" y1="6" x2="6" y2="18"/>
+      <line x1="6" y1="6" x2="18" y2="18"/>
     </svg>
   );
 }

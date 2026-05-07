@@ -25,6 +25,19 @@ const formatTime = (dateString: string) => {
   return new Date(dateString).toLocaleTimeString("en-US", { hour: '2-digit', minute: '2-digit', hour12: true });
 };
 
+const formatShortLocation = (location?: string) => {
+  const cleanLocation = location?.trim();
+  if (!cleanLocation) return "N/A";
+
+  const parts = cleanLocation
+    .split(/[,\n]/)
+    .map((part) => part.trim())
+    .filter(Boolean);
+
+  if (parts.length >= 2) return parts.slice(0, 2).join(", ");
+  return cleanLocation.length > 36 ? `${cleanLocation.slice(0, 33)}...` : cleanLocation;
+};
+
 export default function DispatchManagementPage() {
   const [orders, setOrders] = useState<MobileOrder[]>([]);
   const [history, setHistory] = useState<DispatchBatch[]>([]);
@@ -224,6 +237,7 @@ export default function DispatchManagementPage() {
                       const cName = order.customerName || "Unknown Customer";
                       const initial = cName.charAt(0).toUpperCase();
                       const isSelected = selectedOrderIds.has(order.id);
+                      const shortLocation = formatShortLocation(order.location);
 
                       return (
                         <tr key={order.id} className={`hover:bg-[#f8fafc] transition-colors ${isSelected ? 'bg-[#f0fdf4]' : ''}`}>
@@ -252,9 +266,12 @@ export default function DispatchManagementPage() {
                             </div>
                           </td>
                           <td className="px-6 py-5 text-[#475569]">
-                            <span className="inline-flex items-center gap-1.5">
+                            <span
+                              className="inline-flex max-w-[220px] items-center gap-1.5 cursor-help"
+                              title={order.location || "N/A"}
+                            >
                               <PinIcon className="w-4 h-4 text-[#94a3b8]" />
-                              {order.location || "N/A"}
+                              <span className="truncate">{shortLocation}</span>
                             </span>
                           </td>
                           <td className="px-6 py-5 text-[#475569]">{order.items?.length || 0} items</td>
@@ -532,4 +549,3 @@ function XIcon(props: SVGProps<SVGSVGElement>) {
     </svg>
   );
 }
-
