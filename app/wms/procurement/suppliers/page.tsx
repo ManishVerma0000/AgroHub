@@ -4,6 +4,7 @@ import React, { useState, useEffect } from "react";
 import { SVGProps } from "react";
 import { useRouter } from "next/navigation";
 import { supplierService, Supplier } from "../../../../services/supplierService";
+import { wmsAuthService } from "../../../../services/wmsAuthService";
 
 export default function SuppliersPage() {
   const router = useRouter();
@@ -12,6 +13,7 @@ export default function SuppliersPage() {
   const [showAddModal, setShowAddModal] = useState(false);
   const [suppliers, setSuppliers] = useState<Supplier[]>([]);
   const [isLoading, setIsLoading] = useState(true);
+  const [warehouseId, setWarehouseId] = useState<string | null>(null);
 
   // Form states
   const [formData, setFormData] = useState({
@@ -28,8 +30,30 @@ export default function SuppliersPage() {
   const fetchSuppliers = async () => {
     try {
       setIsLoading(true);
-      const data = await supplierService.getAllSuppliers();
-      setSuppliers(data);
+      let targetWarehouseId = warehouseId;
+      
+      if (!targetWarehouseId) {
+        const token = localStorage.getItem('wmsToken');
+        if (token) {
+          try {
+            const profile = await wmsAuthService.getProfile(token);
+            if (profile && profile.id) {
+              targetWarehouseId = profile.id;
+              setWarehouseId(profile.id);
+            }
+          } catch (profileError) {
+            console.error("Failed to fetch warehouse profile", profileError);
+          }
+        }
+      }
+
+      if (targetWarehouseId && targetWarehouseId !== 'null' && targetWarehouseId !== 'undefined') {
+        const data = await supplierService.getAllSuppliers(targetWarehouseId);
+        setSuppliers(data);
+      } else {
+        console.warn("No valid warehouseId found for fetching suppliers");
+        setSuppliers([]);
+      }
     } catch (error) {
       console.error("Failed to fetch suppliers", error);
     } finally {
@@ -48,7 +72,15 @@ export default function SuppliersPage() {
 
   const handleAddSupplier = async () => {
     try {
-      await supplierService.createSupplier(formData);
+      if (!warehouseId) {
+        alert("Warehouse information not found. Please try logging in again.");
+        return;
+      }
+      
+      await supplierService.createSupplier({
+        ...formData,
+        warehouseId: warehouseId
+      });
       setShowAddModal(false);
       setFormData({
         name: "",

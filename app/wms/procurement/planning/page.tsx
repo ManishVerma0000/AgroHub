@@ -6,6 +6,7 @@ import { warehouseProductService } from "../../../../services/warehouseProductSe
 import { supplierService, Supplier } from "../../../../services/supplierService";
 import { supplierProductService, SupplierProduct } from "../../../../services/supplierProductService";
 import { purchaseOrderService } from "../../../../services/purchaseOrderService";
+import { wmsAuthService } from "../../../../services/wmsAuthService";
 
 interface WarehouseProductSource {
   id: string;
@@ -69,9 +70,15 @@ export default function PurchasePlanning() {
     const fetchAllData = async () => {
       try {
         setIsLoading(true);
+        const token = localStorage.getItem('wmsToken');
+        if (!token) return;
+
+        const profile = await wmsAuthService.getProfile(token);
+        const warehouseId = profile.id;
+
         const [warehouseData, suppliersData, supplierProductsData] = await Promise.all([
-          warehouseProductService.getAll(),
-          supplierService.getAllSuppliers(),
+          warehouseProductService.getAll(warehouseId),
+          supplierService.getAllSuppliers(warehouseId),
           supplierProductService.getAll()
         ]);
         

@@ -10,6 +10,7 @@ export interface Supplier {
   gstNumber?: string | null;
   address?: string | null;
   status: string;
+  warehouseId: string;
   products: number;
   poCount: number;
   totalAmount: number;
@@ -26,12 +27,15 @@ export interface SupplierCreate {
   gstNumber?: string | null;
   address?: string | null;
   status?: string;
+  warehouseId: string;
 }
 
 export const supplierService = {
   // Get all suppliers
-  getAllSuppliers: async (): Promise<Supplier[]> => {
-    const response = await api.get('/procurement/suppliers');
+  getAllSuppliers: async (warehouseId?: string): Promise<Supplier[]> => {
+    const response = await api.get('/procurement/suppliers', {
+      params: { warehouse_id: warehouseId }
+    });
     return response.data;
   },
 
