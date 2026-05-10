@@ -8,6 +8,7 @@ import { supplierProductService, SupplierProduct } from "../../../../../services
 import { productService } from "../../../../../services/productService";
 import { categoryService } from "../../../../../services/categoryService";
 import { purchaseOrderService } from "../../../../../services/purchaseOrderService";
+import { wmsAuthService } from "../../../../../services/wmsAuthService";
 
 export default function SupplierProfilePage() {
   const router = useRouter();
@@ -18,6 +19,7 @@ export default function SupplierProfilePage() {
   const [suppliedProducts, setSuppliedProducts] = useState<SupplierProduct[]>([]);
   const [poHistory, setPoHistory] = useState<any[]>([]);
   const [isLoading, setIsLoading] = useState(true);
+  const [warehouseId, setWarehouseId] = useState<string | null>(null);
 
   // Modal states
   const [isAddModalOpen, setIsAddModalOpen] = useState(false);
@@ -35,12 +37,29 @@ export default function SupplierProfilePage() {
     if (!id) return;
     try {
       setIsLoading(true);
+      
+      let targetWarehouseId = warehouseId;
+      if (!targetWarehouseId) {
+        const token = localStorage.getItem('wmsToken');
+        if (token) {
+          try {
+            const profile = await wmsAuthService.getProfile(token);
+            if (profile && profile.id) {
+              targetWarehouseId = profile.id;
+              setWarehouseId(profile.id);
+            }
+          } catch (profileError) {
+            console.error("Failed to fetch warehouse profile", profileError);
+          }
+        }
+      }
+
       const [supplierData, productsData, globalProdsRes, globalCats, allPOs] = await Promise.all([
-        supplierService.getSupplierById(id),
+        supplierService.getSupplierById(id, targetWarehouseId || undefined),
         supplierProductService.getBySupplierId(id),
         productService.getAll(0, 100), // Get first 100 for selection
         categoryService.getAll(),
-        purchaseOrderService.getAll()
+        purchaseOrderService.getAll(targetWarehouseId || undefined)
       ]);
       setSupplier(supplierData);
       setSuppliedProducts(productsData);

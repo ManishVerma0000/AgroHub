@@ -40,8 +40,10 @@ export const supplierService = {
   },
 
   // Get a single supplier by ID
-  getSupplierById: async (id: string): Promise<Supplier> => {
-    const response = await api.get(`/procurement/suppliers/${id}`);
+  getSupplierById: async (id: string, warehouseId?: string): Promise<Supplier> => {
+    const response = await api.get(`/procurement/suppliers/${id}`, {
+      params: { warehouse_id: warehouseId }
+    });
     return response.data;
   },
 
