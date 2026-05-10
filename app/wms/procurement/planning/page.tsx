@@ -78,8 +78,8 @@ export default function PurchasePlanning() {
         setWarehouseId(wId);
 
         const [warehouseData, suppliersData, supplierProductsData] = await Promise.all([
-          warehouseProductService.getAll(warehouseId),
-          supplierService.getAllSuppliers(warehouseId),
+          warehouseProductService.getAll(wId),
+          supplierService.getAllSuppliers(wId),
           supplierProductService.getAll()
         ]);
         
