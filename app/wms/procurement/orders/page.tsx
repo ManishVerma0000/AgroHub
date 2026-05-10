@@ -4,21 +4,46 @@ import React, { useState, useEffect } from "react";
 import Link from "next/link";
 import { SVGProps } from "react";
 import { purchaseOrderService, PurchaseOrder } from "../../../../services/purchaseOrderService";
+import { wmsAuthService } from "../../../../services/wmsAuthService";
 
 export default function PurchaseOrdersPage() {
   const [selectedStatus, setSelectedStatus] = useState("All Status");
   const [showCreateModal, setShowCreateModal] = useState(false);
   const [orders, setOrders] = useState<PurchaseOrder[]>([]);
   const [isLoading, setIsLoading] = useState(true);
+  const [warehouseId, setWarehouseId] = useState<string | null>(null);
 
   useEffect(() => {
     fetchOrders();
   }, []);
 
-  const fetchOrders = async () => {
+  const fetchOrders = async (targetWarehouseId?: string) => {
+    const wId = targetWarehouseId || warehouseId;
+    if (!wId) {
+      // Try to get from profile if not in state yet
+      const token = localStorage.getItem('wmsToken');
+      if (token) {
+        try {
+          const profile = await wmsAuthService.getProfile(token);
+          if (profile && profile.id) {
+            setWarehouseId(profile.id);
+            const data = await purchaseOrderService.getAll(profile.id);
+            data.sort((a, b) => new Date(b.orderDate).getTime() - new Date(a.orderDate).getTime());
+            setOrders(data);
+            setIsLoading(false);
+            return;
+          }
+        } catch (e) {
+          console.error("Failed to fetch profile in fetchOrders", e);
+        }
+      }
+      setIsLoading(false);
+      return;
+    }
+
     try {
       setIsLoading(true);
-      const data = await purchaseOrderService.getAll();
+      const data = await purchaseOrderService.getAll(wId);
       // Sort newest first
       data.sort((a, b) => new Date(b.orderDate).getTime() - new Date(a.orderDate).getTime());
       setOrders(data);

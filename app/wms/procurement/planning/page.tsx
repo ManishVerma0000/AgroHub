@@ -62,7 +62,7 @@ export default function PurchasePlanning() {
   const [expectedDelivery, setExpectedDelivery] = useState<string>("");
   const [orderNotes, setOrderNotes] = useState<string>("");
   const [isSubmitting, setIsSubmitting] = useState(false);
-  
+  const [warehouseId, setWarehouseId] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(true);
 
   // Fetch actual products and compute derived statuses
@@ -74,7 +74,8 @@ export default function PurchasePlanning() {
         if (!token) return;
 
         const profile = await wmsAuthService.getProfile(token);
-        const warehouseId = profile.id;
+        const wId = profile.id;
+        setWarehouseId(wId);
 
         const [warehouseData, suppliersData, supplierProductsData] = await Promise.all([
           warehouseProductService.getAll(warehouseId),
@@ -231,6 +232,7 @@ export default function PurchasePlanning() {
               expectedDelivery,
               totalAmount,
               status: "Pending",
+              warehouseId: warehouseId || "",
               items
           });
 

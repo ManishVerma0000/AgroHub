@@ -24,15 +24,38 @@ export default function POReceivingPage() {
   // receiveData holds form data keyed by the item index
   const [receiveData, setReceiveData] = useState<Record<number, { qty: number; price: number }>>({});
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [warehouseId, setWarehouseId] = useState<string | null>(null);
 
   useEffect(() => {
     fetchOrders();
   }, []);
 
-  const fetchOrders = async () => {
+  const fetchOrders = async (targetWarehouseId?: string) => {
+    const wId = targetWarehouseId || warehouseId;
+    if (!wId) {
+      // Try to get from profile if not in state yet
+      const token = localStorage.getItem('wmsToken');
+      if (token) {
+        try {
+          const profile = await wmsAuthService.getProfile(token);
+          if (profile && profile.id) {
+            setWarehouseId(profile.id);
+            const data = await purchaseOrderService.getAll(profile.id);
+            setOrders(data);
+            setLoading(false);
+            return;
+          }
+        } catch (e) {
+          console.error("Failed to fetch profile in fetchOrders", e);
+        }
+      }
+      setLoading(false);
+      return;
+    }
+
     setLoading(true);
     try {
-      const data = await purchaseOrderService.getAll();
+      const data = await purchaseOrderService.getAll(wId);
       setOrders(data);
     } catch (error) {
       console.error("Error fetching purchase orders", error);
@@ -93,11 +116,8 @@ export default function POReceivingPage() {
       });
       
       // 3. Update Warehouse Product Base Prices
-      // Use the dynamic WMS warehouse ID from profile
-      const token = localStorage.getItem('wmsToken');
-      if (!token) throw new Error("No authentication token found");
-      const profile = await wmsAuthService.getProfile(token);
-      const targetWarehouseId = profile.id; 
+      const targetWarehouseId = warehouseId;
+      if (!targetWarehouseId) throw new Error("Warehouse ID not found in state");
       try {
         const warehouseProducts = await warehouseProductService.getAll(targetWarehouseId);
         

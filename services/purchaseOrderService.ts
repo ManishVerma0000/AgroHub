@@ -17,12 +17,15 @@ export interface PurchaseOrder {
   expectedDelivery: string;
   totalAmount: number;
   status: string;
+  warehouseId: string;
   items: PurchaseOrderItem[];
 }
 
 export const purchaseOrderService = {
-  getAll: async (): Promise<PurchaseOrder[]> => {
-    const response = await api.get('/procurement/purchase-orders');
+  getAll: async (warehouseId?: string): Promise<PurchaseOrder[]> => {
+    const response = await api.get('/procurement/purchase-orders', {
+      params: { warehouse_id: warehouseId }
+    });
     return response.data;
   },
 
