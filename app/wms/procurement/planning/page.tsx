@@ -65,75 +65,90 @@ export default function PurchasePlanning() {
   const [warehouseId, setWarehouseId] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(true);
 
+  const fetchAllData = async () => {
+    try {
+      setIsLoading(true);
+      const token = localStorage.getItem('wmsToken');
+      if (!token) return;
+
+      const profile = await wmsAuthService.getProfile(token);
+      const wId = profile.id;
+      setWarehouseId(wId);
+
+      const [warehouseData, suppliersData, supplierProductsData, purchaseOrdersData] = await Promise.all([
+        warehouseProductService.getAll(wId),
+        supplierService.getAllSuppliers(wId),
+        supplierProductService.getAll(),
+        purchaseOrderService.getAll(wId)
+      ]);
+
+      const pendingPOs = (purchaseOrdersData || []).filter(po => po.status === "Pending");
+      const pendingOrderQtyMap: Record<string, number> = {};
+      pendingPOs.forEach(po => {
+        po.items?.forEach(item => {
+          if (item.productId) {
+            const qty = item.quantity || 0;
+            pendingOrderQtyMap[item.productId] = (pendingOrderQtyMap[item.productId] || 0) + qty;
+          }
+        });
+      });
+      
+      const planningItems = (warehouseData as WarehouseProductSource[]).flatMap<PlanningItem>((item) => {
+        const productName = item.productName || item.name || item.product?.name;
+        if (!productName || !item.productId) return [];
+
+        let status: PlanningItem["status"] = "In Stock";
+        let suggested = 0;
+        const reorderLvl = item.reorderLevel || 0;
+        const currentStock = item.currentStock || 0;
+        
+        if (currentStock <= 0) {
+          status = "Out of Stock";
+          suggested = reorderLvl > 0 ? reorderLvl : 50; // Default if reorderLevel is missing
+        } else if (currentStock > 0 && currentStock <= reorderLvl) {
+          status = "Low Stock";
+          suggested = reorderLvl - currentStock;
+        }
+        
+        const orderedQty = pendingOrderQtyMap[item.productId] || 0;
+        
+        return {
+          id: item.id,
+          globalProductId: item.productId, // CRITICAL: The global ID linked in SupplierProducts
+          product: productName,
+          subtext: item.productId?.slice(-6).toUpperCase() || "N/A",
+          category: item.category || "Uncategorized",
+          subcategory: item.subcategory || "N/A",
+          unit: item.baseUnit || "Qty",
+          current: currentStock,
+          reserved: item.reservedStock || 0,
+          available: item.availableStock || 0,
+          ordered: orderedQty, 
+          reorder: reorderLvl,
+          suggested: suggested > 0 ? suggested : 0,
+          status: status
+        };
+      }).filter((item) => item.status === "Out of Stock" || item.status === "Low Stock");
+      
+      setProducts(planningItems);
+      setSuppliers(suppliersData);
+      setSupplierProducts(supplierProductsData);
+
+      // Populate dynamic category dropdowns
+      const uniqueCategories = Array.from(new Set(planningItems.map((p) => p.category)));
+      const uniqueSubcategories = Array.from(new Set(planningItems.map((p) => p.subcategory)));
+      setCategories(uniqueCategories);
+      setSubcategories(uniqueSubcategories);
+
+    } catch (err) {
+      console.error("Failed to load products", err);
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
   // Fetch actual products and compute derived statuses
   useEffect(() => {
-    const fetchAllData = async () => {
-      try {
-        setIsLoading(true);
-        const token = localStorage.getItem('wmsToken');
-        if (!token) return;
-
-        const profile = await wmsAuthService.getProfile(token);
-        const wId = profile.id;
-        setWarehouseId(wId);
-
-        const [warehouseData, suppliersData, supplierProductsData] = await Promise.all([
-          warehouseProductService.getAll(wId),
-          supplierService.getAllSuppliers(wId),
-          supplierProductService.getAll()
-        ]);
-        
-        const planningItems = (warehouseData as WarehouseProductSource[]).flatMap<PlanningItem>((item) => {
-          const productName = item.productName || item.name || item.product?.name;
-          if (!productName || !item.productId) return [];
-
-          let status: PlanningItem["status"] = "In Stock";
-          let suggested = 0;
-          const reorderLvl = item.reorderLevel || 0;
-          const currentStock = item.currentStock || 0;
-          
-          if (currentStock <= 0) {
-            status = "Out of Stock";
-            suggested = reorderLvl > 0 ? reorderLvl : 50; // Default if reorderLevel is missing
-          } else if (currentStock > 0 && currentStock <= reorderLvl) {
-            status = "Low Stock";
-            suggested = reorderLvl - currentStock;
-          }
-          
-          return {
-            id: item.id,
-            globalProductId: item.productId, // CRITICAL: The global ID linked in SupplierProducts
-            product: productName,
-            subtext: item.productId?.slice(-6).toUpperCase() || "N/A",
-            category: item.category || "Uncategorized",
-            subcategory: item.subcategory || "N/A",
-            unit: item.baseUnit || "Qty",
-            current: currentStock,
-            reserved: item.reservedStock || 0,
-            available: item.availableStock || 0,
-            ordered: 0, 
-            reorder: reorderLvl,
-            suggested: suggested > 0 ? suggested : 0,
-            status: status
-          };
-        }).filter((item) => item.status === "Out of Stock" || item.status === "Low Stock");
-        
-        setProducts(planningItems);
-        setSuppliers(suppliersData);
-        setSupplierProducts(supplierProductsData);
-
-        // Populate dynamic category dropdowns
-        const uniqueCategories = Array.from(new Set(planningItems.map((p) => p.category)));
-        const uniqueSubcategories = Array.from(new Set(planningItems.map((p) => p.subcategory)));
-        setCategories(uniqueCategories);
-        setSubcategories(uniqueSubcategories);
-
-      } catch (err) {
-        console.error("Failed to load products", err);
-      } finally {
-        setIsLoading(false);
-      }
-    };
     fetchAllData();
   }, []);
 
@@ -491,6 +506,7 @@ export default function PurchasePlanning() {
                   setSelectedItems([]);
                   setExpectedDelivery("");
                   setOrderNotes("");
+                  fetchAllData();
                 }}
                 className="w-full py-3 bg-[#07ac57] hover:bg-[#06934a] text-white rounded-lg font-bold transition-colors shadow-sm"
               >

@@ -47,6 +47,7 @@ export default function PackingListPage() {
   const [packingIds, setPackingIds] = useState<Set<string>>(new Set());
   const [verifyOrder, setVerifyOrder] = useState<MobileOrder | null>(null);
   const [verifiedItems, setVerifiedItems] = useState<Set<string>>(new Set());
+  const [error, setError] = useState<string | null>(null);
 
   const fetchOrders = useCallback(async () => {
     setLoading(true);
@@ -68,14 +69,19 @@ export default function PackingListPage() {
   }, [fetchOrders]);
 
   const handleMarkPacked = async (orderId: string) => {
-    if (packingIds.has(orderId)) return;
+    if (packingIds.has(orderId)) return false;
     setPackingIds((prev) => new Set(prev).add(orderId));
+    setError(null);
     try {
       await mobileOrderService.startPacking(orderId);
       // Remove from list once status updated
       setOrders((prev) => prev.filter((o) => o.id !== orderId));
-    } catch (err) {
+      return true;
+    } catch (err: any) {
       console.error("Error marking order as packed:", err);
+      const errMsg = err.response?.data?.detail || "Items stock is not available or partially available";
+      setError(errMsg);
+      return false;
     } finally {
       setPackingIds((prev) => {
         const next = new Set(prev);
@@ -88,11 +94,13 @@ export default function PackingListPage() {
   const openVerifyPacking = (order: MobileOrder) => {
     setVerifyOrder(order);
     setVerifiedItems(new Set());
+    setError(null);
   };
 
   const closeVerifyPacking = () => {
     setVerifyOrder(null);
     setVerifiedItems(new Set());
+    setError(null);
   };
 
   const verifyItems = verifyOrder?.items || [];
@@ -119,12 +127,26 @@ export default function PackingListPage() {
 
   const confirmVerifiedPacking = async () => {
     if (!verifyOrder || !allItemsVerified) return;
-    await handleMarkPacked(verifyOrder.id);
-    closeVerifyPacking();
+    const success = await handleMarkPacked(verifyOrder.id);
+    if (success) {
+      closeVerifyPacking();
+    }
   };
 
   return (
     <div className="flex flex-col gap-8 max-w-[1400px]">
+
+      {error && (
+        <div className="bg-red-50 border border-red-200 text-red-800 px-4 py-3 rounded-lg relative flex justify-between items-center animate-in fade-in slide-in-from-top-4 duration-200 shadow-sm">
+          <div className="flex items-center gap-2">
+            <span className="font-bold text-sm">Error:</span>
+            <span className="text-sm font-semibold">{error}</span>
+          </div>
+          <button onClick={() => setError(null)} className="text-red-500 hover:text-red-700 font-bold text-sm px-2">
+            ✕
+          </button>
+        </div>
+      )}
 
       {/* Top Header Row */}
       <div className="flex justify-between items-center">
@@ -310,6 +332,17 @@ export default function PackingListPage() {
             </div>
 
             <div className="px-7 py-6">
+              {error && (
+                <div className="mb-4 bg-red-50 border border-red-200 text-red-800 px-4 py-3 rounded-lg relative flex justify-between items-center animate-in fade-in zoom-in duration-200 shadow-sm">
+                  <div className="flex items-center gap-2">
+                    <span className="font-bold text-sm">Error:</span>
+                    <span className="text-sm font-semibold">{error}</span>
+                  </div>
+                  <button onClick={() => setError(null)} className="text-red-500 hover:text-red-700 font-bold text-sm px-2">
+                    ✕
+                  </button>
+                </div>
+              )}
               <div className={`mb-6 flex items-center justify-between rounded-xl border px-5 py-4 ${
                 allItemsVerified ? "border-[#86efac] bg-[#f0fdf4]" : "border-[#fed7aa] bg-[#fff7ed]"
               }`}>

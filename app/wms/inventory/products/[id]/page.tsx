@@ -34,6 +34,9 @@ export default function ProductDetailsPage({ params }: { params: Promise<{ id: s
         const bPrice = parseFloat(wpResponse.basePrice || "0");
         const sellingPrice = parseFloat(wpResponse.sellingPrice || wpResponse.basePrice || "0");
         
+        // Derive landed cost including base price, overhead, and logistics: landed = sellingPrice / (1 + Margin / 100)
+        const landedCost = bMargin > 0 ? sellingPrice / (1 + bMargin / 100) : sellingPrice;
+        
         const b2bSlabs = (baseProduct.b2bBulkSlabs || []).map((slab: any, idx: number) => {
           if (idx === 0) {
             return {
@@ -42,7 +45,7 @@ export default function ProductDetailsPage({ params }: { params: Promise<{ id: s
             };
           }
           const effectiveMargin = bMargin - ((idx - 1) * 2);
-          const calculatedRate = bPrice * (1 + effectiveMargin / 100);
+          const calculatedRate = landedCost * (1 + effectiveMargin / 100);
           return {
             ...slab,
             rate: `₹${calculatedRate.toFixed(2)}`
