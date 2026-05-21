@@ -41,116 +41,124 @@ export default function CustomerOrderPage() {
   const [selectedDeliverySlot, setSelectedDeliverySlot] = useState("7:00 - 8:00 AM");
   const [selectedAddressId, setSelectedAddressId] = useState<string>("");
 
+  const getSlabPrice = (product: any, quantity: number) => {
+    if (!product.slabs || product.slabs.length === 0) {
+      return product.sellingPrice || 22;
+    }
+    const slab = product.slabs.find((s: any) => {
+      const min = parseFloat(s.minQty);
+      const max = parseFloat(s.maxQty);
+      return quantity >= min && quantity <= max;
+    });
+    if (slab) {
+      return parseFloat(slab.rate);
+    }
+    return product.sellingPrice || 22;
+  };
+
+  // 1. Fetch Customer Data once on load
   useEffect(() => {
-    const fetchInitialData = async () => {
+    const fetchCustomer = async () => {
       try {
         setLoading(true);
         const customerData = await customerService.getById(id);
         setCustomer(customerData);
 
-        // 1. Get location coordinates
-        let lat, long;
         if (customerData.addresses && customerData.addresses.length > 0) {
           const defaultAddr = customerData.addresses.find((a: any) => a.isDefault) || customerData.addresses[0];
           setSelectedAddressId(defaultAddr.id);
-          lat = defaultAddr.lat;
-          long = defaultAddr.long;
-          console.log("Customer coordinates:", { lat, long });
-        }
-
-        if (!lat || !long) {
-          console.warn("Customer has no coordinates set.");
+        } else {
+          console.warn("Customer has no addresses.");
           setShowNoLocationModal(true);
-          setLoading(false);
-          return;
         }
-
-        // 2. Find nearest warehouse
-        try {
-          const nearestWarehouse = await warehouseService.getNearest(lat, long);
-          console.log("Nearest warehouse found:", nearestWarehouse);
-          setWarehouse(nearestWarehouse);
-          
-          if (nearestWarehouse) {
-            // 3. Fetch data for this warehouse
-            const [inventoryData, globalProductsRes, categoriesData, subcategoriesData] = await Promise.all([
-              warehouseProductService.getAll(nearestWarehouse.id),
-              productService.getAll(0, 100),
-              categoryService.getAll(),
-              subcategoryService.getAll()
-            ]);
-
-            const globalProducts = globalProductsRes.items;
-            setCategories(categoriesData);
-            setSubcategories(subcategoriesData);
-
-            const mappedProducts = inventoryData.map((invItem: any) => {
-              const gp = globalProducts.find((p: any) => p.id === invItem.productId) || {};
-              return {
-                ...invItem,
-                name: invItem.productName || gp.name || "Unknown Product",
-                unit: gp.baseUnit || "kg",
-                category: gp.category || "General",
-                subcategory: gp.subcategory || "General",
-                slabs: gp.b2bBulkSlabs || [],
-                mrp: gp.mrp || 0,
-                imageUrl: gp.imageUrl
-              };
-            });
-            setProducts(mappedProducts);
-          } else {
-            setShowNoLocationModal(true);
-          }
-        } catch (err: any) {
-          if (err.response?.status === 404) {
-            setShowNoLocationModal(true);
-          } else {
-            toast.error("Failed to check for nearest warehouse");
-          }
-        }
-
       } catch (error) {
-        console.error("Error fetching data:", error);
+        console.error("Error fetching customer:", error);
       } finally {
         setLoading(false);
       }
     };
-    if (id) fetchInitialData();
+    if (id) fetchCustomer();
   }, [id]);
 
-  // Handle address change to re-check warehouse
+  // 2. Fetch Products/Warehouse whenever selectedAddressId changes
   useEffect(() => {
-    const handleAddressChange = async () => {
+    const fetchWarehouseAndProducts = async () => {
       if (!customer || !selectedAddressId) return;
-      
+
       const addr = customer.addresses?.find((a: any) => a.id === selectedAddressId);
-      if (!addr || !addr.lat || !addr.long) return;
+      if (!addr || !addr.lat || !addr.long) {
+        console.warn("Address has no coordinates set.");
+        setShowNoLocationModal(true);
+        return;
+      }
 
       setLoading(true);
       try {
         const nearestWarehouse = await warehouseService.getNearest(addr.lat, addr.long);
+        console.log("Nearest warehouse found:", nearestWarehouse);
         setWarehouse(nearestWarehouse);
-        
+
         if (nearestWarehouse) {
           setShowNoLocationModal(false);
-          const inventoryData = await warehouseProductService.getAll(nearestWarehouse.id);
-          const globalProductsRes = await productService.getAll(0, 100);
+          const [inventoryData, globalProductsRes, categoriesData, subcategoriesData] = await Promise.all([
+            warehouseProductService.getAll(nearestWarehouse.id),
+            productService.getAll(0, 100),
+            categoryService.getAll(),
+            subcategoryService.getAll()
+          ]);
+
           const globalProducts = globalProductsRes.items;
+          setCategories(categoriesData);
+          setSubcategories(subcategoriesData);
 
           const mappedProducts = inventoryData.map((invItem: any) => {
             const gp = globalProducts.find((p: any) => p.id === invItem.productId) || {};
+            const bMargin = parseFloat(gp.baseMargin || "0");
+            const rawSellingPrice = parseFloat(invItem.sellingPrice || invItem.basePrice || "0");
+            const sellingPrice = parseFloat(rawSellingPrice.toFixed(2));
+            const landedCost = bMargin > 0 ? sellingPrice / (1 + bMargin / 100) : sellingPrice;
+
+            const calculatedSlabs = (gp.b2bBulkSlabs || []).map((slab: any, idx: number) => {
+              if (idx === 0) {
+                return { ...slab, rate: sellingPrice };
+              }
+              const effectiveMargin = bMargin - ((idx - 1) * 2);
+              const calculatedRate = landedCost * (1 + effectiveMargin / 100);
+              return { ...slab, rate: parseFloat(calculatedRate.toFixed(2)) };
+            });
+
             return {
               ...invItem,
+              sellingPrice: sellingPrice,
               name: invItem.productName || gp.name || "Unknown Product",
               unit: gp.baseUnit || "kg",
               category: gp.category || "General",
               subcategory: gp.subcategory || "General",
-              slabs: gp.b2bBulkSlabs || [],
+              slabs: calculatedSlabs,
               mrp: gp.mrp || 0,
               imageUrl: gp.imageUrl
             };
           });
+
           setProducts(mappedProducts);
+
+          // Update existing cart prices dynamically if nearest warehouse changes
+          setCart(prevCart => {
+            return prevCart.map(item => {
+              const prod = mappedProducts.find((p: any) => p.productId === item.productId);
+              if (prod) {
+                const newPrice = getSlabPrice(prod, item.quantity);
+                return {
+                  ...item,
+                  id: prod.id, // Update to the new warehouse product id!
+                  price: newPrice,
+                  total: newPrice * item.quantity
+                };
+              }
+              return item;
+            });
+          });
+
         } else {
           setProducts([]);
           setShowNoLocationModal(true);
@@ -167,17 +175,15 @@ export default function CustomerOrderPage() {
       }
     };
 
-    // Only run if selectedAddressId changes and it's not the initial load (which is handled by the first useEffect)
-    // Actually, it's safer to just run it when selectedAddressId changes.
-    handleAddressChange();
-  }, [selectedAddressId, customer?.id]);
+    fetchWarehouseAndProducts();
+  }, [selectedAddressId, customer]);
 
   const addToCart = (product: any) => {
     const existing = cart.find(item => item.id === product.id);
     if (existing) {
       updateQuantity(product.id, existing.quantity + 1);
     } else {
-      const price = product.sellingPrice || 22;
+      const price = getSlabPrice(product, 1);
       const newItem: CartItem = {
         id: product.id,
         productId: product.productId,
@@ -196,9 +202,11 @@ export default function CustomerOrderPage() {
       removeFromCart(id);
       return;
     }
+    const product = products.find(p => p.id === id);
     setCart(cart.map(item => {
       if (item.id === id) {
-        return { ...item, quantity: newQty, total: item.price * newQty };
+        const price = product ? getSlabPrice(product, newQty) : item.price;
+        return { ...item, quantity: newQty, price: price, total: price * newQty };
       }
       return item;
     }));
@@ -346,15 +354,15 @@ export default function CustomerOrderPage() {
                     </div>
                     <div className="flex flex-col gap-0.5">
                       <h3 className="font-bold text-[16px] text-[#0f172a]">{product.name}</h3>
-                      <span className="text-[#f97316] text-[13px] font-bold">₹{product.sellingPrice || 22}<span className="text-[#94a3b8] font-normal ml-0.5">/kg</span></span>
+                      <span className="text-[#f97316] text-[13px] font-bold">₹{Number(product.sellingPrice || 22).toFixed(2)}<span className="text-[#94a3b8] font-normal ml-0.5">/kg</span></span>
                     </div>
                   </div>
 
                   {/* Slabs Chips */}
                   <div className="flex items-center gap-2 flex-[2] justify-center">
                     {product.slabs && product.slabs.length > 0 && product.slabs.slice(0, 3).map((slab: any, idx: number) => (
-                      <div key={idx} className={`px-4 py-1.5 rounded-lg text-[12px] font-bold border transition-all $\{idx === 0 ? 'bg-[#f0fdf4] border-[#dcfce7] text-[#16a34a]' : 'bg-[#f8fafc] border-[#e2e8f0] text-[#94a3b8]'}`}>
-                        {slab.minQty}-{slab.maxQty} {product.unit} ₹{slab.rate}
+                      <div key={idx} className={`px-4 py-1.5 rounded-lg text-[12px] font-bold border transition-all ${idx === 0 ? 'bg-[#f0fdf4] border-[#dcfce7] text-[#16a34a]' : 'bg-[#f8fafc] border-[#e2e8f0] text-[#94a3b8]'}`}>
+                        {slab.minQty}-{slab.maxQty} {product.unit} ₹{Number(slab.rate).toFixed(2)}
                       </div>
                     ))}
                   </div>
@@ -448,8 +456,8 @@ export default function CustomerOrderPage() {
                           </button>
                         </div>
                       </td>
-                      <td className="px-6 py-5 font-bold text-[#1e293b]">₹{item.price}</td>
-                      <td className="px-6 py-5 font-bold text-[#0f172a]">₹{item.total}</td>
+                      <td className="px-6 py-5 font-bold text-[#1e293b]">₹{Number(item.price).toFixed(2)}</td>
+                      <td className="px-6 py-5 font-bold text-[#0f172a]">₹{Number(item.total).toFixed(2)}</td>
                       <td className="px-6 py-5 text-center">
                         <button
                           onClick={() => removeFromCart(item.id)}
@@ -515,18 +523,18 @@ export default function CustomerOrderPage() {
             <div className="flex flex-col gap-4">
               <div className="flex justify-between items-center text-[15px]">
                 <span className="text-[#64748b] font-medium">Subtotal</span>
-                <span className="font-bold text-[#0f172a]">₹{subtotal.toLocaleString()}</span>
+                <span className="font-bold text-[#0f172a]">₹{subtotal.toFixed(2)}</span>
               </div>
               <div className="flex justify-between items-center text-[15px]">
                 <span className="text-[#64748b] font-medium">Delivery</span>
                 <div className="flex items-center gap-2">
-                  <span className="text-[#94a3b8] line-through text-xs font-semibold">₹500</span>
+                  <span className="text-[#94a3b8] line-through text-xs font-semibold">₹500.00</span>
                   <span className="text-[#16a34a] font-bold text-[14px]">FREE</span>
                 </div>
               </div>
               <div className="pt-4 border-t border-[#f1f5f9] mt-2 flex justify-between items-center">
                 <span className="text-[18px] font-bold text-[#0f172a]">Grand Total</span>
-                <span className="text-[22px] font-bold text-[#f97316]">₹{grandTotal.toLocaleString()}</span>
+                <span className="text-[22px] font-bold text-[#f97316]">₹{grandTotal.toFixed(2)}</span>
               </div>
             </div>
           </div>

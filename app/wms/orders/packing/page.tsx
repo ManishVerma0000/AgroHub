@@ -5,6 +5,7 @@ import Link from "next/link";
 import { SVGProps } from "react";
 import { mobileOrderService, MobileOrder } from "../../../../services/mobileOrderService";
 import { wmsAuthService } from "../../../../services/wmsAuthService";
+import { warehouseProductService } from "../../../../services/warehouseProductService";
 
 const avatarColors = ["bg-[#0ea5e9]", "bg-[#0d9488]", "bg-[#38bdf8]", "bg-[#0284c7]", "bg-[#10b981]", "bg-[#14b8a6]", "bg-[#8b5cf6]", "bg-[#db2777]"];
 const getAvatarBg = (name: string) => {
@@ -48,6 +49,7 @@ export default function PackingListPage() {
   const [verifyOrder, setVerifyOrder] = useState<MobileOrder | null>(null);
   const [verifiedItems, setVerifiedItems] = useState<Set<string>>(new Set());
   const [error, setError] = useState<string | null>(null);
+  const [warehouseProducts, setWarehouseProducts] = useState<any[]>([]);
 
   const fetchOrders = useCallback(async () => {
     setLoading(true);
@@ -55,8 +57,12 @@ export default function PackingListPage() {
       const token = localStorage.getItem('wmsToken');
       if (!token) return;
       const profile = await wmsAuthService.getProfile(token);
-      const data = await mobileOrderService.getByWarehouseAndStatus(profile.id, "Picking");
-      setOrders(data);
+      const [ordersData, wpData] = await Promise.all([
+        mobileOrderService.getByWarehouseAndStatus(profile.id, "Picking"),
+        warehouseProductService.getAll(profile.id)
+      ]);
+      setOrders(ordersData);
+      setWarehouseProducts(wpData || []);
     } catch (err) {
       console.error("Error fetching picking orders:", err);
     } finally {
@@ -67,6 +73,44 @@ export default function PackingListPage() {
   useEffect(() => {
     fetchOrders();
   }, [fetchOrders]);
+
+  const getStockAvailability = useCallback((item: any) => {
+    const productId = item.productId;
+    const orderQty = getOrderItemQuantity(item);
+    const wp = warehouseProducts.find(p => p.productId === productId);
+    
+    if (!wp) {
+      return {
+        status: "Out of Stock",
+        availableBeforeOrder: 0,
+        isInsufficient: true
+      };
+    }
+
+    const currentAvailable = wp.availableStock ?? 0;
+    const currentStock = wp.currentStock ?? 0;
+
+    // Backend-aligned validation for packing eligibility:
+    // An item is insufficient if availableStock is negative OR physical currentStock < orderQty
+    const isInsufficient = currentAvailable < 0 || currentStock < orderQty;
+
+    if (isInsufficient) {
+      // If currentStock is 0 or less, it's completely Out of Stock.
+      // Otherwise, it is Partially Available (some physical stock is present).
+      const status = currentStock <= 0 ? "Out of Stock" : "Partially Available";
+      return {
+        status,
+        availableBeforeOrder: Math.max(0, currentStock),
+        isInsufficient: true
+      };
+    }
+
+    return {
+      status: "Available",
+      availableBeforeOrder: currentAvailable + orderQty,
+      isInsufficient: false
+    };
+  }, [warehouseProducts]);
 
   const handleMarkPacked = async (orderId: string) => {
     if (packingIds.has(orderId)) return false;
@@ -94,7 +138,21 @@ export default function PackingListPage() {
   const openVerifyPacking = (order: MobileOrder) => {
     setVerifyOrder(order);
     setVerifiedItems(new Set());
-    setError(null);
+    
+    let hasInsufficient = false;
+    for (const item of (order.items || [])) {
+      const availability = getStockAvailability(item);
+      if (availability.isInsufficient) {
+        hasInsufficient = true;
+        break;
+      }
+    }
+
+    if (hasInsufficient) {
+      setError("Items stock is not available or partially available");
+    } else {
+      setError(null);
+    }
   };
 
   const closeVerifyPacking = () => {
@@ -105,7 +163,12 @@ export default function PackingListPage() {
 
   const verifyItems = verifyOrder?.items || [];
   const verifiedCount = verifiedItems.size;
-  const allItemsVerified = verifyItems.length === 0 || verifiedCount === verifyItems.length;
+  
+  const checkableItems = verifyItems.filter(item => !getStockAvailability(item).isInsufficient);
+  const checkableKeys = checkableItems.map((item, index) => getOrderItemKey(item, index));
+  const allCheckableVerified = checkableKeys.length > 0 && checkableKeys.every(k => verifiedItems.has(k));
+  
+  const allItemsVerified = verifyItems.length === 0 || (verifiedCount === verifyItems.length && !verifyItems.some(item => getStockAvailability(item).isInsufficient));
 
   const toggleVerifiedItem = (key: string) => {
     setVerifiedItems((prev) => {
@@ -117,12 +180,12 @@ export default function PackingListPage() {
   };
 
   const toggleMarkAll = () => {
-    if (allItemsVerified && verifyItems.length > 0) {
+    if (allCheckableVerified && checkableKeys.length > 0) {
       setVerifiedItems(new Set());
       return;
     }
 
-    setVerifiedItems(new Set(verifyItems.map((item, index) => getOrderItemKey(item, index))));
+    setVerifiedItems(new Set(checkableKeys));
   };
 
   const confirmVerifiedPacking = async () => {
@@ -139,8 +202,9 @@ export default function PackingListPage() {
       {error && (
         <div className="bg-red-50 border border-red-200 text-red-800 px-4 py-3 rounded-lg relative flex justify-between items-center animate-in fade-in slide-in-from-top-4 duration-200 shadow-sm">
           <div className="flex items-center gap-2">
-            <span className="font-bold text-sm">Error:</span>
-            <span className="text-sm font-semibold">{error}</span>
+            <span className="text-sm font-semibold">
+              {error.startsWith("Error-") ? error : `Error- ${error}`}
+            </span>
           </div>
           <button onClick={() => setError(null)} className="text-red-500 hover:text-red-700 font-bold text-sm px-2">
             ✕
@@ -236,9 +300,10 @@ export default function PackingListPage() {
                   const cName = order.customerName || "Unknown Customer";
                   const initial = cName.charAt(0).toUpperCase();
                   const isLoading = packingIds.has(order.id);
+                  const hasInsufficient = (order.items || []).some(item => getStockAvailability(item).isInsufficient);
 
                   return (
-                    <tr key={order.id} className="hover:bg-[#f8fafc] transition-colors">
+                    <tr key={order.id} className={`hover:bg-[#f8fafc] transition-colors ${hasInsufficient ? "bg-red-50/20 hover:bg-red-50/40" : ""}`}>
                       <td className="px-6 py-5">
                         <Link
                           href={`/wms/orders/${order.id}`}
@@ -259,6 +324,11 @@ export default function PackingListPage() {
                         <span className="inline-flex items-center gap-1.5">
                           <CubeIcon className="w-4 h-4 text-[#94a3b8]" />
                           {order.items?.length || 0} items
+                          {hasInsufficient && (
+                            <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-bold bg-red-100 text-red-800 ml-1.5 shadow-sm">
+                              Stock Warning
+                            </span>
+                          )}
                         </span>
                       </td>
                       <td className="px-6 py-5 text-[#475569] truncate max-w-[140px]">{order.location || "N/A"}</td>
@@ -335,8 +405,9 @@ export default function PackingListPage() {
               {error && (
                 <div className="mb-4 bg-red-50 border border-red-200 text-red-800 px-4 py-3 rounded-lg relative flex justify-between items-center animate-in fade-in zoom-in duration-200 shadow-sm">
                   <div className="flex items-center gap-2">
-                    <span className="font-bold text-sm">Error:</span>
-                    <span className="text-sm font-semibold">{error}</span>
+                    <span className="text-sm font-semibold">
+                      {error.startsWith("Error-") ? error : `Error- ${error}`}
+                    </span>
                   </div>
                   <button onClick={() => setError(null)} className="text-red-500 hover:text-red-700 font-bold text-sm px-2">
                     ✕
@@ -373,7 +444,7 @@ export default function PackingListPage() {
                   <label className="flex cursor-pointer items-center gap-2 text-sm font-bold text-[#475569]">
                     <input
                       type="checkbox"
-                      checked={allItemsVerified}
+                      checked={allCheckableVerified}
                       onChange={toggleMarkAll}
                       className="h-4 w-4 rounded border-[#cbd5e1] text-[#16a34a]"
                     />
@@ -391,22 +462,51 @@ export default function PackingListPage() {
                     {verifyItems.map((item, index) => {
                       const key = getOrderItemKey(item, index);
                       const isVerified = verifiedItems.has(key);
+                      const availability = getStockAvailability(item);
 
                       return (
-                        <label key={key} className="flex cursor-pointer items-center justify-between gap-4 px-5 py-4 hover:bg-[#f8fafc]">
+                        <label 
+                          key={key} 
+                          className={`flex cursor-pointer items-center justify-between gap-4 px-5 py-4 transition-colors ${
+                            availability.status === "Out of Stock"
+                              ? "bg-red-50/70 hover:bg-red-100/50 border-l-[4px] border-l-red-500 cursor-not-allowed"
+                              : availability.status === "Partially Available"
+                                ? "bg-amber-50/70 hover:bg-amber-100/50 border-l-[4px] border-l-amber-500 cursor-not-allowed"
+                                : isVerified ? "bg-[#f2fcf6]" : "hover:bg-[#f8fafc]"
+                          }`}
+                        >
                           <div className="flex items-center gap-3">
                             <input
                               type="checkbox"
                               checked={isVerified}
+                              disabled={availability.isInsufficient}
                               onChange={() => toggleVerifiedItem(key)}
-                              className="h-4 w-4 rounded border-[#cbd5e1] text-[#16a34a]"
+                              className="h-4 w-4 rounded border-[#cbd5e1] text-[#16a34a] disabled:opacity-50 disabled:cursor-not-allowed"
                             />
-                            <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-[#fff7ed] text-[#f97316]">
+                            <div className={`flex h-10 w-10 items-center justify-center rounded-lg ${
+                              availability.status === "Out of Stock" 
+                                ? "bg-red-100 text-red-600" 
+                                : availability.status === "Partially Available"
+                                  ? "bg-amber-100 text-amber-600"
+                                  : "bg-blue-50 text-blue-600"
+                            }`}>
                               <CubeIcon className="h-5 w-5" />
                             </div>
                             <div>
-                              <p className="font-bold text-[#0f172a]">{getOrderItemName(item)}</p>
-                              <p className="text-xs text-[#64748b]">Item #{index + 1}</p>
+                              <div className="flex items-center flex-wrap gap-1.5">
+                                <p className="font-bold text-[#0f172a]">{getOrderItemName(item)}</p>
+                                {availability.status === "Out of Stock" && (
+                                  <span className="inline-flex items-center px-2 py-0.5 rounded-md text-[11px] font-bold bg-red-100 text-red-800 shadow-sm">
+                                    Out of Stock (Available: 0)
+                                  </span>
+                                )}
+                                {availability.status === "Partially Available" && (
+                                  <span className="inline-flex items-center px-2 py-0.5 rounded-md text-[11px] font-bold bg-amber-100 text-amber-800 shadow-sm">
+                                    Partially Available (Available: {availability.availableBeforeOrder})
+                                  </span>
+                                )}
+                              </div>
+                              <p className="text-xs text-[#64748b]">Item #{index + 1} &bull; Product ID: {item.productId?.slice(-6).toUpperCase() || "N/A"}</p>
                             </div>
                           </div>
                           <span className="rounded-full bg-[#f1f5f9] px-3 py-1 text-sm font-bold text-[#475569]">

@@ -65,6 +65,10 @@ export default function PurchasePlanning() {
   const [warehouseId, setWarehouseId] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(true);
 
+  const handleSuggestedQtyChange = (id: string, value: number) => {
+    setProducts(prev => prev.map(p => p.id === id ? { ...p, suggested: Math.max(0, value) } : p));
+  };
+
   const fetchAllData = async () => {
     try {
       setIsLoading(true);
@@ -101,16 +105,16 @@ export default function PurchasePlanning() {
         let suggested = 0;
         const reorderLvl = item.reorderLevel || 0;
         const currentStock = item.currentStock || 0;
-        
-        if (currentStock <= 0) {
-          status = "Out of Stock";
-          suggested = reorderLvl > 0 ? reorderLvl : 50; // Default if reorderLevel is missing
-        } else if (currentStock > 0 && currentStock <= reorderLvl) {
-          status = "Low Stock";
-          suggested = reorderLvl - currentStock;
-        }
-        
+        const availableStock = item.availableStock ?? (currentStock - (item.reservedStock || 0));
         const orderedQty = pendingOrderQtyMap[item.productId] || 0;
+        
+        if (availableStock <= 0) {
+          status = "Out of Stock";
+          suggested = (reorderLvl > 0 ? reorderLvl : 50) - availableStock - orderedQty;
+        } else if (availableStock > 0 && availableStock <= reorderLvl) {
+          status = "Low Stock";
+          suggested = reorderLvl - availableStock - orderedQty;
+        }
         
         return {
           id: item.id,
@@ -122,7 +126,7 @@ export default function PurchasePlanning() {
           unit: item.baseUnit || "Qty",
           current: currentStock,
           reserved: item.reservedStock || 0,
-          available: item.availableStock || 0,
+          available: availableStock,
           ordered: orderedQty, 
           reorder: reorderLvl,
           suggested: suggested > 0 ? suggested : 0,
@@ -339,7 +343,8 @@ export default function PurchasePlanning() {
                             <div className="flex justify-center">
                               <input 
                                 type="number"
-                                defaultValue={item.suggested}
+                                value={item.suggested}
+                                onChange={(e) => handleSuggestedQtyChange(item.id, parseInt(e.target.value) || 0)}
                                 className="w-[80px] h-[36px] border border-[#e2e8f0] text-[#111827] font-semibold text-center rounded-lg outline-none focus:border-[#15803d]"
                               />
                             </div>
@@ -716,7 +721,8 @@ export default function PurchasePlanning() {
                     <div className="flex justify-center">
                       <input 
                         type="number"
-                        defaultValue={item.suggested}
+                        value={item.suggested}
+                        onChange={(e) => handleSuggestedQtyChange(item.id, parseInt(e.target.value) || 0)}
                         className="w-[80px] h-[32px] border border-[#bbf7d0] bg-[#f0fdf4] text-[#16a34a] font-bold text-center rounded-md outline-none focus:border-[#22c55e]"
                       />
                     </div>

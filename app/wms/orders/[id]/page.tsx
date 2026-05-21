@@ -32,6 +32,7 @@ export default function OrderDetailsPage({ params }: { params: Promise<{ id: str
   const [loading, setLoading] = useState(true);
   const [showTrackModal, setShowTrackModal] = useState(false);
   const [confirming, setConfirming] = useState(false);
+  const [updatingPayment, setUpdatingPayment] = useState(false);
 
   useEffect(() => {
     const fetchOrder = async () => {
@@ -64,6 +65,19 @@ export default function OrderDetailsPage({ params }: { params: Promise<{ id: str
     }
   };
 
+  const handleUpdatePaymentStatus = async () => {
+    if (!orderId || updatingPayment) return;
+    setUpdatingPayment(true);
+    try {
+      const updated = await mobileOrderService.updatePaymentStatus(orderId, "Paid");
+      setOrder(updated);
+    } catch (error) {
+      console.error("Error updating payment status:", error);
+    } finally {
+      setUpdatingPayment(false);
+    }
+  };
+
   if (loading) {
     return (
       <div className="py-24 flex justify-center items-center">
@@ -82,6 +96,9 @@ export default function OrderDetailsPage({ params }: { params: Promise<{ id: str
   }
 
   const orderStatus = order.status === "" ? "Packing" : (order.status || "Placed");
+  const isPaymentPending = !order.paymentStatus || 
+    order.paymentStatus.toLowerCase() === "pending" || 
+    order.paymentStatus.toLowerCase() === "unpaid";
 
   // Tracker Logic Nodes
   const statusHierarchy = ["Placed", "Confirmed", "Processing", "Picking", "Packing", "Out for Delivery", "Delivered"];
@@ -286,11 +303,41 @@ export default function OrderDetailsPage({ params }: { params: Promise<{ id: str
             
             <div className="flex justify-between items-center pt-5 border-t border-[#f1f5f9]">
               <span className="text-[#475569] text-sm">Payment Status</span>
-              <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-[#fefce8] text-[#ca8a04] border border-[#fef08a] text-[12px] font-bold">
-                <CloseCircleIcon className="w-3.5 h-3.5" />
-                Pending
-              </span>
+              {isPaymentPending ? (
+                <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-[#fefce8] text-[#ca8a04] border border-[#fef08a] text-[12px] font-bold">
+                  <CloseCircleIcon className="w-3.5 h-3.5" />
+                  Pending
+                </span>
+              ) : (
+                <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-[#dcfce7] text-[#16a34a] border border-[#bbf7d0] text-[12px] font-bold">
+                  <CheckCircleIcon className="w-3.5 h-3.5" />
+                  {order.paymentStatus}
+                </span>
+              )}
             </div>
+
+            {orderStatus === "Delivered" && isPaymentPending && (
+              <div className="pt-3 border-t border-[#f1f5f9] flex flex-col gap-2">
+                <button
+                  id="update-payment-status-btn"
+                  onClick={handleUpdatePaymentStatus}
+                  disabled={updatingPayment}
+                  className="flex items-center justify-center gap-2 w-full py-2 bg-[#2563eb] hover:bg-[#1d4ed8] disabled:opacity-60 disabled:cursor-not-allowed text-white font-bold rounded-lg transition-colors text-[13px] shadow-sm animate-in fade-in slide-in-from-top-1 duration-200"
+                >
+                  {updatingPayment ? (
+                    <>
+                      <span className="animate-spin inline-block w-3.5 h-3.5 border-2 border-white/30 border-t-white rounded-full" />
+                      Updating...
+                    </>
+                  ) : (
+                    <>
+                      <CheckCircleIcon className="w-4 h-4" />
+                      Mark as Paid
+                    </>
+                  )}
+                </button>
+              </div>
+            )}
           </div>
 
           {/* Order Summary Formats */}
