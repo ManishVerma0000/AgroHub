@@ -122,7 +122,7 @@ export default function CustomerOrderPage() {
               if (idx === 0) {
                 return { ...slab, rate: sellingPrice };
               }
-              const effectiveMargin = bMargin - ((idx - 1) * 2);
+              const effectiveMargin = bMargin - (idx * 2);
               const calculatedRate = landedCost * (1 + effectiveMargin / 100);
               return { ...slab, rate: parseFloat(calculatedRate.toFixed(2)) };
             });

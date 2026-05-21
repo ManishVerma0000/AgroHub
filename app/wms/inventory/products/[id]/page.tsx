@@ -44,7 +44,7 @@ export default function ProductDetailsPage({ params }: { params: Promise<{ id: s
               rate: `₹${sellingPrice.toFixed(2)}`
             };
           }
-          const effectiveMargin = bMargin - ((idx - 1) * 2);
+          const effectiveMargin = bMargin - (idx * 2);
           const calculatedRate = landedCost * (1 + effectiveMargin / 100);
           return {
             ...slab,
