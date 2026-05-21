@@ -10,6 +10,7 @@ import { categoryService } from "@/services/categoryService";
 import { subcategoryService } from "@/services/subcategoryService";
 import { mobileOrderService } from "@/services/mobileOrderService";
 import { warehouseService } from "@/services/warehouseService";
+import { deliveryRuleService, DeliveryRule } from "@/services/deliveryRuleService";
 import { toast } from "react-hot-toast";
 
 interface CartItem {
@@ -32,6 +33,7 @@ export default function CustomerOrderPage() {
   const [subcategories, setSubcategories] = useState<any[]>([]);
   const [cart, setCart] = useState<CartItem[]>([]);
   const [warehouse, setWarehouse] = useState<any>(null);
+  const [deliveryRules, setDeliveryRules] = useState<DeliveryRule[]>([]);
   const [showNoLocationModal, setShowNoLocationModal] = useState(false);
 
   // Filters
@@ -100,16 +102,22 @@ export default function CustomerOrderPage() {
 
         if (nearestWarehouse) {
           setShowNoLocationModal(false);
-          const [inventoryData, globalProductsRes, categoriesData, subcategoriesData] = await Promise.all([
+          const [inventoryData, globalProductsRes, categoriesData, subcategoriesData, rulesData] = await Promise.all([
             warehouseProductService.getAll(nearestWarehouse.id),
             productService.getAll(0, 100),
             categoryService.getAll(),
-            subcategoryService.getAll()
+            subcategoryService.getAll(),
+            deliveryRuleService.getAll()
           ]);
 
           const globalProducts = globalProductsRes.items;
           setCategories(categoriesData);
           setSubcategories(subcategoriesData);
+
+          const activeWarehouseRules = rulesData.filter(
+            (r: any) => r.status === "Active" && (r.warehouseId === nearestWarehouse.id || !r.warehouseId)
+          );
+          setDeliveryRules(activeWarehouseRules);
 
           const mappedProducts = inventoryData.map((invItem: any) => {
             const gp = globalProducts.find((p: any) => p.id === invItem.productId) || {};
@@ -161,10 +169,12 @@ export default function CustomerOrderPage() {
 
         } else {
           setProducts([]);
+          setDeliveryRules([]);
           setShowNoLocationModal(true);
         }
       } catch (err: any) {
         setProducts([]);
+        setDeliveryRules([]);
         if (err.response?.status === 404) {
           setShowNoLocationModal(true);
         } else {
@@ -261,7 +271,27 @@ export default function CustomerOrderPage() {
   }
 
   const subtotal = cart.reduce((acc, item) => acc + item.total, 0);
-  const deliveryFee = 0; // FREE as in image
+
+  const getDeliveryFee = () => {
+    if (deliveryRules.length === 0) return 0;
+    
+    // Sort rules by minOrderValue descending
+    const sortedRules = [...deliveryRules].sort((a, b) => (b.minOrderValue || 0) - (a.minOrderValue || 0));
+    
+    // Find the first rule where subtotal is >= minOrderValue
+    const matchedRule = sortedRules.find(r => subtotal >= (r.minOrderValue || 0));
+    
+    if (matchedRule) {
+      return matchedRule.isFreeDelivery ? 0 : (matchedRule.deliveryCharge || 0);
+    }
+    
+    // Fallback: if no rule matched (subtotal is less than the lowest minOrderValue),
+    // use the rule with the lowest minOrderValue
+    const lowestRule = sortedRules[sortedRules.length - 1];
+    return lowestRule.isFreeDelivery ? 0 : (lowestRule.deliveryCharge || 0);
+  };
+
+  const deliveryFee = getDeliveryFee();
   const grandTotal = subtotal + deliveryFee;
 
   const filteredProducts = products.filter(p => {
@@ -527,10 +557,14 @@ export default function CustomerOrderPage() {
               </div>
               <div className="flex justify-between items-center text-[15px]">
                 <span className="text-[#64748b] font-medium">Delivery</span>
-                <div className="flex items-center gap-2">
-                  <span className="text-[#94a3b8] line-through text-xs font-semibold">₹500.00</span>
-                  <span className="text-[#16a34a] font-bold text-[14px]">FREE</span>
-                </div>
+                {deliveryFee === 0 ? (
+                  <div className="flex items-center gap-2">
+                    <span className="text-[#94a3b8] line-through text-xs font-semibold">₹500.00</span>
+                    <span className="text-[#16a34a] font-bold text-[14px]">FREE</span>
+                  </div>
+                ) : (
+                  <span className="font-bold text-[#0f172a]">₹{deliveryFee.toFixed(2)}</span>
+                )}
               </div>
               <div className="pt-4 border-t border-[#f1f5f9] mt-2 flex justify-between items-center">
                 <span className="text-[18px] font-bold text-[#0f172a]">Grand Total</span>
