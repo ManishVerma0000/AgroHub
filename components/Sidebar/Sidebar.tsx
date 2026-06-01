@@ -19,7 +19,11 @@ export default function Sidebar() {
 
   const rulesPricingItems = [
     { label: "Delivery Charges", href: "/delivery-charges", icon: TruckIcon },
-    { label: "Offers", href: "/offers", icon: DollarIcon },
+  ];
+
+  const offersItems = [
+    { label: "Cash Off Offer", href: "/offers", icon: DollarIcon },
+    { label: "Customer Offer Segment", href: "/customer-offer-segment", icon: ProfileIcon },
   ];
 
   return (
@@ -94,8 +98,40 @@ export default function Sidebar() {
         >
           RULES & PRICING
         </p>
-        <nav className="flex flex-col gap-1">
+        <nav className="flex flex-col gap-1 mb-6">
           {rulesPricingItems.map((item) => {
+            const isActive = pathname === item.href;
+            return (
+              <Link
+                href={item.href}
+                key={item.href}
+                title={!isExpanded ? item.label : undefined}
+                className={`flex items-center gap-3 py-2.5 mx-2 rounded-lg text-sm transition-all relative ${isExpanded ? "px-6" : "justify-center px-0"
+                  } ${isActive
+                    ? 'bg-[#f2fcf6] text-[#07ac57] font-semibold before:absolute before:left-0 before:top-2 before:bottom-2 before:w-1 before:bg-[#07ac57] before:rounded-full [&>svg]:text-[#07ac57]'
+                    : 'text-[#6b7280] font-medium hover:bg-[#f9fafb] hover:text-[#111827] [&>svg]:text-[#94a3b8]'
+                  }`}
+              >
+                <item.icon className="w-5 h-5 shrink-0" />
+                <span
+                  className={`overflow-hidden whitespace-nowrap transition-all duration-200 ${isExpanded ? "max-w-[190px] opacity-100" : "max-w-0 opacity-0"
+                    }`}
+                >
+                  {item.label}
+                </span>
+              </Link>
+            );
+          })}
+        </nav>
+
+        <p
+          className={`text-[11px] font-semibold text-[#94a3b8] tracking-widest px-6 mb-2 overflow-hidden transition-all duration-200 ${isExpanded ? "h-4 opacity-100" : "h-0 opacity-0"
+            }`}
+        >
+          OFFERS
+        </p>
+        <nav className="flex flex-col gap-1">
+          {offersItems.map((item) => {
             const isActive = pathname === item.href;
             return (
               <Link

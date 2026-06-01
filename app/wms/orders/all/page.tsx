@@ -26,6 +26,7 @@ export default function AllOrdersPage() {
   const [selectedOrders, setSelectedOrders] = useState<Set<string>>(new Set());
   const [searchTerm, setSearchTerm] = useState("");
   const [statusFilter, setStatusFilter] = useState("All Status");
+  const [paymentStatusFilter, setPaymentStatusFilter] = useState("All Payment Status");
   const [currentPage, setCurrentPage] = useState(1);
   const [totalOrders, setTotalOrders] = useState(0);
   const limit = 10;
@@ -59,7 +60,9 @@ export default function AllOrdersPage() {
     
     const matchesStatus = statusFilter === "All Status" || order.status === statusFilter;
     
-    return matchesSearch && matchesStatus;
+    const matchesPaymentStatus = paymentStatusFilter === "All Payment Status" || (order.paymentStatus || "Unpaid") === paymentStatusFilter;
+    
+    return matchesSearch && matchesStatus && matchesPaymentStatus;
   });
 
   // Function to determine Tailwind classes based on status string dynamically matching Figma dropdown bubbles
@@ -146,6 +149,19 @@ export default function AllOrdersPage() {
           </select>
           <ChevronDownIcon className="w-4 h-4 text-[#64748b] absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none" />
         </div>
+        <div className="relative">
+          <select 
+            value={paymentStatusFilter}
+            onChange={(e) => setPaymentStatusFilter(e.target.value)}
+            className="appearance-none pl-4 pr-10 py-2 border border-[#cbd5e1] rounded-lg text-sm text-[#0f172a] outline-none hover:bg-[#f8fafc] cursor-pointer focus:border-[#2563eb] bg-white min-w-[170px] shadow-sm"
+          >
+            <option value="All Payment Status">All Payment Status</option>
+            <option value="Paid">Paid</option>
+            <option value="Pending">Pending</option>
+            <option value="Unpaid">Unpaid</option>
+          </select>
+          <ChevronDownIcon className="w-4 h-4 text-[#64748b] absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none" />
+        </div>
       </div>
 
       {/* Main Table Payload */}
@@ -155,7 +171,7 @@ export default function AllOrdersPage() {
         </div>
       ) : filteredOrders.length === 0 ? (
         <div className="bg-[#f8fafc] border border-dashed border-[#cbd5e1] rounded-xl p-10 text-center text-[#64748b]">
-            {searchTerm || statusFilter !== "All Status" ? "No matching orders found." : "No mobile orders found for this warehouse."}
+            {searchTerm || statusFilter !== "All Status" || paymentStatusFilter !== "All Payment Status" ? "No matching orders found." : "No mobile orders found for this warehouse."}
         </div>
       ) : (
         <div className="bg-white border border-[#e2e8f0] rounded-xl shadow-sm flex flex-col overflow-hidden">
