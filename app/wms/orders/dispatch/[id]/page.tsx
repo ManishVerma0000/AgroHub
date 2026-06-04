@@ -155,6 +155,163 @@ export default function DispatchDetailsPage({ params: paramsProp }: { params: Pr
     );
   }
 
+  const handleDownloadPDF = async () => {
+    if (!batch) {
+      toast.error("Dispatch details are not loaded yet.");
+      return;
+    }
+    try {
+      const html2canvas = (await import("html2canvas")).default;
+      const { jsPDF } = await import("jspdf");
+
+      const formatDateInvoice = (dateString: string) => {
+        if (!dateString) return "N/A";
+        const date = new Date(dateString);
+        const day = String(date.getDate()).padStart(2, "0");
+        const month = String(date.getMonth() + 1).padStart(2, "0");
+        const year = date.getFullYear();
+        return `${day}/${month}/${year}`;
+      };
+
+      const formatTimeInvoice = (dateString: string) => {
+        if (!dateString) return "N/A";
+        return new Date(dateString).toLocaleTimeString("en-US", {
+          hour: "2-digit", minute: "2-digit", hour12: true
+        });
+      };
+
+      // Create a temporary hidden container styled like a professional dispatch slip
+      const container = document.createElement("div");
+      container.style.position = "absolute";
+      container.style.left = "-9999px";
+      container.style.top = "-9999px";
+      container.style.width = "850px";
+      container.style.padding = "40px";
+      container.style.background = "#ffffff";
+      container.style.color = "#0f172a";
+      container.style.fontFamily = "'Helvetica Neue', Helvetica, Arial, sans-serif";
+      container.style.boxSizing = "border-box";
+
+      // Orders HTML list
+      const ordersHtml = orders.map((order, index) => {
+        const isCOD = order.paymentMethod === "COD";
+        const itemsCount = order.items?.length || 0;
+        const formattedAmount = `₹${(order.grandTotal || 0).toLocaleString("en-IN")}`;
+        const paymentStatusText = order.paymentStatus || (isCOD ? "Unpaid" : "Paid");
+        const deliveryStatusText = order.status || "Out for Delivery";
+
+        return `
+          <tr style="border-bottom: 1px solid #e2e8f0; font-size: 11px; color: #334155;">
+            <td style="padding: 10px; font-weight: bold; color: #0f172a; text-align: left;">${index + 1}</td>
+            <td style="padding: 10px; font-weight: bold; color: #2563eb; text-align: left;">${order.id.slice(-8).toUpperCase()}</td>
+            <td style="padding: 10px; text-align: left; font-weight: 600;">${order.customerName || "Unknown"}</td>
+            <td style="padding: 10px; text-align: left; white-space: normal; max-width: 200px;">${order.location || "N/A"}</td>
+            <td style="padding: 10px; text-align: center;">${itemsCount}</td>
+            <td style="padding: 10px; text-align: center; font-weight: bold; color: ${isCOD ? '#ca8a04' : '#16a34a'};">${isCOD ? 'COD' : 'Prepaid'}</td>
+            <td style="padding: 10px; text-align: right; font-weight: 700; color: #0f172a;">${formattedAmount}</td>
+            <td style="padding: 10px; text-align: center; font-weight: 600; color: ${paymentStatusText === 'Paid' ? '#16a34a' : '#ca8a04'}">${paymentStatusText}</td>
+            <td style="padding: 10px; text-align: center; font-weight: bold; color: ${deliveryStatusText === 'Delivered' ? '#16a34a' : '#2563eb'};">${deliveryStatusText}</td>
+          </tr>
+        `;
+      }).join("");
+
+      container.innerHTML = `
+        <div style="width: 100%;">
+          <!-- Header Row -->
+          <div style="display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 25px; border-bottom: 2px solid #e2e8f0; padding-bottom: 20px;">
+            <div>
+              <h1 style="font-size: 26px; font-weight: 800; color: #0f172a; margin: 0 0 5px 0; letter-spacing: -0.5px;">DISPATCH SLIP</h1>
+              <div style="font-size: 14px; font-weight: bold; color: #475569; margin-bottom: 4px;">DVM Solution</div>
+              <div style="font-size: 12px; color: #64748b;">Warehouse Management System</div>
+            </div>
+            <div style="text-align: right; font-size: 12px; line-height: 1.6;">
+              <div style="font-size: 13px; font-weight: bold; color: #0f172a; margin-bottom: 6px;">Batch Info:</div>
+              <div><strong>Dispatch ID:</strong> ${batch.dispatchId}</div>
+              <div><strong>Status:</strong> ${batch.status}</div>
+              <div><strong>Dispatched:</strong> ${formatDateInvoice(batch.dispatchTime)}, ${formatTimeInvoice(batch.dispatchTime)}</div>
+            </div>
+          </div>
+
+          <!-- Trip / Logistics Details -->
+          <div style="background-color: #f8fafc; border: 1px solid #e2e8f0; border-radius: 8px; padding: 15px 20px; margin-bottom: 25px; display: flex; justify-content: space-between;">
+            <div style="flex: 1;">
+              <div style="font-size: 11px; font-weight: bold; color: #64748b; text-transform: uppercase; margin-bottom: 4px;">Driver Information</div>
+              <div style="font-size: 14px; font-weight: bold; color: #0f172a;">${batch.driverName || "N/A"}</div>
+              <div style="font-size: 12px; color: #475569; margin-top: 2px;">Phone: ${batch.driverPhone || "N/A"}</div>
+            </div>
+            <div style="flex: 1; border-left: 1px solid #cbd5e1; padding-left: 20px;">
+              <div style="font-size: 11px; font-weight: bold; color: #64748b; text-transform: uppercase; margin-bottom: 4px;">Vehicle & Route</div>
+              <div style="font-size: 14px; font-weight: bold; color: #0f172a;">Vehicle: ${batch.vehicleNumber || "N/A"}</div>
+              <div style="font-size: 12px; color: #475569; margin-top: 2px;">Route: ${batch.route || "N/A"}</div>
+            </div>
+            <div style="flex: 1; border-left: 1px solid #cbd5e1; padding-left: 20px; text-align: right;">
+              <div style="font-size: 11px; font-weight: bold; color: #64748b; text-transform: uppercase; margin-bottom: 4px;">Batch Summary</div>
+              <div style="font-size: 14px; font-weight: bold; color: #0f172a;">Total Orders: ${batch.orderCount}</div>
+              <div style="font-size: 12px; color: #475569; margin-top: 2px;">Total COD: ₹${totalCOD.toLocaleString("en-IN")}</div>
+            </div>
+          </div>
+
+          <!-- Orders Table -->
+          <h3 style="font-size: 14px; font-weight: bold; color: #0f172a; margin-bottom: 12px;">Orders List</h3>
+          <table style="width: 100%; border-collapse: collapse; border: 1px solid #e2e8f0; margin-bottom: 30px;">
+            <thead>
+              <tr style="background: #f8fafc; border-bottom: 1.5px solid #e2e8f0; color: #475569; font-size: 10px; font-weight: bold; text-transform: uppercase;">
+                <th style="padding: 10px; text-align: left;">#</th>
+                <th style="padding: 10px; text-align: left;">Order ID</th>
+                <th style="padding: 10px; text-align: left;">Customer</th>
+                <th style="padding: 10px; text-align: left; width: 220px;">Address</th>
+                <th style="padding: 10px; text-align: center;">Items</th>
+                <th style="padding: 10px; text-align: center;">Payment</th>
+                <th style="padding: 10px; text-align: right;">Amount</th>
+                <th style="padding: 10px; text-align: center;">Payment Status</th>
+                <th style="padding: 10px; text-align: center;">Delivery Status</th>
+              </tr>
+            </thead>
+            <tbody>
+              ${ordersHtml}
+            </tbody>
+          </table>
+
+          <!-- Footer/Disclaimer -->
+          <div style="font-size: 11px; color: #64748b; line-height: 1.5; margin-top: 40px; border-top: 1px solid #e2e8f0; padding-top: 15px; display: flex; justify-content: space-between;">
+            <div>
+              <div style="font-weight: bold; color: #0f172a; margin-bottom: 4px;">Warehouse Operations Signature</div>
+              <div style="margin-top: 35px; border-top: 1px dashed #94a3b8; width: 200px;"></div>
+            </div>
+            <div style="text-align: right;">
+              <div style="font-weight: bold; color: #0f172a; margin-bottom: 4px;">Driver Signature</div>
+              <div style="margin-top: 35px; border-top: 1px dashed #94a3b8; width: 200px; margin-left: auto;"></div>
+            </div>
+          </div>
+        </div>
+      `;
+
+      document.body.appendChild(container);
+
+      const canvas = await html2canvas(container, {
+        scale: 2,
+        useCORS: true,
+        backgroundColor: "#ffffff"
+      });
+
+      document.body.removeChild(container);
+
+      const imgData = canvas.toDataURL("image/png");
+      const pdf = new jsPDF({
+        orientation: "portrait",
+        unit: "px",
+        format: [canvas.width / 2, canvas.height / 2]
+      });
+
+      pdf.addImage(imgData, "PNG", 0, 0, canvas.width / 2, canvas.height / 2);
+      pdf.save(`dispatch_slip_${batch.dispatchId}.pdf`);
+      toast.success("Dispatch Slip downloaded as PDF!");
+    } catch (error) {
+      console.error("Failed to generate dispatch slip PDF:", error);
+      toast.error("Failed to download PDF dispatch slip.");
+    }
+  };
+
   return (
     <div className="flex flex-col gap-8 max-w-[1400px]">
 
@@ -374,6 +531,7 @@ export default function DispatchDetailsPage({ params: paramsProp }: { params: Pr
                 {selectedOrderIds.length > 0 ? `Mark Selected (${selectedOrderIds.length}) Delivered` : "Mark All Delivered"}
               </button>
               <button 
+                onClick={handleDownloadPDF}
                 className="flex items-center justify-center gap-2 px-6 py-3 bg-[#16a34a] text-white rounded-xl font-bold text-[14px] shadow-sm hover:bg-[#15803d] transition-all active:scale-[0.98]"
               >
                 <PrinterIcon className="w-4 h-4" />
