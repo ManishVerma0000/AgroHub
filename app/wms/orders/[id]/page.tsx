@@ -4,6 +4,7 @@ import React, { useState, useEffect } from "react";
 import Link from "next/link";
 import { SVGProps } from "react";
 import { mobileOrderService, MobileOrder } from "../../../../services/mobileOrderService";
+import toast from "react-hot-toast";
 
 const avatarColors = ["bg-[#0ea5e9]", "bg-[#0d9488]", "bg-[#38bdf8]", "bg-[#0284c7]", "bg-[#10b981]", "bg-[#14b8a6]", "bg-[#8b5cf6]", "bg-[#db2777]"];
 const getAvatarBg = (name: string) => {
@@ -75,6 +76,152 @@ export default function OrderDetailsPage({ params }: { params: Promise<{ id: str
       console.error("Error updating payment status:", error);
     } finally {
       setUpdatingPayment(false);
+    }
+  };
+
+  const handleDownloadPDF = async () => {
+    if (!order) {
+      toast.error("Order details are not loaded yet.");
+      return;
+    }
+    try {
+      const html2canvas = (await import("html2canvas")).default;
+      const { jsPDF } = await import("jspdf");
+
+      const formatDateInvoice = (dateString: string) => {
+        if (!dateString) return "";
+        const date = new Date(dateString);
+        const day = String(date.getDate()).padStart(2, "0");
+        const month = String(date.getMonth() + 1).padStart(2, "0");
+        const year = date.getFullYear();
+        return `${day}/${month}/${year}`;
+      };
+
+      // Create a temporary hidden container styled exactly like the mockup invoice
+      const container = document.createElement("div");
+      container.style.position = "absolute";
+      container.style.left = "-9999px";
+      container.style.top = "-9999px";
+      container.style.width = "750px";
+      container.style.padding = "40px";
+      container.style.background = "#ffffff";
+      container.style.color = "#000000";
+      container.style.fontFamily = "'Helvetica Neue', Helvetica, Arial, sans-serif";
+      container.style.boxSizing = "border-box";
+
+      // Items list HTML
+      const itemsHtml = (order.items || []).map(item => {
+        const itemName = item.name || item.productName || "Unknown Product";
+        const price = item.basePrice || item.unitPrice || 0;
+        const total = (item.quantity || 0) * price;
+        const unitLabel = item.unit || item.baseUnit || "";
+        return `
+          <tr style="border-bottom: 1px solid #000; font-size: 13px;">
+            <td style="padding: 12px 15px; text-align: left;">${itemName}</td>
+            <td style="padding: 12px 15px; text-align: left;">${item.quantity} ${unitLabel}</td>
+            <td style="padding: 12px 15px; text-align: left;">₹ ${price}</td>
+            <td style="padding: 12px 15px; text-align: right;">₹${total}</td>
+          </tr>
+        `;
+      }).join("");
+
+      container.innerHTML = `
+        <div style="width: 100%;">
+          <!-- Header Row -->
+          <div style="display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 30px;">
+            <div>
+              <h1 style="font-size: 32px; font-weight: 800; margin: 0 0 10px 0; letter-spacing: -0.5px;">INVOICE</h1>
+              <div style="font-size: 14px; font-weight: bold; margin-bottom: 4px;">DVM Solution</div>
+              <div style="font-size: 12px; color: #000; max-width: 320px; line-height: 1.4;">
+                123 Business Street, City, State - 400001 GST No: 27XXXXX9603R1ZM
+              </div>
+              <div style="font-size: 12px; color: #000; margin-top: 4px;">
+                Phone: +91 98765 12345
+              </div>
+            </div>
+            <div style="text-align: right; font-size: 12px; line-height: 1.6;">
+              <div style="font-size: 13px; font-weight: bold; margin-bottom: 6px;">Invoice Details :</div>
+              <div>Invoice No : IN-${orderId.slice(-5).toUpperCase()}</div>
+              <div>Order No : ORD-${orderId.slice(-5).toUpperCase()}</div>
+              <div>Date : ${formatDateInvoice(order.createdAt)}</div>
+            </div>
+          </div>
+
+          <!-- BILL TO / SHIP TO Row -->
+          <table style="width: 100%; border-collapse: collapse; border: 1.5px solid #000; margin-bottom: 30px;">
+            <tr>
+              <td style="width: 50%; border-right: 1.5px solid #000; padding: 15px 20px; vertical-align: top;">
+                <div style="font-size: 13px; font-weight: bold; margin-bottom: 8px;">BILL TO</div>
+                <div style="font-size: 13px; font-weight: bold; margin-bottom: 4px;">${customerName}</div>
+                <div style="font-size: 12px; margin-bottom: 4px;">${order.customerEmail || ""}</div>
+                <div style="font-size: 12px;">${order.customerPhone || ""}</div>
+              </td>
+              <td style="width: 50%; padding: 15px 20px; vertical-align: top;">
+                <div style="font-size: 13px; font-weight: bold; margin-bottom: 8px;">SHIP TO</div>
+                <div style="font-size: 12px; line-height: 1.5; max-width: 280px; word-wrap: break-word;">
+                  ${order.location || "N/A"}
+                </div>
+              </td>
+            </tr>
+          </table>
+
+          <!-- Items Table -->
+          <table style="width: 100%; border-collapse: collapse; border: 1.5px solid #000; margin-bottom: 30px;">
+            <thead>
+              <tr style="background: #f8fafc; border-bottom: 1.5px solid #000; text-align: left; font-size: 13px; font-weight: bold;">
+                <th style="padding: 10px 15px; font-weight: bold; border-right: 1px solid #000;">Product Detail</th>
+                <th style="padding: 10px 15px; font-weight: bold; border-right: 1px solid #000; width: 120px;">Qty</th>
+                <th style="padding: 10px 15px; font-weight: bold; border-right: 1px solid #000; width: 120px;">Rate</th>
+                <th style="padding: 10px 15px; font-weight: bold; text-align: right; width: 140px;">Total</th>
+              </tr>
+            </thead>
+            <tbody>
+              ${itemsHtml}
+              <tr style="border-top: 1.5px solid #000; font-size: 13px; font-weight: bold;">
+                <td colSpan="3" style="padding: 12px 15px; text-align: left;">Total Amount</td>
+                <td style="padding: 12px 15px; text-align: right; font-size: 14px;">₹${order.grandTotal}</td>
+              </tr>
+              <tr style="border-top: 1px solid #000; font-size: 13px; font-weight: bold;">
+                <td colSpan="3" style="padding: 12px 15px; text-align: left;">Payment Status</td>
+                <td style="padding: 12px 15px; text-align: right; text-transform: capitalize;">${order.paymentStatus || 'Pending'}</td>
+              </tr>
+            </tbody>
+          </table>
+
+          <!-- Notes & Terms -->
+          <div style="font-size: 12px; color: #000; line-height: 1.6;">
+            <div style="font-weight: bold; margin-bottom: 6px;">Notes & Terms</div>
+            <ul style="margin: 0; padding-left: 20px; font-weight: 500;">
+              <li style="margin-bottom: 4px;">Please verify quantity and quality at the time of delivery.</li>
+              <li>This is a computer-generated invoice and does not require a signature</li>
+            </ul>
+          </div>
+        </div>
+      `;
+
+      document.body.appendChild(container);
+
+      const canvas = await html2canvas(container, {
+        scale: 2,
+        useCORS: true,
+        backgroundColor: "#ffffff"
+      });
+
+      document.body.removeChild(container);
+
+      const imgData = canvas.toDataURL("image/png");
+      const pdf = new jsPDF({
+        orientation: "portrait",
+        unit: "px",
+        format: [canvas.width / 2, canvas.height / 2]
+      });
+
+      pdf.addImage(imgData, "PNG", 0, 0, canvas.width / 2, canvas.height / 2);
+      pdf.save(`invoice_${orderId}.pdf`);
+      toast.success("Invoice downloaded as PDF!");
+    } catch (error) {
+      console.error("Failed to generate invoice PDF:", error);
+      toast.error("Failed to download PDF invoice.");
     }
   };
 
@@ -390,7 +537,10 @@ export default function OrderDetailsPage({ params }: { params: Promise<{ id: str
                 <TruckIcon className="w-4 h-4" />
                 Track Order
               </button>
-              <button className="flex items-center justify-center gap-2 w-full py-2.5 bg-[#2563eb] hover:bg-[#1d4ed8] text-white font-bold rounded-lg transition-colors text-sm shadow-sm">
+              <button 
+                onClick={handleDownloadPDF}
+                className="flex items-center justify-center gap-2 w-full py-2.5 bg-[#2563eb] hover:bg-[#1d4ed8] text-white font-bold rounded-lg transition-colors text-sm shadow-sm cursor-pointer"
+              >
                 <DownloadIcon className="w-4 h-4" />
                 Download PDF
               </button>

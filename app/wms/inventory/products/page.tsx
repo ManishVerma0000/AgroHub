@@ -10,6 +10,7 @@ import { categoryService } from "../../../../services/categoryService";
 import { StockActionModal, StockActionType } from "../../../../components/Products/StockActionModal";
 import { warehouseService } from "../../../../services/warehouseService";
 import { wmsAuthService } from "../../../../services/wmsAuthService";
+import toast from "react-hot-toast";
 
 export default function WMSProductInventory() {
   const [selectedItems, setSelectedItems] = useState<number[]>([]);
@@ -258,6 +259,63 @@ export default function WMSProductInventory() {
     else setSelectedItems([...selectedItems, id]);
   };
 
+  const handleDownloadExcel = async () => {
+    try {
+      const XLSX = await import("xlsx");
+      
+      const itemsToExport = selectedItems.length > 0 
+        ? filteredInventory.filter(item => selectedItems.includes(item.id))
+        : filteredInventory;
+
+      if (itemsToExport.length === 0) {
+        toast.error("No items available to export.");
+        return;
+      }
+
+      const exportData = itemsToExport.map(item => ({
+        "Product Name": item.name,
+        "Category": item.category,
+        "Subcategory": item.subcategory,
+        "Current Stock": item.stock,
+        "Available Stock": item.available,
+        "Reserved Stock": item.reserved,
+        "Stock In": item.stockIn,
+        "Stock Out": item.stockOut,
+        "Missing Stock": item.missing,
+        "Wastage Stock": item.wastage,
+        "Reorder Level": item.reorder,
+        "Base Price": item.basePrice,
+        "Selling Price": item.sellingPrice,
+        "Location": item.location,
+        "Status": item.status,
+        "Unit": item.unit
+      }));
+
+      const worksheet = XLSX.utils.json_to_sheet(exportData);
+      const workbook = XLSX.utils.book_new();
+      XLSX.utils.book_append_sheet(workbook, worksheet, "Inventory");
+
+      let filename = "warehouse_inventory";
+      if (selectedItems.length > 0) {
+        filename += `_selected_${selectedItems.length}`;
+      } else {
+        if (selectedCategory !== "All Categories") {
+          filename += `_${selectedCategory.toLowerCase().replace(/\s+/g, '_')}`;
+        }
+        if (selectedStatus !== "All Status") {
+          filename += `_${selectedStatus.toLowerCase().replace(/\s+/g, '_')}`;
+        }
+      }
+      filename += ".xlsx";
+
+      XLSX.writeFile(workbook, filename);
+      toast.success(`Exported ${itemsToExport.length} item(s) to Excel successfully!`);
+    } catch (error) {
+      console.error("Failed to download inventory excel:", error);
+      toast.error("Failed to generate Excel download.");
+    }
+  };
+
   return (
     <div className="flex flex-col gap-6 max-w-[1400px]">
       {/* TOP ROW: Title & Actions */}
@@ -274,6 +332,15 @@ export default function WMSProductInventory() {
             <CalendarIcon className="w-4 h-4 text-[#6b7280]" />
             {dateRange}
             <ChevronDownIcon className="w-4 h-4 ml-1" />
+          </button>
+
+          <button 
+            onClick={handleDownloadExcel}
+            className="flex items-center justify-center min-w-[36px] h-[36px] px-3 border border-[#e2e8f0] bg-white text-[#111827] rounded-lg font-medium hover:bg-[#f9fafb] hover:text-[#07ac57] active:scale-95 transition-all gap-2 cursor-pointer"
+            title="Download Inventory as Excel"
+          >
+            <DownloadIcon className="w-4 h-4" />
+            <span className="text-sm">Download</span>
           </button>
 
           <button 

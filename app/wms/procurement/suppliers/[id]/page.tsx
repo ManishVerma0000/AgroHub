@@ -10,6 +10,12 @@ import { categoryService } from "../../../../../services/categoryService";
 import { purchaseOrderService } from "../../../../../services/purchaseOrderService";
 import { wmsAuthService } from "../../../../../services/wmsAuthService";
 
+const getWhatsAppUrl = (phone: string) => {
+  const cleaned = phone.replace(/[^0-9]/g, '');
+  const formatted = cleaned.length === 10 ? `91${cleaned}` : cleaned;
+  return `https://wa.me/${formatted}`;
+};
+
 export default function SupplierProfilePage() {
   const router = useRouter();
   const params = useParams();
@@ -170,7 +176,20 @@ export default function SupplierProfilePage() {
           </div>
           <div>
             <p className="text-[#64748b] text-sm mb-1.5">Phone Number</p>
-            <p className="font-bold text-[#1e293b] text-[15px]">{supplier.phone}</p>
+            <div className="flex items-center gap-2">
+              <p className="font-bold text-[#1e293b] text-[15px]">{supplier.phone}</p>
+              {supplier.phone && (
+                <a 
+                  href={getWhatsAppUrl(supplier.phone)}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="text-[#25D366] hover:text-[#128C7E] active:scale-90 transition-all p-0.5 rounded cursor-pointer"
+                  title="Chat on WhatsApp"
+                >
+                  <WhatsAppIcon className="w-6 h-6 fill-current" />
+                </a>
+              )}
+            </div>
           </div>
           <div>
             <p className="text-[#64748b] text-sm mb-1.5">Email</p>
@@ -708,6 +727,14 @@ function TrashIcon(props: SVGProps<SVGSVGElement>) {
     <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" {...props}>
       <polyline points="3 6 5 6 21 6"/>
       <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/>
+    </svg>
+  );
+}
+
+function WhatsAppIcon(props: SVGProps<SVGSVGElement>) {
+  return (
+    <svg width="24" height="24" viewBox="0 0 24 24" fill="currentColor" {...props}>
+      <path d="M.057 24l1.687-6.163c-1.041-1.804-1.588-3.849-1.587-5.946C.06 5.348 5.397.01 12.008.01c3.202.001 6.212 1.246 8.477 3.514 2.266 2.268 3.507 5.28 3.505 8.484-.004 6.657-5.34 11.997-11.953 11.997-2.005-.001-3.973-.502-5.724-1.455L0 24zm6.59-4.846c1.6.95 3.188 1.449 4.725 1.45h.007c5.456 0 9.9-4.447 9.902-9.91.002-2.646-1.02-5.136-2.88-6.99c-1.86-1.856-4.343-2.879-6.985-2.88-5.462 0-9.907 4.448-9.909 9.91-.001 1.62.424 3.202 1.233 4.587l.157.266-1.003 3.666 3.756-.985.26.154zm11.39-7.142c-.3-.15-1.776-.877-2.046-.975-.27-.099-.467-.149-.662.15-.195.298-.753.974-.922 1.173-.169.198-.337.223-.637.073-.3-.15-1.267-.467-2.413-1.488-.892-.796-1.493-1.78-1.668-2.078-.175-.299-.019-.461.13-.61.135-.133.3-.349.45-.523.15-.175.2-.299.3-.499.1-.2.05-.375-.025-.524-.075-.15-.662-1.597-.907-2.185-.238-.574-.48-.496-.662-.505-.171-.007-.368-.009-.563-.009-.195 0-.513.073-.78.368-.268.299-1.02 1.023-1.02 2.495 0 1.472 1.07 2.892 1.22 3.091.15.199 2.107 3.218 5.103 4.512.713.308 1.27.493 1.704.631.716.227 1.368.195 1.884.118.574-.085 1.776-.726 2.026-1.397.25-.672.25-1.248.175-1.397-.075-.149-.27-.249-.57-.399z"/>
     </svg>
   );
 }
