@@ -4,6 +4,7 @@ import React, { useState, useEffect } from "react";
 import Link from "next/link";
 import { SVGProps } from "react";
 import { purchaseOrderService, PurchaseOrder } from "../../../../../services/purchaseOrderService";
+import toast from "react-hot-toast";
 
 // Helper to format dates cleanly
 const formatDate = (dateString: string) => {
@@ -74,6 +75,209 @@ export default function PurchaseOrderDetails({ params }: { params: Promise<{ id:
   const plannedTotal = order.totalAmount || 0;
   const totalVariance = actualTotal - plannedTotal;
 
+  const handleDownloadPDF = async () => {
+    if (!order) {
+      toast.error("Purchase order details are not loaded yet.");
+      return;
+    }
+    try {
+      const html2canvas = (await import("html2canvas")).default;
+      const { jsPDF } = await import("jspdf");
+
+      const formatDateInvoice = (dateString: string) => {
+        if (!dateString) return "";
+        const date = new Date(dateString);
+        const day = String(date.getDate()).padStart(2, "0");
+        const month = String(date.getMonth() + 1).padStart(2, "0");
+        const year = date.getFullYear();
+        return `${day}/${month}/${year}`;
+      };
+
+      // Create a temporary hidden container styled exactly like a mockup purchase order invoice
+      const container = document.createElement("div");
+      container.style.position = "absolute";
+      container.style.left = "-9999px";
+      container.style.top = "-9999px";
+      container.style.width = "800px";
+      container.style.padding = "40px";
+      container.style.background = "#ffffff";
+      container.style.color = "#0f172a";
+      container.style.fontFamily = "'Helvetica Neue', Helvetica, Arial, sans-serif";
+      container.style.boxSizing = "border-box";
+
+      // Items list HTML
+      const itemsHtml = (order.items || []).map((item: any) => {
+        const pQty = Number(item.quantity || 0);
+        const pPrice = Number(item.unitPrice || 0);
+        const pAmt = pQty * pPrice;
+
+        const aQty = order.status === "Pending" ? 0 : Number(item.receivedQuantity ?? 0);
+        const aPrice = order.status === "Pending" ? 0 : Number(item.actualUnitPrice ?? 0);
+        const aAmt = aQty * aPrice;
+
+        const priceVar = aPrice - pPrice;
+        const amtVar = aAmt - pAmt;
+
+        const formatCurrency = (val: number) => `₹${val.toLocaleString('en-IN')}`;
+
+        return `
+          <tr style="border-bottom: 1px solid #e2e8f0; font-size: 12px; color: #334155;">
+            <td style="padding: 12px 10px; font-weight: bold; color: #0f172a; text-align: left;">${item.productName}</td>
+            <td style="padding: 12px 10px; text-align: center; color: #64748b;">${item.unit || "Kg"}</td>
+            
+            <!-- Planned -->
+            <td style="padding: 12px 10px; text-align: center; border-left: 1px solid #f1f5f9;">${pQty}</td>
+            <td style="padding: 12px 10px; text-align: center;">${formatCurrency(pPrice)}</td>
+            <td style="padding: 12px 10px; text-align: center; font-weight: 600; color: #0f172a;">${formatCurrency(pAmt)}</td>
+            
+            <!-- Actual -->
+            <td style="padding: 12px 10px; text-align: center; border-left: 1px solid #f1f5f9; color: ${order.status === 'Pending' ? '#94a3b8' : '#334155'}">
+              ${order.status === 'Pending' ? '-' : aQty}
+            </td>
+            <td style="padding: 12px 10px; text-align: center; color: ${order.status === 'Pending' ? '#94a3b8' : '#334155'}">
+              ${order.status === 'Pending' ? '-' : formatCurrency(aPrice)}
+            </td>
+            <td style="padding: 12px 10px; text-align: center; font-weight: 600; color: ${order.status === 'Pending' ? '#94a3b8' : '#16a34a'}">
+              ${order.status === 'Pending' ? '-' : formatCurrency(aAmt)}
+            </td>
+            
+            <!-- Variance -->
+            <td style="padding: 12px 10px; text-align: center; border-left: 1px solid #f1f5f9; font-weight: 600; color: ${order.status === 'Pending' ? '#94a3b8' : priceVar > 0 ? '#ef4444' : priceVar < 0 ? '#16a34a' : '#64748b'}">
+              ${order.status === 'Pending' ? '-' : `${priceVar > 0 ? '+' : ''}${formatCurrency(priceVar)}`}
+            </td>
+            <td style="padding: 12px 10px; text-align: center; font-weight: 600; color: ${order.status === 'Pending' ? '#94a3b8' : amtVar > 0 ? '#ef4444' : amtVar < 0 ? '#16a34a' : '#64748b'}">
+              ${order.status === 'Pending' ? '-' : `${amtVar > 0 ? '+' : ''}${formatCurrency(amtVar)}`}
+            </td>
+          </tr>
+        `;
+      }).join("");
+
+      container.innerHTML = `
+        <div style="width: 100%;">
+          <!-- Header Row -->
+          <div style="display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 25px; border-bottom: 2px solid #e2e8f0; padding-bottom: 20px;">
+            <div>
+              <h1 style="font-size: 28px; font-weight: 800; color: #1e293b; margin: 0 0 5px 0; letter-spacing: -0.5px;">PURCHASE ORDER</h1>
+              <div style="font-size: 14px; font-weight: bold; color: #0f172a; margin-bottom: 4px;">DVM Solution</div>
+              <div style="font-size: 12px; color: #64748b; max-width: 320px; line-height: 1.4;">
+                123 Business Street, City, State - 400001
+              </div>
+            </div>
+            <div style="text-align: right; font-size: 12px; line-height: 1.6;">
+              <div style="font-size: 13px; font-weight: bold; color: #0f172a; margin-bottom: 6px;">PO Info:</div>
+              <div><strong>PO ID:</strong> ${order.poNumber}</div>
+              <div><strong>Order Date:</strong> ${formatDateInvoice(order.orderDate)}</div>
+              <div><strong>Expected Delivery:</strong> ${formatDateInvoice(order.expectedDelivery)}</div>
+              <div style="margin-top: 6px;">
+                <span style="display: inline-block; padding: 2px 8px; border-radius: 9999px; font-size: 11px; font-weight: bold; ${
+                  order.status === 'Pending' ? 'background-color: #fefce8; color: #ca8a04;' : 'background-color: #dcfce7; color: #16a34a;'
+                }">
+                  ${order.status}
+                </span>
+              </div>
+            </div>
+          </div>
+
+          <!-- Supplier details card -->
+          <div style="background-color: #f8fafc; border: 1px solid #e2e8f0; border-radius: 8px; padding: 15px 20px; margin-bottom: 25px;">
+            <div style="font-size: 12px; font-weight: bold; color: #64748b; text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 5px;">Supplier</div>
+            <div style="font-size: 16px; font-weight: bold; color: #0f172a; margin-bottom: 4px;">${order.supplierName}</div>
+            <div style="font-size: 12px; color: #475569;">Supplier ID: ${order.supplierId}</div>
+          </div>
+
+          <!-- Summary values cards -->
+          <div style="display: flex; gap: 15px; margin-bottom: 30px;">
+            <div style="flex: 1; background-color: #f8fafc; border: 1px solid #e2e8f0; border-radius: 8px; padding: 12px; text-align: center;">
+              <div style="font-size: 11px; color: #64748b; margin-bottom: 4px;">PO Amount (Planned)</div>
+              <div style="font-size: 16px; font-weight: 700; color: #0f172a;">₹${plannedTotal.toLocaleString('en-IN')}</div>
+            </div>
+            <div style="flex: 1; background-color: #f8fafc; border: 1px solid #e2e8f0; border-radius: 8px; padding: 12px; text-align: center;">
+              <div style="font-size: 11px; color: #64748b; margin-bottom: 4px;">Actual PO Amount</div>
+              <div style="font-size: 16px; font-weight: 700; color: #16a34a;">₹${actualTotal.toLocaleString('en-IN')}</div>
+            </div>
+            <div style="flex: 1; background-color: #f8fafc; border: 1px solid #e2e8f0; border-radius: 8px; padding: 12px; text-align: center;">
+              <div style="font-size: 11px; color: #64748b; margin-bottom: 4px;">Total Difference</div>
+              <div style="font-size: 16px; font-weight: 700; color: ${totalVariance <= 0 ? '#16a34a' : '#ef4444'};">
+                ₹${Math.abs(totalVariance).toLocaleString('en-IN')} ${totalVariance <= 0 ? '↓' : '↑'}
+              </div>
+            </div>
+          </div>
+
+          <!-- Items Table -->
+          <table style="width: 100%; border-collapse: collapse; border: 1px solid #e2e8f0; border-radius: 8px; overflow: hidden; margin-bottom: 30px;">
+            <thead>
+              <tr style="background: #f8fafc; border-bottom: 1.5px solid #e2e8f0; color: #475569; font-size: 10px; font-weight: bold; text-transform: uppercase; tracking-wider;">
+                <th rowspan="2" style="padding: 10px; text-align: left; border-bottom: 1px solid #e2e8f0;">Product Name</th>
+                <th rowspan="2" style="padding: 10px; text-align: center; border-bottom: 1px solid #e2e8f0; width: 50px;">Unit</th>
+                <th colspan="3" style="padding: 6px 10px; text-align: center; border-left: 1px solid #e2e8f0; border-bottom: 1px solid #e2e8f0;">Planned</th>
+                <th colspan="3" style="padding: 6px 10px; text-align: center; border-left: 1px solid #e2e8f0; border-bottom: 1px solid #e2e8f0;">Actual</th>
+                <th colspan="2" style="padding: 6px 10px; text-align: center; border-left: 1px solid #e2e8f0; border-bottom: 1px solid #e2e8f0;">Variance</th>
+              </tr>
+              <tr style="background: #fcfcfc; color: #64748b; font-size: 9px; font-weight: bold; text-transform: uppercase;">
+                <th style="padding: 6px; border-bottom: 1px solid #e2e8f0; border-left: 1px solid #e2e8f0; text-align: center; width: 50px;">Qty</th>
+                <th style="padding: 6px; border-bottom: 1px solid #e2e8f0; text-align: center; width: 70px;">Price</th>
+                <th style="padding: 6px; border-bottom: 1px solid #e2e8f0; text-align: center; width: 80px;">Amount</th>
+                <th style="padding: 6px; border-bottom: 1px solid #e2e8f0; border-left: 1px solid #e2e8f0; text-align: center; width: 60px;">Received</th>
+                <th style="padding: 6px; border-bottom: 1px solid #e2e8f0; text-align: center; width: 70px;">Price</th>
+                <th style="padding: 6px; border-bottom: 1px solid #e2e8f0; text-align: center; width: 80px;">Amount</th>
+                <th style="padding: 6px; border-bottom: 1px solid #e2e8f0; border-left: 1px solid #e2e8f0; text-align: center; width: 70px;">Price Diff</th>
+                <th style="padding: 6px; border-bottom: 1px solid #e2e8f0; text-align: center; width: 80px;">Amt Diff</th>
+              </tr>
+            </thead>
+            <tbody>
+              ${itemsHtml}
+              <!-- Footer Total Row -->
+              <tr style="background: #fcfcfc; font-size: 11px; font-weight: bold;">
+                <td colspan="2" style="padding: 12px 10px;"></td>
+                <td colspan="2" style="padding: 12px 10px; text-align: right; border-left: 1px solid #e2e8f0;">Total:</td>
+                <td style="padding: 12px 10px; text-align: center; font-size: 12px; color: #0f172a;">₹${plannedTotal.toLocaleString('en-IN')}</td>
+                <td colspan="2" style="padding: 12px 10px; text-align: right; border-left: 1px solid #e2e8f0;"></td>
+                <td style="padding: 12px 10px; text-align: center; font-size: 12px; color: #16a34a;">₹${actualTotal.toLocaleString('en-IN')}</td>
+                <td style="padding: 12px 10px; border-left: 1px solid #e2e8f0;"></td>
+                <td style="padding: 12px 10px; text-align: center; font-size: 12px; color: ${totalVariance > 0 ? '#ef4444' : '#16a34a'}">
+                  ${totalVariance > 0 ? '+' : ''}₹${totalVariance.toLocaleString('en-IN')}
+                </td>
+              </tr>
+            </tbody>
+          </table>
+
+          <!-- Notes / Footer disclaimer -->
+          <div style="font-size: 11px; color: #64748b; line-height: 1.5; margin-top: 40px; border-top: 1px solid #e2e8f0; padding-top: 15px;">
+            <div style="font-weight: bold; color: #0f172a; margin-bottom: 4px;">Terms & Conditions</div>
+            <ul style="margin: 0; padding-left: 15px;">
+              <li>Verify quantity and unit specifications against the delivery receipt immediately upon receipt.</li>
+              <li>This is a system-generated Purchase Order and does not require an authorized signature.</li>
+            </ul>
+          </div>
+        </div>
+      `;
+
+      document.body.appendChild(container);
+
+      const canvas = await html2canvas(container, {
+        scale: 2,
+        useCORS: true,
+        backgroundColor: "#ffffff"
+      });
+
+      document.body.removeChild(container);
+
+      const imgData = canvas.toDataURL("image/png");
+      const pdf = new jsPDF({
+        orientation: "portrait",
+        unit: "px",
+        format: [canvas.width / 2, canvas.height / 2]
+      });
+
+      pdf.addImage(imgData, "PNG", 0, 0, canvas.width / 2, canvas.height / 2);
+      pdf.save(`purchase_order_${order.poNumber}.pdf`);
+      toast.success("Purchase Order downloaded as PDF!");
+    } catch (error) {
+      console.error("Failed to generate purchase order PDF:", error);
+      toast.error("Failed to download PDF purchase order.");
+    }
+  };
+
   return (
     <div className="flex flex-col gap-6 max-w-[1400px]">
       
@@ -99,7 +303,10 @@ export default function PurchaseOrderDetails({ params }: { params: Promise<{ id:
               Edit PO
             </button>
           )}
-          <button className="flex items-center gap-2 px-4 py-2 border border-[#e2e8f0] bg-white text-[#0f172a] font-semibold rounded-lg text-sm hover:bg-[#f8fafc] transition-colors shadow-sm">
+          <button 
+            onClick={handleDownloadPDF}
+            className="flex items-center gap-2 px-4 py-2 border border-[#e2e8f0] bg-white text-[#0f172a] font-semibold rounded-lg text-sm hover:bg-[#f8fafc] transition-colors shadow-sm"
+          >
             <DownloadIcon className="w-4 h-4" />
             Download PDF
           </button>
