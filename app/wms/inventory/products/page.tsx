@@ -316,6 +316,146 @@ export default function WMSProductInventory() {
     }
   };
 
+  const handleDownloadPDF = async () => {
+    try {
+      const html2canvas = (await import("html2canvas")).default;
+      const { jsPDF } = await import("jspdf");
+
+      const itemsToExport = selectedItems.length > 0 
+        ? filteredInventory.filter(item => selectedItems.includes(item.id))
+        : filteredInventory;
+
+      if (itemsToExport.length === 0) {
+        toast.error("No items available to export.");
+        return;
+      }
+
+      // Create a temporary hidden container styled beautifully
+      const container = document.createElement("div");
+      container.style.position = "absolute";
+      container.style.left = "-9999px";
+      container.style.top = "-9999px";
+      container.style.width = "800px";
+      container.style.padding = "40px";
+      container.style.background = "#ffffff";
+      container.style.color = "#0f172a";
+      container.style.fontFamily = "'Inter', system-ui, -apple-system, sans-serif";
+      container.style.boxSizing = "border-box";
+
+      const rowsHtml = itemsToExport.map(item => `
+        <tr style="border-bottom: 1px solid #e2e8f0; font-size: 13px;">
+          <td style="padding: 12px 10px; font-weight: 600; color: #0f172a; word-break: break-word; white-space: normal;">${item.name}</td>
+          <td style="padding: 12px 10px; color: #475569; word-break: break-word; white-space: normal;">${item.category}</td>
+          <td style="padding: 12px 10px; font-weight: 600; color: #0f172a;">${item.stock} ${item.unit}</td>
+          <td style="padding: 12px 10px; color: #475569;">${item.basePrice}</td>
+          <td style="padding: 12px 10px; color: #475569;">${item.sellingPrice}</td>
+          <td style="padding: 12px 10px; color: #475569;">${item.location}</td>
+          <td style="padding: 12px 10px;">
+            <span style="display: inline-block; padding: 4px 8px; border-radius: 4px; font-size: 11px; font-weight: 700; ${
+              item.status === 'Low Stock' 
+                ? 'background: #fff7ed; color: #ea580c;' 
+                : 'background: #ecfdf5; color: #059669;'
+            }">${item.status}</span>
+          </td>
+        </tr>
+      `).join("");
+
+      container.innerHTML = `
+        <div style="width: 100%;">
+          <!-- Header -->
+          <div style="display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 30px; border-bottom: 2px solid #07ac57; padding-bottom: 20px;">
+            <div>
+              <h1 style="font-size: 28px; font-weight: 800; color: #111827; margin: 0 0 5px 0;">INVENTORY REPORT</h1>
+              <p style="font-size: 14px; color: #475569; margin: 0;">Generated from Warehouse Management System</p>
+            </div>
+            <div style="text-align: right; font-size: 12px; color: #475569; line-height: 1.5;">
+              <div><strong>Date:</strong> ${new Date().toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' })}</div>
+              <div><strong>Selected Items:</strong> ${itemsToExport.length}</div>
+            </div>
+          </div>
+
+          <!-- Summary Metrics Cards -->
+          <div style="display: flex; gap: 20px; margin-bottom: 30px;">
+            <div style="flex: 1; background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 8px; padding: 15px; text-align: left;">
+              <div style="font-size: 12px; color: #64748b; font-weight: 600; margin-bottom: 5px; text-transform: uppercase;">Total Items</div>
+              <div style="font-size: 24px; font-weight: 700; color: #0f172a;">${itemsToExport.length}</div>
+            </div>
+            <div style="flex: 1; background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 8px; padding: 15px; text-align: left;">
+              <div style="font-size: 12px; color: #64748b; font-weight: 600; margin-bottom: 5px; text-transform: uppercase;">Total Stock Qty</div>
+              <div style="font-size: 24px; font-weight: 700; color: #07ac57;">${itemsToExport.reduce((acc, curr) => acc + curr.stock, 0).toLocaleString()}</div>
+            </div>
+          </div>
+
+          <!-- Table -->
+          <table style="width: 100%; border-collapse: collapse; text-align: left; margin-bottom: 20px; table-layout: fixed;">
+            <thead>
+              <tr style="background: #f8fafc; border-bottom: 2px solid #cbd5e1; font-size: 12px; font-weight: 700; color: #475569; text-transform: uppercase;">
+                <th style="padding: 10px; width: 25%;">Product</th>
+                <th style="padding: 10px; width: 15%;">Category</th>
+                <th style="padding: 10px; width: 15%;">Current Stock</th>
+                <th style="padding: 10px; width: 12%;">Base Price</th>
+                <th style="padding: 10px; width: 12%;">Selling Price</th>
+                <th style="padding: 10px; width: 10%;">Location</th>
+                <th style="padding: 10px; width: 11%;">Status</th>
+              </tr>
+            </thead>
+            <tbody>
+              ${rowsHtml}
+            </tbody>
+          </table>
+
+          <!-- Footer -->
+          <div style="margin-top: 40px; border-top: 1px solid #e2e8f0; padding-top: 15px; text-align: center; font-size: 11px; color: #94a3b8;">
+            This document is a computer-generated report. All data is real-time inventory at the time of export.
+          </div>
+        </div>
+      `;
+
+      document.body.appendChild(container);
+
+      const canvas = await html2canvas(container, {
+        scale: 2,
+        useCORS: true,
+        backgroundColor: "#ffffff",
+        windowWidth: 800,
+        width: 800
+      });
+
+      document.body.removeChild(container);
+
+      const imgData = canvas.toDataURL("image/png");
+      const pdf = new jsPDF({
+        orientation: "portrait",
+        unit: "mm",
+        format: "a4"
+      });
+
+      const pageWidth = pdf.internal.pageSize.getWidth();
+      const pageHeight = pdf.internal.pageSize.getHeight();
+      const imgWidth = pageWidth;
+      const imgHeight = (canvas.height * imgWidth) / canvas.width;
+
+      let heightLeft = imgHeight;
+      let position = 0;
+
+      pdf.addImage(imgData, "PNG", 0, position, imgWidth, imgHeight);
+      heightLeft -= pageHeight;
+
+      while (heightLeft > 0) {
+        position = heightLeft - imgHeight;
+        pdf.addPage();
+        pdf.addImage(imgData, "PNG", 0, position, imgWidth, imgHeight);
+        heightLeft -= pageHeight;
+      }
+
+      pdf.save(`warehouse_inventory_selection.pdf`);
+      toast.success("PDF report downloaded successfully!");
+    } catch (error) {
+      console.error("Failed to generate PDF report:", error);
+      toast.error("Failed to generate PDF download.");
+    }
+  };
+
   return (
     <div className="flex flex-col gap-6 max-w-[1400px]">
       {/* TOP ROW: Title & Actions */}
@@ -496,6 +636,13 @@ export default function WMSProductInventory() {
               </select>
               <ChevronDownIcon className="w-4 h-4 text-[#6b7280] absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none" />
             </div>
+            <button 
+              onClick={handleDownloadPDF}
+              className="bg-[#07ac57] text-white px-5 py-2 rounded-lg text-sm font-medium hover:opacity-90 active:scale-95 transition-all flex items-center gap-2 cursor-pointer"
+            >
+              <DownloadIcon className="w-4 h-4" />
+              Download PDF
+            </button>
             <button className="bg-[#dc2626] text-white px-5 py-2 rounded-lg text-sm font-medium hover:bg-[#b91c1c] transition-colors">
               Delete Selected
             </button>
