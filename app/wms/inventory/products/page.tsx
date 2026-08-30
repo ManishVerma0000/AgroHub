@@ -342,72 +342,93 @@ export default function WMSProductInventory() {
       container.style.fontFamily = "'Inter', system-ui, -apple-system, sans-serif";
       container.style.boxSizing = "border-box";
 
-      const rowsHtml = itemsToExport.map(item => `
-        <tr style="border-bottom: 1px solid #e2e8f0; font-size: 13px;">
-          <td style="padding: 12px 10px; font-weight: 600; color: #0f172a; word-break: break-word; white-space: normal;">${item.name}</td>
-          <td style="padding: 12px 10px; color: #475569; word-break: break-word; white-space: normal;">${item.category}</td>
-          <td style="padding: 12px 10px; font-weight: 600; color: #0f172a;">${item.stock} ${item.unit}</td>
-          <td style="padding: 12px 10px; color: #475569;">${item.basePrice}</td>
-          <td style="padding: 12px 10px; color: #475569;">${item.sellingPrice}</td>
-          <td style="padding: 12px 10px; color: #475569;">${item.location}</td>
-          <td style="padding: 12px 10px;">
-            <span style="display: inline-block; padding: 4px 8px; border-radius: 4px; font-size: 11px; font-weight: 700; ${
-              item.status === 'Low Stock' 
-                ? 'background: #fff7ed; color: #ea580c;' 
-                : 'background: #ecfdf5; color: #059669;'
-            }">${item.status}</span>
-          </td>
-        </tr>
-      `).join("");
+      const formattedDate = new Date().toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' });
+
+      const rowsHtml = itemsToExport.map(item => {
+        const gp = globalProducts.find(p => p.id === item.productId) || {};
+        const bMargin = parseFloat(gp.baseMargin || "0");
+        const rawSellingPriceText = item.sellingPrice || item.basePrice || "0";
+        const sellingPrice = parseFloat(rawSellingPriceText.replace(/[^0-9.]/g, '')) || 0;
+        const landedCost = bMargin > 0 ? sellingPrice / (1 + bMargin / 100) : sellingPrice;
+        const unit = gp.baseUnit || gp.unit || "Kg";
+
+        const slabs = (gp.b2bBulkSlabs || []).map((slab: any, idx: number) => {
+          let calculatedRate = sellingPrice;
+          if (idx !== 0) {
+            const effectiveMargin = bMargin - (idx * 2);
+            calculatedRate = landedCost * (1 + effectiveMargin / 100);
+          }
+          const formattedRate = calculatedRate % 1 === 0 ? calculatedRate.toFixed(0) : calculatedRate.toFixed(2);
+          return {
+            ...slab,
+            rateText: `₹${formattedRate}/${unit}`,
+            rangeText: `(${slab.minQty} -${slab.maxQty} ${unit})`
+          };
+        });
+
+        const cell1 = `
+          <div style="display: flex; align-items: center; gap: 12px;">
+            ${item.imageUrl 
+              ? `<img src="${item.imageUrl}" crossOrigin="anonymous" style="width: 36px; height: 36px; border-radius: 8px; object-fit: cover; border: 1px solid #e2e8f0; flex-shrink: 0;" />` 
+              : `<div style="width: 36px; height: 36px; border-radius: 8px; background: #f1f5f9; display: flex; align-items: center; justify-content: center; border: 1px solid #e2e8f0; flex-shrink: 0;"><svg style="width: 16px; height: 16px; color: #94a3b8;" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z"></path></svg></div>`
+            }
+            <span style="font-weight: 600; color: #0f172a; font-size: 13px;">${item.name}</span>
+          </div>
+        `;
+
+        const renderSlabCell = (idx: number) => {
+          if (slabs && slabs[idx]) {
+            return `
+              <span style="font-weight: 700; color: #0f172a; font-size: 13.5px;">${slabs[idx].rateText}</span>
+              <span style="font-size: 11px; color: #64748b; font-weight: 500; margin-left: 4px; white-space: nowrap;">${slabs[idx].rangeText}</span>
+            `;
+          }
+          if (idx === 0) {
+            const formattedSellingPrice = rawSellingPriceText.replace(".00", "");
+            return `<span style="font-weight: 700; color: #0f172a; font-size: 13.5px;">${formattedSellingPrice}/${unit}</span>`;
+          }
+          return `<span style="color: #94a3b8;">-</span>`;
+        };
+
+        return `
+          <tr style="border-bottom: 1px solid #e2e8f0; font-size: 13px;">
+            <td style="padding: 12px 10px; text-align: left; vertical-align: middle;">${cell1}</td>
+            <td style="padding: 12px 10px; text-align: left; vertical-align: middle;">${renderSlabCell(0)}</td>
+            <td style="padding: 12px 10px; text-align: left; vertical-align: middle;">${renderSlabCell(1)}</td>
+            <td style="padding: 12px 10px; text-align: left; vertical-align: middle;">${renderSlabCell(2)}</td>
+          </tr>
+        `;
+      }).join("");
 
       container.innerHTML = `
         <div style="width: 100%;">
           <!-- Header -->
-          <div style="display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 30px; border-bottom: 2px solid #07ac57; padding-bottom: 20px;">
+          <div style="display: flex; justify-content: space-between; align-items: flex-end; margin-bottom: 15px; padding-bottom: 10px;">
             <div>
-              <h1 style="font-size: 28px; font-weight: 800; color: #111827; margin: 0 0 5px 0;">INVENTORY REPORT</h1>
-              <p style="font-size: 14px; color: #475569; margin: 0;">Generated from Warehouse Management System</p>
+              <h1 style="font-size: 26px; font-weight: 800; color: #0f172a; margin: 0; letter-spacing: -0.5px; text-transform: uppercase;">PRODUCT RATE LIST</h1>
+              <p style="font-size: 13px; color: #64748b; margin: 4px 0 0 0; font-weight: 500;">Price Only Applicable for today</p>
             </div>
-            <div style="text-align: right; font-size: 12px; color: #475569; line-height: 1.5;">
-              <div><strong>Date:</strong> ${new Date().toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' })}</div>
-              <div><strong>Selected Items:</strong> ${itemsToExport.length}</div>
-            </div>
-          </div>
-
-          <!-- Summary Metrics Cards -->
-          <div style="display: flex; gap: 20px; margin-bottom: 30px;">
-            <div style="flex: 1; background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 8px; padding: 15px; text-align: left;">
-              <div style="font-size: 12px; color: #64748b; font-weight: 600; margin-bottom: 5px; text-transform: uppercase;">Total Items</div>
-              <div style="font-size: 24px; font-weight: 700; color: #0f172a;">${itemsToExport.length}</div>
-            </div>
-            <div style="flex: 1; background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 8px; padding: 15px; text-align: left;">
-              <div style="font-size: 12px; color: #64748b; font-weight: 600; margin-bottom: 5px; text-transform: uppercase;">Total Stock Qty</div>
-              <div style="font-size: 24px; font-weight: 700; color: #07ac57;">${itemsToExport.reduce((acc, curr) => acc + curr.stock, 0).toLocaleString()}</div>
+            <div style="text-align: right; font-size: 13px; color: #0f172a; line-height: 1.6; font-weight: 600;">
+              <div><strong>Date :</strong> ${formattedDate}</div>
+              <div><strong>Total Item:</strong> ${itemsToExport.length}</div>
             </div>
           </div>
+          <div style="border-bottom: 2.5px solid #07ac57; margin-bottom: 25px;"></div>
 
           <!-- Table -->
           <table style="width: 100%; border-collapse: collapse; text-align: left; margin-bottom: 20px; table-layout: fixed;">
             <thead>
-              <tr style="background: #f8fafc; border-bottom: 2px solid #cbd5e1; font-size: 12px; font-weight: 700; color: #475569; text-transform: uppercase;">
-                <th style="padding: 10px; width: 25%;">Product</th>
-                <th style="padding: 10px; width: 15%;">Category</th>
-                <th style="padding: 10px; width: 15%;">Current Stock</th>
-                <th style="padding: 10px; width: 12%;">Base Price</th>
-                <th style="padding: 10px; width: 12%;">Selling Price</th>
-                <th style="padding: 10px; width: 10%;">Location</th>
-                <th style="padding: 10px; width: 11%;">Status</th>
+              <tr style="background: #f8fafc; border-bottom: 1px solid #e2e8f0; font-size: 11px; font-weight: 700; color: #475569; text-transform: uppercase; letter-spacing: 0.5px;">
+                <th style="padding: 12px 10px; width: 40%; text-align: left;">PRODUCT</th>
+                <th style="padding: 12px 10px; width: 20%; text-align: left;">RATE</th>
+                <th style="padding: 12px 10px; width: 20%; text-align: left;">RATE</th>
+                <th style="padding: 12px 10px; width: 20%; text-align: left;">RATE</th>
               </tr>
             </thead>
             <tbody>
               ${rowsHtml}
             </tbody>
           </table>
-
-          <!-- Footer -->
-          <div style="margin-top: 40px; border-top: 1px solid #e2e8f0; padding-top: 15px; text-align: center; font-size: 11px; color: #94a3b8;">
-            This document is a computer-generated report. All data is real-time inventory at the time of export.
-          </div>
         </div>
       `;
 
