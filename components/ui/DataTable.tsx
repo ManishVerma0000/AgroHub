@@ -18,6 +18,7 @@ interface DataTableProps<T> {
     currentPage: number;
     totalPages: number;
     totalItems: number;
+    pageSize?: number;
     onNext: () => void;
     onPrev: () => void;
   };
@@ -100,7 +101,10 @@ export function DataTable<T>({
       {pagination && (
         <div className="p-4 flex items-center justify-between border-t border-[#f3f4f6]">
           <div className="text-sm text-[#6b7280]">
-            Showing {(pagination.currentPage - 1) * 10 + 1}-{Math.min(pagination.currentPage * 10, pagination.totalItems)} of {(pagination.totalItems)}
+            {pagination.totalItems === 0
+              ? 'Showing 0 results'
+              : `Showing ${(pagination.currentPage - 1) * (pagination.pageSize || 50) + 1}-${Math.min(pagination.currentPage * (pagination.pageSize || 50), pagination.totalItems)} of ${pagination.totalItems}`
+            }
           </div>
           <div className="flex items-center gap-2">
             <button 

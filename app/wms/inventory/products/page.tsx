@@ -12,6 +12,168 @@ import { warehouseService } from "../../../../services/warehouseService";
 import { wmsAuthService } from "../../../../services/wmsAuthService";
 import toast from "react-hot-toast";
 
+const HINDI_PRODUCT_TRANSLATIONS: Record<string, string> = {
+  "tomato": "टमाटर",
+  "desi tomato": "देसी टमाटर",
+  "hybrid tomato": "हाइब्रिड टमाटर",
+  "potato": "आलू",
+  "onion": "प्याज",
+  "red onion": "लाल प्याज",
+  "white onion": "सफेद प्याज",
+  "ginger": "अदरक",
+  "garlic": "लहसुन",
+  "green chilli": "हरी मिर्च",
+  "chilli": "मिर्च",
+  "lemon": "नींबू",
+  "cabbage": "पत्ता गोभी",
+  "cauliflower": "फूल गोभी",
+  "carrot": "गाजर",
+  "cucumber": "खीरा",
+  "capsicum": "शिमला मिर्च",
+  "green capsicum": "हरी शिमला मिर्च",
+  "red capsicum": "लाल शिमला मिर्च",
+  "yellow capsicum": "पीली शिमला मिर्च",
+  "lady finger": "भिंडी",
+  "okra": "भिंडी",
+  "bhindi": "भिंडी",
+  "brinjal": "बैंगन",
+  "eggplant": "बैंगन",
+  "round brinjal": "गोल बैंगन",
+  "bottle gourd": "लौकी",
+  "lauki": "लौकी",
+  "bitter gourd": "करेला",
+  "karela": "करेला",
+  "ridge gourd": "तुरई",
+  "turai": "तुरई",
+  "sponge gourd": "गिलकी / तोरी",
+  "pumpkin": "कद्दू / सीताफल",
+  "spinach": "पालक",
+  "coriander": "हरा धनिया",
+  "mint": "पुदीना",
+  "fenugreek": "मेथी",
+  "methi": "मेथी",
+  "green peas": "हरी मटर",
+  "peas": "मटर",
+  "mushroom": "मशरूम",
+  "button mushroom": "बटन मशरूम",
+  "apple": "सेब",
+  "banana": "केला",
+  "mango": "आम",
+  "alphonso mango": "अल्फांसो आम",
+  "orange": "संतरा",
+  "papaya": "पपीता",
+  "pomegranate": "अनार",
+  "watermelon": "तरबूज",
+  "muskmelon": "खरबूजा",
+  "grapes": "अंगूर",
+  "green grapes": "हरे अंगूर",
+  "black grapes": "काले अंगूर",
+  "sweet potato": "शकरकंद",
+  "beetroot": "चुकंदर",
+  "radish": "मूली",
+  "beans": "बीन्स / फलियां",
+  "french beans": "फ्रेंच बीन्स",
+  "cluster beans": "ग्वार फली",
+  "broccoli": "ब्रोकली",
+  "sweet corn": "स्वीट कॉर्न",
+  "corn": "मक्का / भुट्टा",
+  "pineapple": "अनानास",
+  "guava": "अमरूद",
+  "coconut": "नारियल",
+  "raw coconut": "कच्चा नारियल",
+  "amla": "आंवला",
+  "drumstick": "सहजन / मोरिंगा",
+  "arbi": "अरबी",
+  "colocasia": "अरबी",
+  "raw banana": "कच्चा केला",
+  "raw mango": "कच्चा आम / केरी",
+  "curry leaves": "कढ़ी पत्ता",
+  "paneer": "पनीर",
+  "milk": "दूध",
+  "curd": "दही",
+  "ghee": "घी"
+};
+
+const translateProductNameToHindi = (name: string): string => {
+  if (!name) return "";
+  const lower = name.trim().toLowerCase();
+  if (HINDI_PRODUCT_TRANSLATIONS[lower]) {
+    return HINDI_PRODUCT_TRANSLATIONS[lower];
+  }
+  
+  let translated = name;
+  const wordReplacements: [RegExp, string][] = [
+    [/\bdesi\b/gi, "देसी"],
+    [/\borganic\b/gi, "ऑर्गेनिक"],
+    [/\bfresh\b/gi, "ताज़ा"],
+    [/\bhybrid\b/gi, "हाइब्रिड"],
+    [/\bgreen\b/gi, "हरी"],
+    [/\bred\b/gi, "लाल"],
+    [/\bwhite\b/gi, "सफेद"],
+    [/\byellow\b/gi, "पीली"],
+    [/\bsmall\b/gi, "छोटा"],
+    [/\bbig\b/gi, "बड़ा"],
+    [/\bpremium\b/gi, "प्रीमियम"],
+    [/\btomato\b/gi, "टमाटर"],
+    [/\bpotato\b/gi, "आलू"],
+    [/\bonion\b/gi, "प्याज"],
+    [/\bginger\b/gi, "अदरक"],
+    [/\bgarlic\b/gi, "लहसुन"],
+    [/\bchilli\b/gi, "मिर्च"],
+    [/\blemon\b/gi, "नींबू"],
+    [/\bcabbage\b/gi, "पत्ता गोभी"],
+    [/\bcauliflower\b/gi, "फूल गोभी"],
+    [/\bcarrot\b/gi, "गाजर"],
+    [/\bcucumber\b/gi, "खीरा"],
+    [/\bcapsicum\b/gi, "शिमला मिर्च"],
+    [/\bapple\b/gi, "सेब"],
+    [/\bbanana\b/gi, "केला"],
+    [/\bmango\b/gi, "आम"],
+    [/\bspinach\b/gi, "पालक"],
+    [/\bcoriander\b/gi, "धनिया"],
+    [/\bmint\b/gi, "पुदीना"],
+    [/\bmushroom\b/gi, "मशरूम"],
+    [/\blady\s*finger\b/gi, "भिंडी"],
+    [/\bbhindi\b/gi, "भिंडी"],
+    [/\bbrinjal\b/gi, "बैंगन"],
+    [/\blauki\b/gi, "लौकी"],
+    [/\bkarela\b/gi, "करेला"],
+    [/\bmilk\b/gi, "दूध"],
+    [/\bpaneer\b/gi, "पनीर"],
+    [/\bpeas\b/gi, "मटर"]
+  ];
+
+  for (const [regex, replacement] of wordReplacements) {
+    if (regex.test(translated)) {
+      translated = translated.replace(regex, replacement);
+    }
+  }
+
+  return translated;
+};
+
+const translateUnitToHindi = (unit: string): string => {
+  const u = (unit || '').trim().toLowerCase();
+  if (u === 'kg' || u === 'kgs' || u === 'kilogram') return 'किलो';
+  if (u === 'gm' || u === 'gram' || u === 'g') return 'ग्राम';
+  if (u === 'piece' || u === 'pc' || u === 'pcs') return 'पीस';
+  if (u === 'unit' || u === 'units') return 'यूनिट';
+  if (u === 'crate' || u === 'crates') return 'क्रेट';
+  if (u === 'box' || u === 'boxes') return 'बॉक्स';
+  if (u === 'bag' || u === 'bags') return 'बोरी';
+  if (u === 'pack' || u === 'packs' || u === 'packet') return 'पैक';
+  return unit || 'किलो';
+};
+
+const getHindiDateString = () => {
+  const d = new Date();
+  const months = ['जनवरी', 'फ़रवरी', 'मार्च', 'अप्रैल', 'मई', 'जून', 'जुलाई', 'अगस्त', 'सितंबर', 'अक्टूबर', 'नवंबर', 'दिसंबर'];
+  const day = String(d.getDate()).padStart(2, '0');
+  const month = months[d.getMonth()];
+  const year = d.getFullYear();
+  return `${day} ${month} ${year}`;
+};
+
 export default function WMSProductInventory() {
   const [selectedItems, setSelectedItems] = useState<number[]>([]);
   
@@ -35,6 +197,11 @@ export default function WMSProductInventory() {
   const [stockModalOpen, setStockModalOpen] = useState(false);
   const [activeStockAction, setActiveStockAction] = useState<StockActionType | null>(null);
   const [selectedProductForAction, setSelectedProductForAction] = useState<any>(null);
+
+  // PDF download modal states
+  const [isPdfLanguageModalOpen, setIsPdfLanguageModalOpen] = useState(false);
+  const [selectedPdfLanguage, setSelectedPdfLanguage] = useState<'en' | 'hi'>('en');
+  const [isGeneratingPdf, setIsGeneratingPdf] = useState(false);
 
   React.useEffect(() => {
     fetchInitialData();
@@ -240,12 +407,29 @@ export default function WMSProductInventory() {
     return aExists ? 1 : -1;
   });
 
-  const modalItemsPerPage = 5;
+  const [modalItemsPerPage, setModalItemsPerPage] = useState(50);
   const modalTotalPages = Math.max(1, Math.ceil(filteredGlobalProducts.length / modalItemsPerPage));
 
   React.useEffect(() => {
     setModalCurrentPage(1);
-  }, [modalSearchValue, modalSelectedCategory, isAddModalOpen]);
+  }, [modalSearchValue, modalSelectedCategory, isAddModalOpen, modalItemsPerPage]);
+
+  React.useEffect(() => {
+    if (isAddModalOpen) {
+      const refreshProducts = async () => {
+        setIsLoadingProducts(true);
+        try {
+          const res = await productService.getAll(0, 100);
+          setGlobalProducts(res.items || []);
+        } catch (err) {
+          console.error("Failed to refresh products in modal:", err);
+        } finally {
+          setIsLoadingProducts(false);
+        }
+      };
+      refreshProducts();
+    }
+  }, [isAddModalOpen]);
 
   const paginatedGlobalProducts = filteredGlobalProducts.slice((modalCurrentPage - 1) * modalItemsPerPage, modalCurrentPage * modalItemsPerPage);
 
@@ -316,7 +500,7 @@ export default function WMSProductInventory() {
     }
   };
 
-  const handleDownloadPDF = async () => {
+  const handleDownloadPDF = async (language: 'en' | 'hi' = 'en') => {
     try {
       const html2canvas = (await import("html2canvas")).default;
       const { jsPDF } = await import("jspdf");
@@ -326,9 +510,18 @@ export default function WMSProductInventory() {
         : filteredInventory;
 
       if (itemsToExport.length === 0) {
-        toast.error("No items available to export.");
+        toast.error(language === 'hi' ? "निर्यात के लिए कोई उत्पाद उपलब्ध नहीं है।" : "No items available to export.");
         return;
       }
+
+      const isHindi = language === 'hi';
+      const titleText = isHindi ? "उत्पाद दर सूची" : "PRODUCT RATE LIST";
+      const subtitleText = isHindi ? "कीमत केवल आज के लिए मान्य है" : "Price Only Applicable for today";
+      const dateLabel = isHindi ? "दिनांक :" : "Date :";
+      const dateValue = isHindi ? getHindiDateString() : new Date().toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' });
+      const totalItemLabel = isHindi ? "कुल उत्पाद :" : "Total Item :";
+      const colProductHeader = isHindi ? "उत्पाद" : "PRODUCT";
+      const colRateHeader = isHindi ? "दर" : "RATE";
 
       // Create a temporary hidden container styled beautifully
       const container = document.createElement("div");
@@ -339,10 +532,10 @@ export default function WMSProductInventory() {
       container.style.padding = "40px";
       container.style.background = "#ffffff";
       container.style.color = "#0f172a";
-      container.style.fontFamily = "'Inter', system-ui, -apple-system, sans-serif";
+      container.style.fontFamily = isHindi 
+        ? "'Noto Sans Devanagari', 'Segoe UI', 'Mangal', 'Nirmala UI', system-ui, sans-serif"
+        : "'Inter', system-ui, -apple-system, sans-serif";
       container.style.boxSizing = "border-box";
-
-      const formattedDate = new Date().toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' });
 
       const rowsHtml = itemsToExport.map(item => {
         const gp = globalProducts.find(p => p.id === item.productId) || {};
@@ -351,6 +544,8 @@ export default function WMSProductInventory() {
         const sellingPrice = parseFloat(rawSellingPriceText.replace(/[^0-9.]/g, '')) || 0;
         const landedCost = bMargin > 0 ? sellingPrice / (1 + bMargin / 100) : sellingPrice;
         const unit = gp.baseUnit || gp.unit || "Kg";
+        const displayUnit = isHindi ? translateUnitToHindi(unit) : unit;
+        const displayName = isHindi ? translateProductNameToHindi(item.name) : item.name;
 
         const slabs = (gp.b2bBulkSlabs || []).map((slab: any, idx: number) => {
           let calculatedRate = sellingPrice;
@@ -361,8 +556,8 @@ export default function WMSProductInventory() {
           const formattedRate = calculatedRate % 1 === 0 ? calculatedRate.toFixed(0) : calculatedRate.toFixed(2);
           return {
             ...slab,
-            rateText: `₹${formattedRate}/${unit}`,
-            rangeText: `(${slab.minQty} -${slab.maxQty} ${unit})`
+            rateText: `₹${formattedRate}/${displayUnit}`,
+            rangeText: `(${slab.minQty} - ${slab.maxQty} ${displayUnit})`
           };
         });
 
@@ -372,7 +567,7 @@ export default function WMSProductInventory() {
               ? `<img src="${item.imageUrl}" crossOrigin="anonymous" style="width: 36px; height: 36px; border-radius: 8px; object-fit: cover; border: 1px solid #e2e8f0; flex-shrink: 0;" />` 
               : `<div style="width: 36px; height: 36px; border-radius: 8px; background: #f1f5f9; display: flex; align-items: center; justify-content: center; border: 1px solid #e2e8f0; flex-shrink: 0;"><svg style="width: 16px; height: 16px; color: #94a3b8;" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z"></path></svg></div>`
             }
-            <span style="font-weight: 600; color: #0f172a; font-size: 13px;">${item.name}</span>
+            <span style="font-weight: 600; color: #0f172a; font-size: 13.5px;">${displayName}</span>
           </div>
         `;
 
@@ -385,7 +580,7 @@ export default function WMSProductInventory() {
           }
           if (idx === 0) {
             const formattedSellingPrice = rawSellingPriceText.replace(".00", "");
-            return `<span style="font-weight: 700; color: #0f172a; font-size: 13.5px;">${formattedSellingPrice}/${unit}</span>`;
+            return `<span style="font-weight: 700; color: #0f172a; font-size: 13.5px;">${formattedSellingPrice}/${displayUnit}</span>`;
           }
           return `<span style="color: #94a3b8;">-</span>`;
         };
@@ -402,15 +597,19 @@ export default function WMSProductInventory() {
 
       container.innerHTML = `
         <div style="width: 100%;">
+          <link rel="preconnect" href="https://fonts.googleapis.com">
+          <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+          <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+Devanagari:wght@400;500;600;700;800&family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+
           <!-- Header -->
           <div style="display: flex; justify-content: space-between; align-items: flex-end; margin-bottom: 15px; padding-bottom: 10px;">
             <div>
-              <h1 style="font-size: 26px; font-weight: 800; color: #0f172a; margin: 0; letter-spacing: -0.5px; text-transform: uppercase;">PRODUCT RATE LIST</h1>
-              <p style="font-size: 13px; color: #64748b; margin: 4px 0 0 0; font-weight: 500;">Price Only Applicable for today</p>
+              <h1 style="font-size: 26px; font-weight: 800; color: #0f172a; margin: 0; letter-spacing: -0.5px;">${titleText}</h1>
+              <p style="font-size: 13px; color: #64748b; margin: 4px 0 0 0; font-weight: 500;">${subtitleText}</p>
             </div>
             <div style="text-align: right; font-size: 13px; color: #0f172a; line-height: 1.6; font-weight: 600;">
-              <div><strong>Date :</strong> ${formattedDate}</div>
-              <div><strong>Total Item:</strong> ${itemsToExport.length}</div>
+              <div><strong>${dateLabel}</strong> ${dateValue}</div>
+              <div><strong>${totalItemLabel}</strong> ${itemsToExport.length}</div>
             </div>
           </div>
           <div style="border-bottom: 2.5px solid #07ac57; margin-bottom: 25px;"></div>
@@ -418,11 +617,11 @@ export default function WMSProductInventory() {
           <!-- Table -->
           <table style="width: 100%; border-collapse: collapse; text-align: left; margin-bottom: 20px; table-layout: fixed;">
             <thead>
-              <tr style="background: #f8fafc; border-bottom: 1px solid #e2e8f0; font-size: 11px; font-weight: 700; color: #475569; text-transform: uppercase; letter-spacing: 0.5px;">
-                <th style="padding: 12px 10px; width: 40%; text-align: left;">PRODUCT</th>
-                <th style="padding: 12px 10px; width: 20%; text-align: left;">RATE</th>
-                <th style="padding: 12px 10px; width: 20%; text-align: left;">RATE</th>
-                <th style="padding: 12px 10px; width: 20%; text-align: left;">RATE</th>
+              <tr style="background: #f8fafc; border-bottom: 1px solid #e2e8f0; font-size: 11px; font-weight: 700; color: #475569; letter-spacing: 0.5px;">
+                <th style="padding: 12px 10px; width: 40%; text-align: left;">${colProductHeader}</th>
+                <th style="padding: 12px 10px; width: 20%; text-align: left;">${colRateHeader}</th>
+                <th style="padding: 12px 10px; width: 20%; text-align: left;">${colRateHeader}</th>
+                <th style="padding: 12px 10px; width: 20%; text-align: left;">${colRateHeader}</th>
               </tr>
             </thead>
             <tbody>
@@ -469,8 +668,12 @@ export default function WMSProductInventory() {
         heightLeft -= pageHeight;
       }
 
-      pdf.save(`warehouse_inventory_selection.pdf`);
-      toast.success("PDF report downloaded successfully!");
+      const pdfFilename = isHindi
+        ? `product_rate_list_hindi_${new Date().toISOString().split('T')[0]}.pdf`
+        : `product_rate_list_english_${new Date().toISOString().split('T')[0]}.pdf`;
+
+      pdf.save(pdfFilename);
+      toast.success(isHindi ? "उत्पाद दर सूची (हिन्दी) डाउनलोड हो गई!" : "Product Rate List (English) downloaded successfully!");
     } catch (error) {
       console.error("Failed to generate PDF report:", error);
       toast.error("Failed to generate PDF download.");
@@ -523,6 +726,16 @@ export default function WMSProductInventory() {
               <div className="absolute right-0 top-full mt-2 w-48 bg-white border border-[#e2e8f0] rounded-xl shadow-lg py-1 z-10">
                 <button className="w-full text-left px-4 py-2 text-sm text-[#111827] hover:bg-[#f9fafb]">Download Sample</button>
                 <button className="w-full text-left px-4 py-2 text-sm text-[#111827] hover:bg-[#f9fafb]">Bulk Upload</button>
+                <button 
+                  onClick={() => {
+                    setShowMoreActions(false);
+                    setIsPdfLanguageModalOpen(true);
+                  }}
+                  className="w-full text-left px-4 py-2 text-sm text-[#07ac57] font-semibold hover:bg-[#f9fafb] flex items-center gap-2 border-t border-[#f3f4f6]"
+                >
+                  <DownloadIcon className="w-4 h-4" />
+                  Download Rate List PDF
+                </button>
               </div>
             )}
           </div>
@@ -658,8 +871,8 @@ export default function WMSProductInventory() {
               <ChevronDownIcon className="w-4 h-4 text-[#6b7280] absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none" />
             </div>
             <button 
-              onClick={handleDownloadPDF}
-              className="bg-[#07ac57] text-white px-5 py-2 rounded-lg text-sm font-medium hover:opacity-90 active:scale-95 transition-all flex items-center gap-2 cursor-pointer"
+              onClick={() => setIsPdfLanguageModalOpen(true)}
+              className="bg-[#07ac57] text-white px-5 py-2 rounded-lg text-sm font-medium hover:opacity-90 active:scale-95 transition-all flex items-center gap-2 cursor-pointer shadow-sm"
             >
               <DownloadIcon className="w-4 h-4" />
               Download PDF
@@ -821,8 +1034,8 @@ export default function WMSProductInventory() {
             {/* Modal Content - Step 1 */}
             {addStep === 1 && (
               <div className="flex-1 overflow-y-auto p-6 flex flex-col gap-4 bg-white">
-                <div className="flex gap-4">
-                  <div className="relative flex-1">
+                <div className="flex flex-wrap gap-4 items-center">
+                  <div className="relative flex-1 min-w-[200px]">
                     <SearchIcon className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-[#94a3b8]" />
                     <input 
                       type="text" 
@@ -835,88 +1048,125 @@ export default function WMSProductInventory() {
                   <select 
                     value={modalSelectedCategory}
                     onChange={(e) => setModalSelectedCategory(e.target.value)}
-                    className="border border-[#e2e8f0] rounded-lg px-4 py-2 text-sm outline-none w-48 bg-white text-[#111827]"
+                    className="border border-[#e2e8f0] rounded-lg px-4 py-2 text-sm outline-none w-44 bg-white text-[#111827]"
                   >
                     <option value="All Categories">All Categories</option>
                     {categories.map(c => (
                       <option key={c.id} value={c.name}>{c.name}</option>
                     ))}
                   </select>
+                  <div className="flex items-center gap-2 text-sm text-[#6b7280]">
+                    <span>Show:</span>
+                    <select
+                      value={modalItemsPerPage}
+                      onChange={(e) => setModalItemsPerPage(Number(e.target.value))}
+                      className="border border-[#e2e8f0] rounded-lg px-3 py-2 text-sm outline-none bg-white text-[#111827]"
+                    >
+                      <option value={10}>10 per page</option>
+                      <option value={25}>25 per page</option>
+                      <option value={50}>50 per page</option>
+                      <option value={100}>100 per page</option>
+                    </select>
+                  </div>
                 </div>
                 
-                <div className="border border-[#e2e8f0] rounded-xl overflow-hidden mt-2">
-                  <table className="w-full text-left text-sm">
-                    <thead className="bg-[#f9fafb] text-[#6b7280] font-medium border-b border-[#f3f4f6]">
-                      <tr>
-                        <th className="px-4 py-3 w-10"></th>
-                        <th className="px-4 py-3">Product</th>
-                        <th className="px-4 py-3">Category</th>
-                        <th className="px-4 py-3">Unit</th>
-                        <th className="px-4 py-3">HSN</th>
-                        <th className="px-4 py-3">GST</th>
-                      </tr>
-                    </thead>
-                    <tbody className="divide-y divide-[#f3f4f6]">
-                      {isLoadingProducts ? (
+                <div className="border border-[#e2e8f0] rounded-xl overflow-hidden mt-2 flex flex-col flex-1">
+                  <div className="max-h-[460px] overflow-y-auto">
+                    <table className="w-full text-left text-sm relative">
+                      <thead className="bg-[#f9fafb] text-[#6b7280] font-medium border-b border-[#f3f4f6] sticky top-0 z-10">
                         <tr>
-                          <td colSpan={6} className="px-4 py-8 text-center text-[#6b7280]">
-                            Loading products...
-                          </td>
+                          <th className="px-4 py-3 w-10">
+                            <input 
+                              type="checkbox" 
+                              title="Select all available on this page"
+                              className="rounded text-[#07ac57] cursor-pointer"
+                              checked={
+                                paginatedGlobalProducts.filter(gp => !inventoryItems.some(inv => inv.productId === gp.id)).length > 0 &&
+                                paginatedGlobalProducts
+                                  .filter(gp => !inventoryItems.some(inv => inv.productId === gp.id))
+                                  .every(gp => selectedGlobalProducts.includes(gp.id))
+                              }
+                              onChange={(e) => {
+                                const availableOnPage = paginatedGlobalProducts
+                                  .filter(gp => !inventoryItems.some(inv => inv.productId === gp.id))
+                                  .map(gp => gp.id);
+                                if (e.target.checked) {
+                                  setSelectedGlobalProducts(Array.from(new Set([...selectedGlobalProducts, ...availableOnPage])));
+                                } else {
+                                  setSelectedGlobalProducts(selectedGlobalProducts.filter(id => !availableOnPage.includes(id)));
+                                }
+                              }}
+                            />
+                          </th>
+                          <th className="px-4 py-3">Product</th>
+                          <th className="px-4 py-3">Category</th>
+                          <th className="px-4 py-3">Unit</th>
+                          <th className="px-4 py-3">HSN</th>
+                          <th className="px-4 py-3">GST</th>
                         </tr>
-                      ) : paginatedGlobalProducts.length === 0 ? (
-                        <tr>
-                          <td colSpan={6} className="px-4 py-8 text-center text-[#6b7280]">
-                            No products found matching the criteria.
-                          </td>
-                        </tr>
-                      ) : paginatedGlobalProducts.map(gp => {
-                        const isExisting = inventoryItems.some(inv => inv.productId === gp.id);
-                        return (
-                          <tr key={gp.id} className={isExisting ? "opacity-50 bg-[#f9fafb] cursor-not-allowed" : "hover:bg-[#fcfcfc] cursor-pointer"} onClick={() => {
-                            if (isExisting) return;
-                            if (selectedGlobalProducts.includes(gp.id)) setSelectedGlobalProducts(selectedGlobalProducts.filter(id => id !== gp.id));
-                            else setSelectedGlobalProducts([...selectedGlobalProducts, gp.id]);
-                          }}>
-                            <td className="px-4 py-3">
-                              <input 
-                                type="checkbox" 
-                                checked={isExisting || selectedGlobalProducts.includes(gp.id)}
-                                disabled={isExisting}
-                                readOnly
-                                className="rounded text-[#07ac57] pointer-events-none" 
-                              />
+                      </thead>
+                      <tbody className="divide-y divide-[#f3f4f6]">
+                        {isLoadingProducts ? (
+                          <tr>
+                            <td colSpan={6} className="px-4 py-8 text-center text-[#6b7280]">
+                              Loading products...
                             </td>
-                            <td className="px-4 py-3 font-medium text-[#111827]">
-                              <div className="flex items-center gap-3">
-                                {gp.imageUrl ? (
-                                  <img src={gp.imageUrl} alt={gp.name} className="w-8 h-8 rounded-lg object-cover border border-[#e2e8f0]" />
-                                ) : (
-                                  <div className="w-8 h-8 rounded-lg bg-[#f2fcf6] text-[#07ac57] flex items-center justify-center border border-[#dcfce7]">
-                                    <BoxIcon className="w-4 h-4" />
-                                  </div>
-                                )}
-                                <div>
-                                  {gp.name}
-                                  {isExisting && <span className="text-xs text-[#ef4444] ml-2 font-normal rounded-md border border-[#fca5a5] px-1.5 py-0.5 bg-[#fef2f2]">Added</span>}
-                                </div>
-                              </div>
-                            </td>
-                            <td className="px-4 py-3 text-[#6b7280]">{gp.category || '-'}</td>
-                            <td className="px-4 py-3 text-[#6b7280]">{gp.baseUnit || '-'}</td>
-                            <td className="px-4 py-3 text-[#6b7280]">{gp.hsn || '-'}</td>
-                            <td className="px-4 py-3 text-[#6b7280]">{gp.gstRate ? `${gp.gstRate}%` : '-'}</td>
                           </tr>
-                        );
-                      })}
-                    </tbody>
-                  </table>
+                        ) : paginatedGlobalProducts.length === 0 ? (
+                          <tr>
+                            <td colSpan={6} className="px-4 py-8 text-center text-[#6b7280]">
+                              No products found matching the criteria.
+                            </td>
+                          </tr>
+                        ) : paginatedGlobalProducts.map(gp => {
+                          const isExisting = inventoryItems.some(inv => inv.productId === gp.id);
+                          return (
+                            <tr key={gp.id} className={isExisting ? "opacity-50 bg-[#f9fafb] cursor-not-allowed" : "hover:bg-[#fcfcfc] cursor-pointer"} onClick={() => {
+                              if (isExisting) return;
+                              if (selectedGlobalProducts.includes(gp.id)) setSelectedGlobalProducts(selectedGlobalProducts.filter(id => id !== gp.id));
+                              else setSelectedGlobalProducts([...selectedGlobalProducts, gp.id]);
+                            }}>
+                              <td className="px-4 py-3">
+                                <input 
+                                  type="checkbox" 
+                                  checked={isExisting || selectedGlobalProducts.includes(gp.id)}
+                                  disabled={isExisting}
+                                  readOnly
+                                  className="rounded text-[#07ac57] pointer-events-none" 
+                                />
+                              </td>
+                              <td className="px-4 py-3 font-medium text-[#111827]">
+                                <div className="flex items-center gap-3">
+                                  {gp.imageUrl ? (
+                                    <img src={gp.imageUrl} alt={gp.name} className="w-8 h-8 rounded-lg object-cover border border-[#e2e8f0]" />
+                                  ) : (
+                                    <div className="w-8 h-8 rounded-lg bg-[#f2fcf6] text-[#07ac57] flex items-center justify-center border border-[#dcfce7]">
+                                      <BoxIcon className="w-4 h-4" />
+                                    </div>
+                                  )}
+                                  <div>
+                                    {gp.name}
+                                    {isExisting && <span className="text-xs text-[#ef4444] ml-2 font-normal rounded-md border border-[#fca5a5] px-1.5 py-0.5 bg-[#fef2f2]">Added</span>}
+                                  </div>
+                                </div>
+                              </td>
+                              <td className="px-4 py-3 text-[#6b7280]">{gp.category || '-'}</td>
+                              <td className="px-4 py-3 text-[#6b7280]">{gp.baseUnit || '-'}</td>
+                              <td className="px-4 py-3 text-[#6b7280]">{gp.hsn || '-'}</td>
+                              <td className="px-4 py-3 text-[#6b7280]">{gp.gstRate ? `${gp.gstRate}%` : '-'}</td>
+                            </tr>
+                          );
+                        })}
+                      </tbody>
+                    </table>
+                  </div>
                   
                   {/* Pagination Controls */}
-                  {modalTotalPages > 1 && (
-                    <div className="flex items-center justify-between px-4 py-3 border-t border-[#f3f4f6] bg-[#fcfcfc]">
-                      <span className="text-sm text-[#6b7280]">
-                        Showing <span className="font-semibold text-[#111827]">{(modalCurrentPage - 1) * modalItemsPerPage + 1}</span> to <span className="font-semibold text-[#111827]">{Math.min(modalCurrentPage * modalItemsPerPage, filteredGlobalProducts.length)}</span> of <span className="font-semibold text-[#111827]">{filteredGlobalProducts.length}</span> products
-                      </span>
+                  <div className="flex items-center justify-between px-4 py-3 border-t border-[#f3f4f6] bg-[#fcfcfc]">
+                    <span className="text-sm text-[#6b7280]">
+                      Showing <span className="font-semibold text-[#111827]">{filteredGlobalProducts.length === 0 ? 0 : (modalCurrentPage - 1) * modalItemsPerPage + 1}</span> to <span className="font-semibold text-[#111827]">{Math.min(modalCurrentPage * modalItemsPerPage, filteredGlobalProducts.length)}</span> of <span className="font-semibold text-[#111827]">{filteredGlobalProducts.length}</span> products
+                    </span>
+                    {modalTotalPages > 1 && (
                       <div className="flex items-center gap-2">
                         <button 
                           onClick={() => setModalCurrentPage(p => Math.max(p - 1, 1))}
@@ -934,8 +1184,8 @@ export default function WMSProductInventory() {
                           Next
                         </button>
                       </div>
-                    </div>
-                  )}
+                    )}
+                  </div>
                 </div>
               </div>
             )}
@@ -1089,6 +1339,119 @@ export default function WMSProductInventory() {
           }}
           onSubmit={handleStockActionSubmit}
         />
+      )}
+
+      {/* PDF Language Selection Modal */}
+      {isPdfLanguageModalOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm p-4 animate-in fade-in duration-150">
+          <div className="bg-white rounded-2xl shadow-2xl max-w-md w-full p-6 border border-[#e2e8f0] relative animate-in zoom-in-95 duration-150">
+            {/* Modal Header */}
+            <div className="flex justify-between items-start mb-5">
+              <div>
+                <h3 className="text-xl font-bold text-[#0f172a]">Download Product Rate List</h3>
+                <p className="text-xs text-[#64748b] mt-0.5">Select your preferred PDF language format</p>
+              </div>
+              <button 
+                onClick={() => !isGeneratingPdf && setIsPdfLanguageModalOpen(false)}
+                className="text-[#94a3b8] hover:text-[#0f172a] p-1.5 rounded-lg hover:bg-[#f1f5f9] transition-colors"
+                disabled={isGeneratingPdf}
+              >
+                <XIcon className="w-5 h-5" />
+              </button>
+            </div>
+
+            {/* Language Options */}
+            <div className="flex flex-col gap-3 mb-6">
+              {/* English Option */}
+              <div 
+                onClick={() => setSelectedPdfLanguage('en')}
+                className={`flex items-start gap-4 p-4 rounded-xl border-2 transition-all cursor-pointer ${
+                  selectedPdfLanguage === 'en'
+                    ? 'border-[#07ac57] bg-[#f0fdf4]'
+                    : 'border-[#e2e8f0] hover:border-[#cbd5e1] bg-white'
+                }`}
+              >
+                <div className={`w-5 h-5 mt-0.5 rounded-full border-2 flex items-center justify-center shrink-0 ${
+                  selectedPdfLanguage === 'en' ? 'border-[#07ac57] bg-[#07ac57]' : 'border-[#cbd5e1]'
+                }`}>
+                  {selectedPdfLanguage === 'en' && <div className="w-2 h-2 rounded-full bg-white" />}
+                </div>
+                <div className="flex flex-col">
+                  <div className="flex items-center gap-2">
+                    <span className="font-bold text-sm text-[#0f172a]">English Version</span>
+                    <span className="text-[11px] font-semibold px-2 py-0.5 bg-[#e2e8f0] text-[#475569] rounded">Standard</span>
+                  </div>
+                  <p className="text-xs text-[#64748b] mt-1">
+                    Rate list in English with standard units (Kg, Rate) and English product names.
+                  </p>
+                </div>
+              </div>
+
+              {/* Hindi Option */}
+              <div 
+                onClick={() => setSelectedPdfLanguage('hi')}
+                className={`flex items-start gap-4 p-4 rounded-xl border-2 transition-all cursor-pointer ${
+                  selectedPdfLanguage === 'hi'
+                    ? 'border-[#07ac57] bg-[#f0fdf4]'
+                    : 'border-[#e2e8f0] hover:border-[#cbd5e1] bg-white'
+                }`}
+              >
+                <div className={`w-5 h-5 mt-0.5 rounded-full border-2 flex items-center justify-center shrink-0 ${
+                  selectedPdfLanguage === 'hi' ? 'border-[#07ac57] bg-[#07ac57]' : 'border-[#cbd5e1]'
+                }`}>
+                  {selectedPdfLanguage === 'hi' && <div className="w-2 h-2 rounded-full bg-white" />}
+                </div>
+                <div className="flex flex-col">
+                  <div className="flex items-center gap-2">
+                    <span className="font-bold text-sm text-[#0f172a]">हिन्दी प्रारूप (Hindi Version)</span>
+                    <span className="text-[11px] font-semibold px-2 py-0.5 bg-[#dcfce7] text-[#15803d] rounded">लोकल भाव</span>
+                  </div>
+                  <p className="text-xs text-[#64748b] mt-1">
+                    उत्पाद दर सूची (दैनिक भाव) हिन्दी नामों और 'दर' व 'किलो' प्रारूप में।
+                  </p>
+                </div>
+              </div>
+            </div>
+
+            {/* Modal Actions */}
+            <div className="flex items-center justify-end gap-3 pt-2">
+              <button
+                type="button"
+                onClick={() => setIsPdfLanguageModalOpen(false)}
+                disabled={isGeneratingPdf}
+                className="px-4 py-2 border border-[#e2e8f0] text-[#475569] hover:bg-[#f8fafc] text-sm font-semibold rounded-lg transition-colors"
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                onClick={async () => {
+                  setIsGeneratingPdf(true);
+                  try {
+                    await handleDownloadPDF(selectedPdfLanguage);
+                    setIsPdfLanguageModalOpen(false);
+                  } finally {
+                    setIsGeneratingPdf(false);
+                  }
+                }}
+                disabled={isGeneratingPdf}
+                className="px-5 py-2 bg-[#07ac57] hover:bg-[#069a4e] active:scale-95 text-white text-sm font-semibold rounded-lg shadow-sm transition-all flex items-center gap-2 disabled:opacity-50 cursor-pointer"
+              >
+                {isGeneratingPdf ? (
+                  <>
+                    <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                    Generating...
+                  </>
+                ) : (
+                  <>
+                    <DownloadIcon className="w-4 h-4" />
+                    Download {selectedPdfLanguage === 'hi' ? 'हिन्दी' : 'English'} PDF
+                  </>
+                )}
+              </button>
+            </div>
+          </div>
+        </div>
       )}
     </div>
   );

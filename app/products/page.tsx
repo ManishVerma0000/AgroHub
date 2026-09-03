@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { PageHeader } from '@/components/ui/PageHeader';
 import { Button } from '@/components/ui/Button';
 import { ProductList, ProductData } from '@/components/Products/ProductList';
@@ -15,34 +15,36 @@ export default function ProductsPage() {
   const [categories, setCategories] = useState<any[]>([]);
   const [currentPage, setCurrentPage] = useState(1);
   const [totalItems, setTotalItems] = useState(0);
-  const limit = 10;
+  const limit = 50;
+
+  const fetchProductsAndCategories = useCallback(async (page: number = currentPage) => {
+    try {
+      const skip = (page - 1) * limit;
+      const [productsRes, categoriesList] = await Promise.all([
+        productService.getAll(skip, limit),
+        categoryService.getAll()
+      ]);
+      
+      setCategories(categoriesList);
+      setTotalItems(productsRes.total);
+
+      const categoryMap = new Map(categoriesList.map((c: any) => [c.id, c.name]));
+      
+      const mappedProducts = productsRes.items.map((p: any) => ({
+        ...p,
+        categoryName: categoryMap.get(p.categoryId) || p.category || undefined
+      }));
+      
+      setData(mappedProducts);
+    } catch (error) {
+      console.error('Failed to fetch data:', error);
+    }
+  }, [currentPage, limit]);
 
   useEffect(() => {
-    const fetchProductsAndCategories = async () => {
-      try {
-        const skip = (currentPage - 1) * limit;
-        const [productsRes, categoriesList] = await Promise.all([
-          productService.getAll(skip, limit),
-          categoryService.getAll()
-        ]);
-        
-        setCategories(categoriesList);
-        setTotalItems(productsRes.total);
+    fetchProductsAndCategories(currentPage);
+  }, [currentPage, fetchProductsAndCategories]);
 
-        const categoryMap = new Map(categoriesList.map((c: any) => [c.id, c.name]));
-        
-        const mappedProducts = productsRes.items.map((p: any) => ({
-          ...p,
-          categoryName: categoryMap.get(p.categoryId) || undefined
-        }));
-        
-        setData(mappedProducts);
-      } catch (error) {
-        console.error('Failed to fetch data:', error);
-      }
-    };
-    fetchProductsAndCategories();
-  }, [currentPage]);
   const [isAdding, setIsAdding] = useState(false);
   const [editingItem, setEditingItem] = useState<ProductData | null>(null);
 
@@ -54,7 +56,8 @@ export default function ProductsPage() {
   const handleDelete = async (id: string) => {
     try {
       await productService.delete(id);
-      setData(data.filter(item => item.id !== id));
+      setData(prev => prev.filter(item => item.id !== id));
+      setTotalItems(prev => Math.max(0, prev - 1));
       toast.success('Product deleted successfully');
     } catch (error) {
       console.error('Failed to delete product:', error);
@@ -69,10 +72,13 @@ export default function ProductsPage() {
         const result = await productService.update(editingItem.id, savedData, imageFile);
         const mappedResult = {
           ...result,
-          categoryName: categories.find(c => c.id === result.categoryId)?.name
+          categoryName: categories.find(c => c.id === result.categoryId)?.name || result.category
         };
-        setData(data.map(item => item.id === editingItem.id ? mappedResult : item));
+        setData(prev => prev.map(item => item.id === editingItem.id ? mappedResult : item));
         toast.success('Product updated successfully');
+        setIsAdding(false);
+        setEditingItem(null);
+        await fetchProductsAndCategories(currentPage);
       } else {
         // Add new — pass imageFile so service can upload to S3 and save URL
         const newItem = await productService.create({
@@ -82,17 +88,20 @@ export default function ProductsPage() {
         }, imageFile);
         const mappedNewItem = {
           ...newItem,
-          categoryName: categories.find(c => c.id === newItem.categoryId)?.name
+          categoryName: categories.find(c => c.id === newItem.categoryId)?.name || newItem.category
         };
-        setData([mappedNewItem, ...data]);
+        setData(prev => [mappedNewItem, ...prev]);
+        setTotalItems(prev => prev + 1);
+        setCurrentPage(1);
         toast.success('Product added successfully');
+        setIsAdding(false);
+        setEditingItem(null);
+        await fetchProductsAndCategories(1);
       }
     } catch (error) {
       console.error('Failed to save product:', error);
       toast.error('Failed to save product');
     }
-    setIsAdding(false);
-    setEditingItem(null);
   };
 
   const handleCancel = () => {
@@ -136,9 +145,10 @@ export default function ProductsPage() {
           onDelete={handleDelete} 
           pagination={{
             currentPage,
-            totalPages: Math.ceil(totalItems / limit),
+            totalPages: Math.ceil(totalItems / limit) || 1,
             totalItems,
-            onNext: () => setCurrentPage(p => Math.min(p + 1, Math.ceil(totalItems / limit))),
+            pageSize: limit,
+            onNext: () => setCurrentPage(p => Math.min(p + 1, Math.ceil(totalItems / limit) || 1)),
             onPrev: () => setCurrentPage(p => Math.max(p - 1, 1))
           }}
         />

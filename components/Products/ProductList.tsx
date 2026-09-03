@@ -33,6 +33,7 @@ interface ProductListProps {
     currentPage: number;
     totalPages: number;
     totalItems: number;
+    pageSize?: number;
     onNext: () => void;
     onPrev: () => void;
   };
@@ -349,7 +350,7 @@ export function ProductList({ data, categories, onEdit, onDelete, pagination }: 
       )}
       <DataTable
         columns={columns}
-        data={data}
+        data={filteredData}
         searchPlaceholder="Search products..."
         onSearch={setSearchTerm}
         filters={
