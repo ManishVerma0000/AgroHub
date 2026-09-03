@@ -16,7 +16,7 @@ const uploadImage = async (file: File): Promise<string | null> => {
 };
 
 export const productService = {
-  getAll: async (skip: number = 0, limit: number = 10) => {
+  getAll: async (skip: number = 0, limit: number = 50) => {
     const response = await api.get(`/products/?skip=${skip}&limit=${limit}`);
     return response.data;
   },
