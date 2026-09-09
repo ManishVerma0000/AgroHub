@@ -7,7 +7,6 @@ import { stockActionService } from "../../../../../services/stockActionService";
 import { productService } from "../../../../../services/productService";
 import { warehouseProductService } from "../../../../../services/warehouseProductService";
 import { StockActionModal, StockActionType } from "../../../../../components/Products/StockActionModal";
-import { EditWarehouseProductModal } from "../../../../../components/Products/EditWarehouseProductModal";
 
 export default function ProductDetailsPage({ params }: { params: Promise<{ id: string }> }) {
   const unwrappedParams = React.use(params);
@@ -17,7 +16,6 @@ export default function ProductDetailsPage({ params }: { params: Promise<{ id: s
 
   // Modal state
   const [isStockModalOpen, setIsStockModalOpen] = useState(false);
-  const [isEditModalOpen, setIsEditModalOpen] = useState(false);
   const [activeStockAction, setActiveStockAction] = useState<StockActionType | null>(null);
 
   useEffect(() => {
@@ -186,21 +184,9 @@ export default function ProductDetailsPage({ params }: { params: Promise<{ id: s
               </p>
             </div>
           </div>
-          <div className="flex items-center gap-3">
-            <button
-              onClick={() => setIsEditModalOpen(true)}
-              className="px-4 py-2 rounded-xl bg-[#eff6ff] text-[#2563eb] hover:bg-[#dbeafe] font-semibold text-sm transition-all flex items-center gap-2 cursor-pointer border border-[#bfdbfe] shadow-sm active:scale-95"
-            >
-              <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/>
-                <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/>
-              </svg>
-              Edit Product
-            </button>
-            <span className="px-5 py-2 rounded-lg bg-[#dcfce7] text-[#059669] font-bold text-sm">
-              {product.status}
-            </span>
-          </div>
+          <span className="px-5 py-2 rounded-lg bg-[#dcfce7] text-[#059669] font-bold text-sm">
+            {product.status}
+          </span>
         </div>
       </div>
 
@@ -409,16 +395,6 @@ export default function ProductDetailsPage({ params }: { params: Promise<{ id: s
             unit: product.unit
           }}
           onSubmit={handleStockActionSubmit}
-        />
-      )}
-
-      {/* Edit Warehouse Product Modal */}
-      {product && (
-        <EditWarehouseProductModal
-          isOpen={isEditModalOpen}
-          onClose={() => setIsEditModalOpen(false)}
-          product={product}
-          onSuccess={fetchProductDetails}
         />
       )}
     </div>
