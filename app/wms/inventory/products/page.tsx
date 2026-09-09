@@ -8,7 +8,6 @@ import { productService } from "../../../../services/productService";
 import { warehouseProductService } from "../../../../services/warehouseProductService";
 import { categoryService } from "../../../../services/categoryService";
 import { StockActionModal, StockActionType } from "../../../../components/Products/StockActionModal";
-import { EditWarehouseProductModal } from "../../../../components/Products/EditWarehouseProductModal";
 import { warehouseService } from "../../../../services/warehouseService";
 import { wmsAuthService } from "../../../../services/wmsAuthService";
 import toast from "react-hot-toast";
@@ -204,10 +203,6 @@ export default function WMSProductInventory() {
   const [selectedPdfLanguage, setSelectedPdfLanguage] = useState<'en' | 'hi'>('en');
   const [isGeneratingPdf, setIsGeneratingPdf] = useState(false);
 
-  // Edit modal states
-  const [isEditModalOpen, setIsEditModalOpen] = useState(false);
-  const [productToEdit, setProductToEdit] = useState<any>(null);
-
   React.useEffect(() => {
     fetchInitialData();
   }, []);
@@ -377,9 +372,6 @@ export default function WMSProductInventory() {
       reorder: invItem.reorderLevel || 0,
       basePrice: invItem.basePrice ? `₹${Number(invItem.basePrice).toFixed(2)}` : "-",
       sellingPrice: invItem.sellingPrice ? `₹${Number(invItem.sellingPrice).toFixed(2)}` : "-",
-      rawBasePrice: invItem.basePrice,
-      rawSellingPrice: invItem.sellingPrice,
-      rawStock: invItem.currentStock ?? invItem.initialStock ?? 0,
       location: invItem.location || "-",
       status: invItem.status || "In Stock",
       unit: gp.baseUnit || gp.unit || "Units",
@@ -531,33 +523,24 @@ export default function WMSProductInventory() {
       const colProductHeader = isHindi ? "उत्पाद" : "PRODUCT";
       const colRateHeader = isHindi ? "दर" : "RATE";
 
-      const getProxiedImageUrl = (url: string | null) => {
-        if (!url) return null;
-        if (url.startsWith("http://") || url.startsWith("https://")) {
-          return `/api/proxy-image?url=${encodeURIComponent(url)}`;
-        }
-        return url;
-      };
+      // Create a temporary hidden container styled beautifully
+      const container = document.createElement("div");
+      container.style.position = "absolute";
+      container.style.left = "-9999px";
+      container.style.top = "-9999px";
+      container.style.width = "800px";
+      container.style.padding = "40px";
+      container.style.background = "#ffffff";
+      container.style.color = "#0f172a";
+      container.style.fontFamily = isHindi 
+        ? "'Noto Sans Devanagari', 'Segoe UI', 'Mangal', 'Nirmala UI', system-ui, sans-serif"
+        : "'Inter', system-ui, -apple-system, sans-serif";
+      container.style.boxSizing = "border-box";
 
-      const waitForImages = async (container: HTMLElement) => {
-        const images = Array.from(container.querySelectorAll("img"));
-        if (images.length === 0) return;
-        await Promise.all(
-          images.map(img => {
-            if (img.complete && img.naturalHeight > 0) return Promise.resolve();
-            return new Promise<void>(resolve => {
-              const timer = setTimeout(() => resolve(), 1500);
-              img.onload = () => { clearTimeout(timer); resolve(); };
-              img.onerror = () => { clearTimeout(timer); resolve(); };
-            });
-          })
-        );
-      };
-
-      const buildRowHtml = (item: any) => {
+      const rowsHtml = itemsToExport.map(item => {
         const gp = globalProducts.find(p => p.id === item.productId) || {};
         const bMargin = parseFloat(gp.baseMargin || "0");
-        const rawSellingPriceText = String(item.sellingPrice || item.basePrice || "0");
+        const rawSellingPriceText = item.sellingPrice || item.basePrice || "0";
         const sellingPrice = parseFloat(rawSellingPriceText.replace(/[^0-9.]/g, '')) || 0;
         const landedCost = bMargin > 0 ? sellingPrice / (1 + bMargin / 100) : sellingPrice;
         const unit = gp.baseUnit || gp.unit || "Kg";
@@ -578,14 +561,13 @@ export default function WMSProductInventory() {
           };
         });
 
-        const proxiedImg = getProxiedImageUrl(item.imageUrl);
         const cell1 = `
           <div style="display: flex; align-items: center; gap: 12px;">
-            ${proxiedImg 
-              ? `<img src="${proxiedImg}" crossOrigin="anonymous" style="width: 36px; height: 36px; border-radius: 8px; object-fit: cover; border: 1px solid #e2e8f0; flex-shrink: 0;" />` 
+            ${item.imageUrl 
+              ? `<img src="${item.imageUrl}" crossOrigin="anonymous" style="width: 36px; height: 36px; border-radius: 8px; object-fit: cover; border: 1px solid #e2e8f0; flex-shrink: 0;" />` 
               : `<div style="width: 36px; height: 36px; border-radius: 8px; background: #f1f5f9; display: flex; align-items: center; justify-content: center; border: 1px solid #e2e8f0; flex-shrink: 0;"><svg style="width: 16px; height: 16px; color: #94a3b8;" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z"></path></svg></div>`
             }
-            <span style="font-weight: 600; color: #0f172a; font-size: 13.5px; line-height: 1.35;">${displayName}</span>
+            <span style="font-weight: 600; color: #0f172a; font-size: 13.5px;">${displayName}</span>
           </div>
         `;
 
@@ -605,78 +587,63 @@ export default function WMSProductInventory() {
 
         return `
           <tr style="border-bottom: 1px solid #e2e8f0; font-size: 13px;">
-            <td style="padding: 10px; text-align: left; vertical-align: middle; width: 40%;">${cell1}</td>
-            <td style="padding: 10px; text-align: left; vertical-align: middle; width: 20%;">${renderSlabCell(0)}</td>
-            <td style="padding: 10px; text-align: left; vertical-align: middle; width: 20%;">${renderSlabCell(1)}</td>
-            <td style="padding: 10px; text-align: left; vertical-align: middle; width: 20%;">${renderSlabCell(2)}</td>
+            <td style="padding: 12px 10px; text-align: left; vertical-align: middle;">${cell1}</td>
+            <td style="padding: 12px 10px; text-align: left; vertical-align: middle;">${renderSlabCell(0)}</td>
+            <td style="padding: 12px 10px; text-align: left; vertical-align: middle;">${renderSlabCell(1)}</td>
+            <td style="padding: 12px 10px; text-align: left; vertical-align: middle;">${renderSlabCell(2)}</td>
           </tr>
         `;
-      };
+      }).join("");
 
-      // 1. Measure row heights to perform clean, mathematically sound page splitting
-      const measureContainer = document.createElement("div");
-      measureContainer.style.position = "absolute";
-      measureContainer.style.left = "-9999px";
-      measureContainer.style.top = "-9999px";
-      measureContainer.style.width = "800px";
-      measureContainer.style.padding = "35px 40px";
-      measureContainer.style.boxSizing = "border-box";
-      measureContainer.style.visibility = "hidden";
-      measureContainer.innerHTML = `
-        <table style="width: 100%; border-collapse: collapse; table-layout: fixed;">
-          <tbody>
-            ${itemsToExport.map((item, idx) => `
-              <tr id="measure-tr-${idx}" style="border-bottom: 1px solid #e2e8f0; font-size: 13px;">
-                <td style="padding: 10px; width: 40%; text-align: left; vertical-align: middle;">
-                  <div style="display: flex; align-items: center; gap: 12px;">
-                    <div style="width: 36px; height: 36px; flex-shrink: 0;"></div>
-                    <span style="font-weight: 600; font-size: 13.5px; line-height: 1.35;">${isHindi ? translateProductNameToHindi(item.name) : item.name}</span>
-                  </div>
-                </td>
-                <td style="padding: 10px; width: 20%;"><span style="font-size: 13.5px;">-</span></td>
-                <td style="padding: 10px; width: 20%;"><span style="font-size: 13.5px;">-</span></td>
-                <td style="padding: 10px; width: 20%;"><span style="font-size: 13.5px;">-</span></td>
+      container.innerHTML = `
+        <div style="width: 100%;">
+          <link rel="preconnect" href="https://fonts.googleapis.com">
+          <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+          <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+Devanagari:wght@400;500;600;700;800&family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+
+          <!-- Header -->
+          <div style="display: flex; justify-content: space-between; align-items: flex-end; margin-bottom: 15px; padding-bottom: 10px;">
+            <div>
+              <h1 style="font-size: 26px; font-weight: 800; color: #0f172a; margin: 0; letter-spacing: -0.5px;">${titleText}</h1>
+              <p style="font-size: 13px; color: #64748b; margin: 4px 0 0 0; font-weight: 500;">${subtitleText}</p>
+            </div>
+            <div style="text-align: right; font-size: 13px; color: #0f172a; line-height: 1.6; font-weight: 600;">
+              <div><strong>${dateLabel}</strong> ${dateValue}</div>
+              <div><strong>${totalItemLabel}</strong> ${itemsToExport.length}</div>
+            </div>
+          </div>
+          <div style="border-bottom: 2.5px solid #07ac57; margin-bottom: 25px;"></div>
+
+          <!-- Table -->
+          <table style="width: 100%; border-collapse: collapse; text-align: left; margin-bottom: 20px; table-layout: fixed;">
+            <thead>
+              <tr style="background: #f8fafc; border-bottom: 1px solid #e2e8f0; font-size: 11px; font-weight: 700; color: #475569; letter-spacing: 0.5px;">
+                <th style="padding: 12px 10px; width: 40%; text-align: left;">${colProductHeader}</th>
+                <th style="padding: 12px 10px; width: 20%; text-align: left;">${colRateHeader}</th>
+                <th style="padding: 12px 10px; width: 20%; text-align: left;">${colRateHeader}</th>
+                <th style="padding: 12px 10px; width: 20%; text-align: left;">${colRateHeader}</th>
               </tr>
-            `).join("")}
-          </tbody>
-        </table>
+            </thead>
+            <tbody>
+              ${rowsHtml}
+            </tbody>
+          </table>
+        </div>
       `;
-      document.body.appendChild(measureContainer);
 
-      const rowHeights = itemsToExport.map((_, idx) => {
-        const el = measureContainer.querySelector(`#measure-tr-${idx}`);
-        const h = el ? el.getBoundingClientRect().height : 58;
-        return Math.max(58, h);
+      document.body.appendChild(container);
+
+      const canvas = await html2canvas(container, {
+        scale: 2,
+        useCORS: true,
+        backgroundColor: "#ffffff",
+        windowWidth: 800,
+        width: 800
       });
-      document.body.removeChild(measureContainer);
 
-      // 2. Chunk items into page groups without cutting any rows
-      const pages: any[][] = [];
-      let currentPage: any[] = [];
-      let currentHeight = 0;
+      document.body.removeChild(container);
 
-      for (let i = 0; i < itemsToExport.length; i++) {
-        const item = itemsToExport[i];
-        const h = rowHeights[i] || 58;
-        const isFirstPage = pages.length === 0;
-        const maxAllowedHeight = isFirstPage ? 830 : 890;
-
-        if (currentHeight + h > maxAllowedHeight && currentPage.length > 0) {
-          pages.push(currentPage);
-          currentPage = [item];
-          currentHeight = h;
-        } else {
-          currentPage.push(item);
-          currentHeight += h;
-        }
-      }
-      if (currentPage.length > 0) {
-        pages.push(currentPage);
-      }
-
-      const totalPages = pages.length;
-
-      // 3. Render and capture each page independently with jsPDF
+      const imgData = canvas.toDataURL("image/png");
       const pdf = new jsPDF({
         orientation: "portrait",
         unit: "mm",
@@ -685,109 +652,20 @@ export default function WMSProductInventory() {
 
       const pageWidth = pdf.internal.pageSize.getWidth();
       const pageHeight = pdf.internal.pageSize.getHeight();
+      const imgWidth = pageWidth;
+      const imgHeight = (canvas.height * imgWidth) / canvas.width;
 
-      for (let p = 0; p < pages.length; p++) {
-        const pageItems = pages[p];
-        const isFirstPage = p === 0;
+      let heightLeft = imgHeight;
+      let position = 0;
 
-        const pageContainer = document.createElement("div");
-        pageContainer.style.position = "absolute";
-        pageContainer.style.left = "-9999px";
-        pageContainer.style.top = "-9999px";
-        pageContainer.style.width = "800px";
-        pageContainer.style.height = "1131px";
-        pageContainer.style.maxHeight = "1131px";
-        pageContainer.style.boxSizing = "border-box";
-        pageContainer.style.padding = "35px 40px 25px 40px";
-        pageContainer.style.background = "#ffffff";
-        pageContainer.style.color = "#0f172a";
-        pageContainer.style.fontFamily = isHindi 
-          ? "'Noto Sans Devanagari', 'Segoe UI', 'Mangal', 'Nirmala UI', system-ui, sans-serif"
-          : "'Inter', system-ui, -apple-system, sans-serif";
-        pageContainer.style.display = "flex";
-        pageContainer.style.flexDirection = "column";
-        pageContainer.style.justifyContent = "space-between";
-        pageContainer.style.overflow = "hidden";
+      pdf.addImage(imgData, "PNG", 0, position, imgWidth, imgHeight);
+      heightLeft -= pageHeight;
 
-        const pageHeader = isFirstPage ? `
-          <div style="display: flex; justify-content: space-between; align-items: flex-end; margin-bottom: 12px; padding-bottom: 8px;">
-            <div>
-              <h1 style="font-size: 24px; font-weight: 800; color: #0f172a; margin: 0; letter-spacing: -0.5px;">${titleText}</h1>
-              <p style="font-size: 12px; color: #64748b; margin: 3px 0 0 0; font-weight: 500;">${subtitleText}</p>
-            </div>
-            <div style="text-align: right; font-size: 12.5px; color: #0f172a; line-height: 1.5; font-weight: 600;">
-              <div><strong>${dateLabel}</strong> ${dateValue}</div>
-              <div><strong>${totalItemLabel}</strong> ${itemsToExport.length}</div>
-            </div>
-          </div>
-          <div style="border-bottom: 2.5px solid #07ac57; margin-bottom: 16px;"></div>
-        ` : `
-          <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px; padding-bottom: 6px;">
-            <div style="display: flex; align-items: center; gap: 8px;">
-              <span style="font-size: 16px; font-weight: 800; color: #0f172a;">${titleText}</span>
-              <span style="font-size: 11.5px; font-weight: 600; color: #07ac57; background: #ecfdf5; padding: 2px 8px; border-radius: 4px; border: 1px solid #a7f3d0;">
-                ${isHindi ? 'जारी...' : 'Continued...'}
-              </span>
-            </div>
-            <div style="font-size: 12px; color: #64748b; font-weight: 600;">
-              <strong>${dateLabel}</strong> ${dateValue}
-            </div>
-          </div>
-          <div style="border-bottom: 2px solid #07ac57; margin-bottom: 16px;"></div>
-        `;
-
-        const pageRowsHtml = pageItems.map(item => buildRowHtml(item)).join("");
-
-        const pageFooter = `
-          <div style="margin-top: auto; border-top: 1px solid #e2e8f0; padding-top: 8px; display: flex; justify-content: space-between; align-items: center; font-size: 11px; color: #94a3b8; font-weight: 500;">
-            <span>${isHindi ? 'कीमत केवल आज के लिए मान्य है • JiyoFresh Warehouse' : 'Price only valid for today • JiyoFresh Warehouse'}</span>
-            <span>${isHindi ? `पृष्ठ ${p + 1} / ${totalPages}` : `Page ${p + 1} of ${totalPages}`}</span>
-          </div>
-        `;
-
-        pageContainer.innerHTML = `
-          <div style="width: 100%;">
-            ${p === 0 ? `
-              <link rel="preconnect" href="https://fonts.googleapis.com">
-              <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-              <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+Devanagari:wght@400;500;600;700;800&family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
-            ` : ''}
-            ${pageHeader}
-            <table style="width: 100%; border-collapse: collapse; text-align: left; margin-bottom: 12px; table-layout: fixed;">
-              <thead>
-                <tr style="background: #f8fafc; border-bottom: 1px solid #e2e8f0; font-size: 11px; font-weight: 700; color: #475569; letter-spacing: 0.5px;">
-                  <th style="padding: 10px 10px; width: 40%; text-align: left;">${colProductHeader}</th>
-                  <th style="padding: 10px 10px; width: 20%; text-align: left;">${colRateHeader}</th>
-                  <th style="padding: 10px 10px; width: 20%; text-align: left;">${colRateHeader}</th>
-                  <th style="padding: 10px 10px; width: 20%; text-align: left;">${colRateHeader}</th>
-                </tr>
-              </thead>
-              <tbody>
-                ${pageRowsHtml}
-              </tbody>
-            </table>
-          </div>
-          ${pageFooter}
-        `;
-
-        document.body.appendChild(pageContainer);
-        await waitForImages(pageContainer);
-
-        const canvas = await html2canvas(pageContainer, {
-          scale: 2,
-          useCORS: true,
-          backgroundColor: "#ffffff",
-          windowWidth: 800,
-          width: 800
-        });
-
-        document.body.removeChild(pageContainer);
-
-        const pageImgData = canvas.toDataURL("image/png");
-        if (p > 0) {
-          pdf.addPage();
-        }
-        pdf.addImage(pageImgData, "PNG", 0, 0, pageWidth, pageHeight);
+      while (heightLeft > 0) {
+        position = heightLeft - imgHeight;
+        pdf.addPage();
+        pdf.addImage(imgData, "PNG", 0, position, imgWidth, imgHeight);
+        heightLeft -= pageHeight;
       }
 
       const pdfFilename = isHindi
@@ -1113,14 +991,7 @@ export default function WMSProductInventory() {
                             <EyeIcon className="w-4 h-4" />
                           </button>
                         </Link>
-                        <button 
-                          onClick={() => {
-                            setProductToEdit(item);
-                            setIsEditModalOpen(true);
-                          }}
-                          className="text-[#3b82f6] hover:bg-[#eff6ff] p-1.5 rounded transition-colors cursor-pointer" 
-                          title="Edit Product"
-                        >
+                        <button className="text-[#3b82f6] hover:bg-[#eff6ff] p-1.5 rounded transition-colors" title="Update">
                           <EditIcon className="w-4 h-4" />
                         </button>
                         <button 
@@ -1445,16 +1316,8 @@ export default function WMSProductInventory() {
           setDeleteModalOpen(false);
           setItemToDelete(null);
         }}
-        onConfirm={async () => {
-          if (itemToDelete?.id) {
-            try {
-              await warehouseProductService.delete(String(itemToDelete.id));
-              toast.success("Product deleted successfully");
-              await fetchInitialData();
-            } catch (err) {
-              toast.error("Failed to delete product");
-            }
-          }
+        onConfirm={() => {
+          // Implement delete logic here in real app
           setDeleteModalOpen(false);
           setItemToDelete(null);
         }}
@@ -1475,20 +1338,6 @@ export default function WMSProductInventory() {
             unit: selectedProductForAction.unit
           }}
           onSubmit={handleStockActionSubmit}
-        />
-      )}
-
-      {/* Edit Warehouse Product Modal */}
-      {productToEdit && (
-        <EditWarehouseProductModal
-          isOpen={isEditModalOpen}
-          onClose={() => {
-            setIsEditModalOpen(false);
-            setProductToEdit(null);
-          }}
-          product={productToEdit}
-          categories={categories}
-          onSuccess={fetchInitialData}
         />
       )}
 
